@@ -74,7 +74,6 @@ This project uses **remote state storage** in AWS S3 with a **shared bucket arch
 > **📚 New Documentation**: This project now uses a shared Terraform state infrastructure. For complete details, see:
 > - [Infrastructure README](../infrastructure/README.md) - Quick reference and deployment guide
 > - [Bootstrap README](../infrastructure/bootstrap/README.md) - Bootstrap infrastructure details
-> - [Migration Guide](../infrastructure/MIGRATION.md) - How to migrate from old bucket structure
 > - [Bucket Structure](../infrastructure/bootstrap/BUCKET_STRUCTURE.md) - Shared bucket organization
 > - [Terraform State Architecture](../../doc/TERRAFORM_STATE_ARCHITECTURE.md) - Complete architecture overview
 
@@ -141,9 +140,6 @@ Using a single S3 bucket for all project states provides:
 
 See [Bucket Structure](../infrastructure/bootstrap/BUCKET_STRUCTURE.md) for the complete bucket organization.
 
-#### Migrating from Old Structure
-
-If you're migrating from the old project-specific bucket (`quote-lambda-tf-frontend-terraform-state`), follow the [Migration Guide](../infrastructure/MIGRATION.md).
 
 #### Important Notes
 

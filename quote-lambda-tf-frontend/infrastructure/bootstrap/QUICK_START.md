@@ -16,10 +16,6 @@ terraform init
 terraform apply
 ```
 
-## For Existing Deployments
-
-If you already have infrastructure deployed, see [../MIGRATION.md](../MIGRATION.md) for migration steps.
-
 ## Daily Operations
 
 ### Deploy/Update Application
