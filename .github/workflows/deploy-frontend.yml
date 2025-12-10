@@ -86,7 +86,8 @@ jobs:
           echo "✅ CloudFront cache invalidated - changes will be live within 5-15 minutes"
         else
           echo "⚠️ CloudFront distribution ID not set for ${{ github.event.inputs.environment }} environment"
-          echo "💡 Update CLOUDFRONT_DISTRIBUTION_ID_${{ github.event.inputs.environment | upper }} in the workflow to enable cache invalidation"
+          ENV_UPPER=$(echo "${{ github.event.inputs.environment }}" | tr '[:lower:]' '[:upper:]')
+          echo "💡 Update CLOUDFRONT_DISTRIBUTION_ID_${ENV_UPPER} in the workflow to enable cache invalidation"
         fi
         
     - name: Get CloudFront URL
