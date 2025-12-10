@@ -6,12 +6,12 @@ This directory contains Terraform configuration for deploying the Quote Lambda F
 
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
-- [Terraform State Management](#terraform-state-management)
+- [Terraform State Management / First Time Setup](#terraform-state-management--first-time-setup)
   - [State Storage Configuration](#state-storage-configuration)
   - [Benefits of Remote State](#benefits-of-remote-state)
   - [Backend Bootstrap Process](#backend-bootstrap-process)
   - [Troubleshooting Bootstrap Issues](#troubleshooting-bootstrap-issues)
-- [First-Time Setup](#first-time-setup)
+- [Deploy the Infrastructure](#deploy-the-infrastructure)
   - [Step 1: Review the Infrastructure Plan](#step-1-review-the-infrastructure-plan)
   - [Step 2: Deploy the Infrastructure](#step-2-deploy-the-infrastructure)
   - [Step 3: Note the Outputs](#step-3-note-the-outputs)
@@ -67,7 +67,7 @@ Before you begin, ensure you have:
 
 4. **AWS Profile** named `edwinbulter` configured in `~/.aws/credentials` (or update `provider.tf` with your profile name)
 
-## Terraform State Management
+## Terraform State Management / First Time Setup
 
 This project uses **remote state storage** in AWS S3 for better collaboration and state management.
 
@@ -237,7 +237,7 @@ In a monorepo setup with multiple modules (frontend and backend), the bootstrap 
 
 **Best Practice**: Create the `terraform-locks` DynamoDB table once in one module, then import it in other modules that need it.
 
-## First-Time Setup
+## Deploy the infrastructure
 
 After completing the bootstrap process above, you can deploy the infrastructure:
 
