@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "website" {
-  bucket = var.bucket_name
+  bucket = var.environment == "prod" ? var.bucket_name : "${var.bucket_name}-${var.environment}"
 }
 
 resource "aws_s3_bucket_website_configuration" "website" {

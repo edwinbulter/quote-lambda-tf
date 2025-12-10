@@ -1,6 +1,6 @@
 # DynamoDB table for storing quotes
 resource "aws_dynamodb_table" "quotes_table" {
-  name           = var.quotes_table_name
+  name           = var.environment == "prod" ? var.quotes_table_name : "${var.quotes_table_name}-${var.environment}"
   billing_mode   = "PROVISIONED"
   read_capacity  = var.dynamodb_read_capacity
   write_capacity = var.dynamodb_write_capacity

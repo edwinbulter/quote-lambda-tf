@@ -4,6 +4,12 @@ variable "aws_region" {
   description = "AWS region to deploy resources"
 }
 
+variable "environment" {
+  type        = string
+  default     = "prod"
+  description = "Environment name (dev, prod)"
+}
+
 variable "project_name" {
   type        = string
   default     = "quote-lambda-tf-backend"

@@ -1,8 +1,8 @@
 # HTTP API Gateway
 resource "aws_apigatewayv2_api" "quote_api" {
-  name          = "${var.project_name}-api"
+  name          = var.environment == "prod" ? "${var.project_name}-api" : "${var.project_name}-api-${var.environment}"
   protocol_type = "HTTP"
-  description   = "HTTP API for ${var.project_name}"
+  description   = "HTTP API for ${var.project_name} (${var.environment})"
   
   cors_configuration {
     allow_origins = ["*"]
@@ -63,7 +63,7 @@ resource "aws_apigatewayv2_route" "api_route" {
 
 # CloudWatch Log Group for API Gateway
 resource "aws_cloudwatch_log_group" "api_gateway" {
-  name              = "/aws/api-gw/${var.project_name}"
+  name              = var.environment == "prod" ? "/aws/api-gw/${var.project_name}" : "/aws/api-gw/${var.project_name}-${var.environment}"
   retention_in_days = 30
 }
 

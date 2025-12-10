@@ -9,10 +9,11 @@
 
 terraform {
   backend "s3" {
-    bucket         = "edwinbulter-terraform-state"
-    key            = "quote-lambda-tf-backend/terraform.tfstate"
-    region         = "eu-central-1"
-    dynamodb_table = "terraform-locks"
-    encrypt        = true
+    bucket               = "edwinbulter-terraform-state"
+    key                  = "quote-lambda-tf-backend/terraform.tfstate"
+    region               = "eu-central-1"
+    dynamodb_table       = "terraform-locks"
+    encrypt              = true
+    workspace_key_prefix = "env"
   }
 }
