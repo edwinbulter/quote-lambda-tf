@@ -212,7 +212,7 @@ To trigger a manual deployment:
 
 ### Infrastructure Deployment
 
-The infrastructure is managed using Terraform. Refer to the [infrastructure/README.md](infrastructure/README.md) for detailed instructions on setting up and managing the AWS resources.
+The infrastructure is managed using Terraform. Refer to [doc/infrastructure.md](doc/infrastructure.md) for detailed instructions on setting up and managing the AWS resources.
 
 #### Key Infrastructure Components
 - **S3 Bucket**: Hosts the static website
@@ -241,5 +241,5 @@ The infrastructure is managed using Terraform. Refer to the [infrastructure/READ
    terraform apply
    ```
 
-For more detailed instructions, see [infrastructure/README.md](infrastructure/README.md).
+For more detailed instructions, see [infrastructure/README.md](doc/infrastructure).
 

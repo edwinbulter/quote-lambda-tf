@@ -6,14 +6,17 @@ This directory contains Terraform configuration for deploying the Quote Lambda F
 
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
+- [Terraform State Management](#terraform-state-management)
+  - [State Storage Configuration](#state-storage-configuration)
+  - [Benefits of Remote State](#benefits-of-remote-state)
+  - [Backend Bootstrap Process](#backend-bootstrap-process)
+  - [Troubleshooting Bootstrap Issues](#troubleshooting-bootstrap-issues)
 - [First-Time Setup](#first-time-setup)
-  - [Step 1: Initialize Terraform Backend](#step-1-initialize-terraform-backend)
-  - [Step 2: Review the Infrastructure Plan](#step-2-review-the-infrastructure-plan)
-  - [Step 3: Deploy the Infrastructure](#step-3-deploy-the-infrastructure)
-  - [Step 4: Note the Outputs](#step-4-note-the-outputs)
+  - [Step 1: Review the Infrastructure Plan](#step-1-review-the-infrastructure-plan)
+  - [Step 2: Deploy the Infrastructure](#step-2-deploy-the-infrastructure)
+  - [Step 3: Note the Outputs](#step-3-note-the-outputs)
 - [Configuration](#configuration)
   - [Variables](#variables)
-  - [Backend Configuration](#backend-configuration)
 - [Terraform Files & Git Repository](#terraform-files--git-repository)
   - [Files Overview](#files-overview)
   - [Recommended .gitignore](#recommended-gitignore)
@@ -64,18 +67,181 @@ Before you begin, ensure you have:
 
 4. **AWS Profile** named `edwinbulter` configured in `~/.aws/credentials` (or update `provider.tf` with your profile name)
 
-## First-Time Setup
+## Terraform State Management
 
-### Step 1: Initialize Terraform Backend
+This project uses **remote state storage** in AWS S3 for better collaboration and state management.
 
-The backend configuration uses S3 for remote state storage. On first setup, the backend is already configured and the required resources (S3 bucket and DynamoDB table) have been created.
+### State Storage Configuration
+
+The Terraform state is stored in:
+- **S3 Bucket**: `quote-lambda-tf-frontend-terraform-state`
+- **State File Path**: `quote-lambda-tf-frontend/terraform.tfstate`
+- **Region**: `eu-central-1`
+- **Encryption**: Enabled (server-side encryption)
+- **State Locking**: DynamoDB table `terraform-locks` (prevents concurrent modifications)
+
+### Benefits of Remote State
+
+- **Collaboration**: Multiple team members can work on the infrastructure
+- **State Locking**: Prevents conflicts when multiple users run Terraform simultaneously
+- **Encryption**: State file is encrypted at rest in S3
+- **Versioning**: S3 versioning allows rollback to previous states
+- **Backup**: State is safely stored in AWS, not on local machines
+
+### Backend Bootstrap Process
+
+The backend configuration requires the S3 bucket and DynamoDB table to exist **before** you can use remote state. This creates a chicken-and-egg problem that we solve using a bootstrap process.
+
+#### Why Bootstrap is Needed
+
+Terraform's backend configuration does not support variables and must reference existing resources. The `backend.tf` file is commented out initially to allow you to create these resources first using local state.
+
+#### Step-by-Step Bootstrap Instructions
+
+**Step 1: Initial Setup (Backend Commented Out)**
+
+The `infrastructure/backend.tf` file comes with the backend block commented out:
+
+```hcl
+# terraform {
+#   backend "s3" {
+#     bucket         = "quote-lambda-tf-frontend-terraform-state"
+#     key            = "quote-lambda-tf-frontend/terraform.tfstate"
+#     region         = "eu-central-1"
+#     dynamodb_table = "terraform-locks"
+#     encrypt        = true
+#   }
+# }
+```
+
+**Step 2: Initialize with Local State**
 
 ```bash
 cd infrastructure
 terraform init
 ```
 
-### Step 2: Review the Infrastructure Plan
+This initializes Terraform using **local state** (stored in `terraform.tfstate` file).
+
+**Step 3: Create Bootstrap Resources**
+
+The `bootstrap.tf` file contains resources to create:
+- S3 bucket: `quote-lambda-tf-frontend-terraform-state`
+- DynamoDB table: `terraform-locks`
+
+Apply the configuration:
+
+```bash
+terraform apply
+```
+
+Review the plan and type `yes` to create:
+- S3 bucket with versioning and encryption
+- DynamoDB table for state locking
+
+**Step 4: Enable Remote Backend**
+
+After the resources are created, uncomment the backend block in `backend.tf`:
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "quote-lambda-tf-frontend-terraform-state"
+    key            = "quote-lambda-tf-frontend/terraform.tfstate"
+    region         = "eu-central-1"
+    dynamodb_table = "terraform-locks"
+    encrypt        = true
+  }
+}
+```
+
+**Step 5: Migrate State to S3**
+
+```bash
+terraform init -migrate-state
+```
+
+Terraform will detect the backend configuration change and prompt:
+
+```
+Do you want to copy existing state to the new backend?
+```
+
+Type `yes` to migrate your local state file to S3.
+
+**Step 6: Verify Migration**
+
+Check that your state is now in S3:
+
+```bash
+aws s3 ls s3://quote-lambda-tf-frontend-terraform-state/
+```
+
+You should see: `quote-lambda-tf-frontend/terraform.tfstate`
+
+Your local `terraform.tfstate` file can now be safely deleted.
+
+#### Important Notes
+
+- **Backend configuration does not support variables** - This is a Terraform limitation, not a bug
+- **Bootstrap resources have `prevent_destroy = true`** - This prevents accidental deletion of your state storage
+- **State locking prevents concurrent modifications** - Multiple users can safely work on the infrastructure
+- **S3 versioning enables state rollback** - You can recover from mistakes by restoring previous versions
+
+### Troubleshooting Bootstrap Issues
+
+#### Issue: DynamoDB Table Already Exists
+
+If you encounter this error during `terraform apply`:
+
+```
+Error: creating AWS DynamoDB Table (terraform-locks): operation error DynamoDB: CreateTable, 
+https response error StatusCode: 400, RequestID: ..., ResourceInUseException: 
+Table already exists: terraform-locks
+```
+
+**Cause**: The `terraform-locks` DynamoDB table already exists in your AWS account, likely from another project or a previous setup (e.g., the backend module in this monorepo).
+
+**Solution**: Import the existing DynamoDB table into your Terraform state:
+
+```bash
+terraform import aws_dynamodb_table.terraform_locks terraform-locks
+```
+
+Then run `terraform apply` again. The table will now be managed by this Terraform configuration.
+
+#### Issue: S3 Bucket Already Exists
+
+If you see:
+
+```
+Error: creating S3 Bucket (quote-lambda-tf-frontend-terraform-state): BucketAlreadyOwnedByYou
+```
+
+**Solution**: Import the existing S3 bucket and its configurations:
+
+```bash
+terraform import aws_s3_bucket.terraform_state quote-lambda-tf-frontend-terraform-state
+terraform import aws_s3_bucket_versioning.terraform_state quote-lambda-tf-frontend-terraform-state
+terraform import aws_s3_bucket_server_side_encryption_configuration.terraform_state quote-lambda-tf-frontend-terraform-state
+```
+
+#### Shared Bootstrap Resources in Monorepo
+
+In a monorepo setup with multiple modules (frontend and backend), the bootstrap resources (S3 bucket and DynamoDB table) can be **shared** across modules:
+
+- **DynamoDB table `terraform-locks`**: Shared for state locking across all modules
+- **S3 buckets**: Each module should have its own bucket with a unique name:
+  - Frontend: `quote-lambda-tf-frontend-terraform-state`
+  - Backend: `quote-lambda-tf-backend-terraform-state`
+
+**Best Practice**: Create the `terraform-locks` DynamoDB table once in one module, then import it in other modules that need it.
+
+## First-Time Setup
+
+After completing the bootstrap process above, you can deploy the infrastructure:
+
+### Step 1: Review the Infrastructure Plan
 
 Preview what resources will be created:
 
@@ -89,7 +255,7 @@ This will show:
 - S3 bucket policies
 - CloudFront Origin Access Identity
 
-### Step 3: Deploy the Infrastructure
+### Step 2: Deploy the Infrastructure
 
 Apply the Terraform configuration:
 
@@ -99,7 +265,7 @@ terraform apply
 
 Review the plan and type `yes` to confirm.
 
-### Step 4: Note the Outputs
+### Step 3: Note the Outputs
 
 After successful deployment, Terraform will output:
 - **s3_bucket_name**: The S3 bucket where you'll upload your built React app
@@ -123,15 +289,6 @@ You can customize the deployment by modifying `variables.tf` or creating a `terr
 aws_region  = "eu-central-1"
 bucket_name = "quote-lambda-frontend"
 ```
-
-### Backend Configuration
-
-The remote state backend is configured in `backend.tf`:
-- **Bucket**: `quote-lambda-frontend-terraform-state`
-- **Key**: `quote-lambda-frontend/terraform.tfstate`
-- **Region**: `eu-central-1`
-- **DynamoDB Table**: `terraform-locks`
-- **Encryption**: Enabled
 
 ## Terraform Files & Git Repository
 

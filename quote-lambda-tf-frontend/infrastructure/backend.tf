@@ -1,3 +1,14 @@
+# This file configures the Terraform backend to store state in S3
+# Note: Backend configuration does not support variables
+#
+# SETUP INSTRUCTIONS:
+# 1. Comment out the backend block below (lines 9-15)
+# 2. Run: terraform init
+# 3. Run: terraform apply (this creates the S3 bucket and DynamoDB table)
+# 4. Uncomment the backend block below
+# 5. Run: terraform init -migrate-state
+# 6. Answer "yes" when prompted to migrate state to S3
+
 terraform {
   backend "s3" {
     bucket         = "quote-lambda-tf-frontend-terraform-state"
@@ -7,50 +18,3 @@ terraform {
     encrypt        = true
   }
 }
-
-
-# Uncomment and run 'terraform apply' to create the S3 bucket and DynamoDB table
-# After creation, uncomment the backend block above and run 'terraform init -migrate-state'
-
-# S3 bucket for storing the Terraform state
-resource "aws_s3_bucket" "terraform_state" {
-  bucket = "quote-lambda-tf-frontend-terraform-state"
-  
-  # Prevent accidental deletion of this S3 bucket
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Enable versioning on the S3 bucket
-resource "aws_s3_bucket_versioning" "terraform_state" {
-  bucket = aws_s3_bucket.terraform_state.id
-  
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-# Enable server-side encryption
-resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" {
-  bucket = aws_s3_bucket.terraform_state.id
-  
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-# DynamoDB table for state locking
-resource "aws_dynamodb_table" "terraform_locks" {
-  name         = "terraform-locks"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "LockID"
-  
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-}
-
