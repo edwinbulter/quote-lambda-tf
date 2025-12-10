@@ -34,7 +34,12 @@ A full-stack serverless quote management application built with modern cloud-nat
 ## 🌟 Live Demo
 
 Access the live application at:
+
+**Production Environment:**
 > **https://d5ly3miadik75.cloudfront.net/**
+
+**Development Environment:**
+> **https://d1fzgis91zws1k.cloudfront.net/**
 
 ## 📋 Overview
 
@@ -289,7 +294,8 @@ This project is open source and available for educational purposes.
 
 ## 🔗 Links
 
-- **Live Application**: https://d5ly3miadik75.cloudfront.net/
+- **Live Application (Production)**: https://d5ly3miadik75.cloudfront.net/
+- **Live Application (Development)**: https://d1fzgis91zws1k.cloudfront.net/
 - **API Endpoint**: https://blgydc5rjk.execute-api.eu-central-1.amazonaws.com
 - **ZenQuotes API**: https://zenquotes.io/
 
