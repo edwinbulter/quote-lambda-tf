@@ -1,6 +1,6 @@
 # Quote Web Frontend
 
-This web app uses the [quote-lambda-java](https://github.com/edwinbulter/quote-lambda-java) API for showing and liking quotes from [ZenQuotes.io](https://zenquotes.io/)
+This web app uses the [quote-lambda-tf-backend](https://github.com/edwinbulter/quote-lambda-tf/tree/main/quote-lambda-tf-backend) API for showing and liking quotes from [ZenQuotes.io](https://zenquotes.io/)
 
 
 ## Table of Contents
@@ -70,22 +70,18 @@ Implemented features:
 - **Hosting**: AWS (S3 + CloudFront CDN)
 - **CI/CD**: GitHub Actions
 
-## API Integration
-
-This frontend integrates with the following API:
-> https://github.com/edwinbulter/quote-lambda-java
-
 ## Live Demo
 
 Access the live application at:
-> https://d2bs2se2x8mgcb.cloudfront.net/
+> https://d5ly3miadik75.cloudfront.net/
 
 ## Getting Started
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/edwinbulter/quote-lambda-frontend.git
-   cd quote-lambda-frontend
+   git clone https://github.com/edwinbulter/quote-lambda-tf.git
+   cd quote-lambda-tf
+   cd quote-lambda-tf-frontend
    ```
 
 2. Install dependencies:
@@ -191,55 +187,12 @@ Playwright tests can be run in GitHub Actions using the workflow file `.github/w
 
 ### GitHub Actions Workflow
 
-The project includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically deploys the frontend to AWS S3 when changes are pushed to the `main` branch.
+The project includes a GitHub Actions workflow [deploy-frontend.yml](../.github/workflows/deploy-frontend.yml) for building and deploying the frontend and a workflow [playwright.yml](../.github/workflows/playwright.yml) for running the Playwright tests.
 
-#### Prerequisites
+Look in [doc/github-workflows.md](doc/github-workflows.md) for more information.
 
-1. Set up the following GitHub Secrets in your repository:
-   - `AWS_ACCESS_KEY_ID`: AWS access key with permissions to upload to S3
-   - `AWS_SECRET_ACCESS_KEY`: Corresponding AWS secret access key
-   - `AWS_REGION`: AWS region (e.g., `eu-central-1`)
-   - `S3_BUCKET`: Name of the S3 bucket for deployment
-   - `CLOUDFRONT_DISTRIBUTION_ID`: CloudFront distribution ID for cache invalidation
-
-2. Ensure your infrastructure is set up (see [Infrastructure Deployment](#infrastructure-deployment)).
-
-#### Manual Trigger
-
-To trigger a manual deployment:
-1. Push changes to the `main` branch
-2. The workflow will automatically build and deploy the application
 
 ### Infrastructure Deployment
 
 The infrastructure is managed using Terraform. Refer to [doc/infrastructure.md](doc/infrastructure.md) for detailed instructions on setting up and managing the AWS resources.
-
-#### Key Infrastructure Components
-- **S3 Bucket**: Hosts the static website
-- **CloudFront**: CDN for global content delivery
-- **ACM**: SSL/TLS certificates
-
-#### First-Time Setup
-
-1. Navigate to the infrastructure directory:
-   ```bash
-   cd infrastructure
-   ```
-
-2. Initialize Terraform:
-   ```bash
-   terraform init
-   ```
-
-3. Review the planned changes:
-   ```bash
-   terraform plan
-   ```
-
-4. Apply the changes:
-   ```bash
-   terraform apply
-   ```
-
-For more detailed instructions, see [infrastructure/README.md](doc/infrastructure).
 
