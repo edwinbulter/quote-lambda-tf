@@ -94,7 +94,9 @@ cat > /tmp/lambda-deploy-policy.json <<EOF
       ],
       "Resource": [
         "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend",
-        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend:*"
+        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend:*",
+        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend-*",
+        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend-*:*"
       ]
     },
     {
@@ -108,7 +110,9 @@ cat > /tmp/lambda-deploy-policy.json <<EOF
       ],
       "Resource": [
         "arn:aws:s3:::quote-lambda-tf-frontend",
-        "arn:aws:s3:::quote-lambda-tf-frontend/*"
+        "arn:aws:s3:::quote-lambda-tf-frontend/*",
+        "arn:aws:s3:::quote-lambda-tf-frontend-*",
+        "arn:aws:s3:::quote-lambda-tf-frontend-*/*"
       ]
     },
     {
@@ -116,7 +120,8 @@ cat > /tmp/lambda-deploy-policy.json <<EOF
       "Effect": "Allow",
       "Action": [
         "cloudfront:CreateInvalidation",
-        "cloudfront:GetInvalidation"
+        "cloudfront:GetInvalidation",
+        "cloudfront:GetDistribution"
       ],
       "Resource": "*"
     }
@@ -159,9 +164,9 @@ echo ""
 echo "✓ Setup complete!"
 echo ""
 echo "The IAM role has been configured with permissions for:"
-echo "  - Lambda deployment (quote-lambda-tf-backend)"
-echo "  - S3 deployment (quote-lambda-tf-frontend)"
-echo "  - CloudFront cache invalidation"
+echo "  - Lambda deployment (quote-lambda-tf-backend and quote-lambda-tf-backend-*)"
+echo "  - S3 deployment (quote-lambda-tf-frontend and quote-lambda-tf-frontend-*)"
+echo "  - CloudFront cache invalidation (all distributions)"
 echo ""
 echo "Next steps:"
 echo "1. Add the following secret to your GitHub repository:"
