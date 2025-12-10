@@ -2,6 +2,35 @@
 
 A full-stack serverless quote management application built with modern cloud-native technologies. This monorepo contains both the frontend React application and the backend Java Lambda API, demonstrating best practices for serverless architecture, infrastructure as code, and CI/CD automation.
 
+## Table of Contents
+
+- [🌟 Live Demo](#-live-demo)
+- [📋 Overview](#-overview)
+- [🏗️ Architecture](#️-architecture)
+- [📦 Repository Structure](#-repository-structure)
+  - [Frontend - React Web Application](#frontend---react-web-application)
+  - [Backend - Java Lambda API](#backend---java-lambda-api)
+- [🚀 Quick Start](#-quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Deploy the Complete Stack](#deploy-the-complete-stack)
+- [🔧 Technology Stack](#-technology-stack)
+  - [Frontend](#frontend)
+  - [Backend](#backend)
+  - [Infrastructure](#infrastructure)
+  - [DevOps](#devops)
+- [📚 Documentation](#-documentation)
+  - [Backend Documentation](#backend-documentation)
+  - [Frontend Documentation](#frontend-documentation)
+  - [Shared Documentation](#shared-documentation)
+- [🔐 GitHub Actions Setup](#-github-actions-setup)
+  - [Required GitHub Secret](#required-github-secret)
+  - [Workflows](#workflows)
+- [🎯 Learning Goals](#-learning-goals)
+- [💰 Cost Estimate](#-cost-estimate)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+- [🔗 Links](#-links)
+
 ## 🌟 Live Demo
 
 Access the live application at:
@@ -187,6 +216,7 @@ aws s3 sync dist/ s3://quote-lambda-tf-frontend --delete
 - [GitHub Workflows](./quote-lambda-tf-frontend/doc/github-workflows.md) - Deployment automation
 
 ### Shared Documentation
+- [Terraform State Architecture](./TERRAFORM_STATE_ARCHITECTURE.md) - Complete state management architecture
 - [AWS OIDC Setup Script](./.github/setup-aws-oidc.sh) - Automated IAM role configuration
 
 ## 🔐 GitHub Actions Setup
