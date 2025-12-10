@@ -11,7 +11,7 @@ import java.util.Set;
 
 public class QuoteRepository {
     private static final DynamoDbClient dynamoDb = DynamoDbClient.create();
-    private static final String TABLE_NAME = "quotes-lambda-java";
+    private static final String TABLE_NAME = "quotes-lambda-tf-quotes";
 
     public QuoteRepository() {
     }
