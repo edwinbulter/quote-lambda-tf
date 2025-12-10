@@ -73,7 +73,12 @@ Implemented features:
 ## Live Demo
 
 Access the live application at:
+
+**Production Environment:**
 > https://d5ly3miadik75.cloudfront.net/
+
+**Development Environment:**
+> https://d1fzgis91zws1k.cloudfront.net/
 
 ## Getting Started
 
