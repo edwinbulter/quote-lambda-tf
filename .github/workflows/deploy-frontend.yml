@@ -1,11 +1,6 @@
 name: Deploy Frontend to AWS S3
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'quote-lambda-tf-frontend/**'
   workflow_dispatch: # Manual triggering only from GitHub UI
 
 jobs:

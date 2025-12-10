@@ -1,11 +1,6 @@
 name: Build and Deploy Lambda
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'quote-lambda-tf-backend/**'  # Note: Path filters cannot use env variables
   workflow_dispatch:
 
 env:

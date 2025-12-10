@@ -150,6 +150,42 @@ Add the following secret to your GitHub repository:
 4. Name: `AWS_ROLE_ARN`
 5. Value: `arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsLambdaDeployRole`
 
+### Required GitHub Secrets
+
+The GitHub Actions workflow requires the following secret to be configured:
+
+| Secret Name | Description | Where to Find the Value |
+|-------------|-------------|-------------------------|
+| `AWS_ROLE_ARN` | IAM Role ARN that GitHub Actions assumes to deploy Lambda | **Option 1**: Output from the setup script (`.github/setup-aws-oidc.sh`)<br>**Option 2**: AWS Console → IAM → Roles → `GitHubActionsLambdaDeployRole` → Copy the ARN<br>**Option 3**: Run command: `aws iam get-role --role-name GitHubActionsLambdaDeployRole --query Role.Arn --output text` |
+
+#### How to Add Secrets to GitHub
+
+1. Navigate to your repository on GitHub
+2. Go to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Enter the secret name and value from the table above
+5. Click **Add secret**
+
+#### Finding Your AWS Role ARN
+
+If you've already created the IAM role but lost the ARN, you can retrieve it using:
+
+```bash
+# Get the Role ARN
+aws iam get-role \
+  --role-name GitHubActionsLambdaDeployRole \
+  --query Role.Arn \
+  --output text
+```
+
+Or find it in the AWS Console:
+1. Go to **IAM** → **Roles**
+2. Search for `GitHubActionsLambdaDeployRole`
+3. Click on the role name
+4. Copy the **ARN** displayed at the top of the page
+
+The ARN format will be: `arn:aws:iam::123456789012:role/GitHubActionsLambdaDeployRole`
+
 ### Testing the Workflow
 
 1. **Test on Pull Request**:
