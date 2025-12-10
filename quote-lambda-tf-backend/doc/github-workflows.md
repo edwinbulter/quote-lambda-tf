@@ -41,7 +41,7 @@ This workflow automatically builds, tests, and deploys the Lambda function to AW
 
 #### Quick Setup (Recommended)
 
-Use the automated setup script to configure AWS (steps 1-3):
+Use the automated setup script [setup-aws-oidc.sh](/.github/setup-aws-oidc.sh) to configure AWS (steps 1-3):
 
 ```bash
 # Get your AWS account ID

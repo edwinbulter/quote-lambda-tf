@@ -92,8 +92,8 @@ cat > /tmp/lambda-deploy-policy.json <<EOF
         "lambda:GetAlias"
       ],
       "Resource": [
-        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quotes-lambda-java",
-        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quotes-lambda-java:*"
+        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend",
+        "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend:*"
       ]
     }
   ]
