@@ -1,6 +1,25 @@
-# Quote Lambda Java
+# Quote Backend
 
-A serverless REST API backend for a quote management application, built with Java 21 and deployed on AWS Lambda. This project demonstrates modern serverless architecture patterns using AWS services and infrastructure as code.
+A serverless REST API backend for the [Quote frontend](../quote-lambda-tf-frontend/README.md), built with Java 21 and deployed on AWS Lambda. This project demonstrates modern serverless architecture patterns using AWS services and infrastructure as code.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+  - [Core Technologies](#core-technologies)
+  - [Dependencies](#dependencies)
+  - [Build & Testing](#build--testing)
+  - [DevOps](#devops)
+- [API Endpoints](#api-endpoints)
+- [Documentation](#documentation)
+- [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Build the Project](#build-the-project)
+  - [Deploy Infrastructure](#deploy-infrastructure)
+  - [Deploy Lambda Function](#deploy-lambda-function)
+- [Project Structure](#project-structure)
+- [Goals](#goals)
 
 ## Overview
 
@@ -9,10 +28,10 @@ This AWS Lambda backend:
 - Provides a REST API for retrieving random quotes and managing liked quotes
 - Is created to learn about building serverless APIs with Java, AWS Lambda, API Gateway, and Terraform
 - Is exposed through API Gateway and consumed by the Quote Web App frontend at:
-  > https://d2bs2se2x8mgcb.cloudfront.net/
+  > https://d5ly3miadik75.cloudfront.net/
 
 The code for the Quote Web App can be found at:
-> https://github.com/edwinbulter/quote-lambda-frontend
+> https://github.com/edwinbulter/quote-lambda-tf/tree/main/quote-lambda-tf-frontend
 
 ## Features
 

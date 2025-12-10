@@ -1,6 +1,6 @@
-# Quote Web Frontend
+# Quote Frontend
 
-This web app uses the [quote-lambda-tf-backend](https://github.com/edwinbulter/quote-lambda-tf/tree/main/quote-lambda-tf-backend) API for showing and liking quotes from [ZenQuotes.io](https://zenquotes.io/)
+This web app uses the [quote-lambda-tf-backend](../quote-lambda-tf-backend/README.md) API for showing and liking quotes from [ZenQuotes.io](https://zenquotes.io/)
 
 
 ## Table of Contents
