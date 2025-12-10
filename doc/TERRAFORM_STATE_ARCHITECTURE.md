@@ -147,8 +147,8 @@ terraform apply
 
 Detailed migration guides are available for each project:
 
-- **Frontend**: [quote-lambda-tf-frontend/infrastructure/MIGRATION.md](quote-lambda-tf-frontend/infrastructure/MIGRATION.md)
-- **Backend**: [quote-lambda-tf-backend/infrastructure/MIGRATION.md](quote-lambda-tf-backend/infrastructure/MIGRATION.md)
+- **Frontend**: [quote-lambda-tf-frontend/infrastructure/MIGRATION.md](../quote-lambda-tf-frontend/infrastructure/MIGRATION.md)
+- **Backend**: [quote-lambda-tf-backend/infrastructure/MIGRATION.md](../quote-lambda-tf-backend/infrastructure/MIGRATION.md)
 
 ### Quick Migration Summary
 

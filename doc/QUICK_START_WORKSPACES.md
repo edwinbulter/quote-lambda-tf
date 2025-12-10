@@ -205,9 +205,9 @@ terraform apply -var="environment=dev"
 
 ## Complete Documentation
 
-- [Workspace Setup Guide](./WORKSPACE_SETUP_GUIDE.md) - Detailed step-by-step guide
-- [Multi-Environment Setup](./MULTI_ENVIRONMENT_SETUP.md) - Complete architecture and options
-- [Terraform State Architecture](./TERRAFORM_STATE_ARCHITECTURE.md) - State management details
+- [Workspace Setup Guide](WORKSPACE_SETUP_GUIDE.md) - Detailed step-by-step guide
+- [Multi-Environment Setup](MULTI_ENVIRONMENT_SETUP.md) - Complete architecture and options
+- [Terraform State Architecture](TERRAFORM_STATE_ARCHITECTURE.md) - State management details
 
 ## Summary
 
