@@ -55,9 +55,12 @@ jobs:
       
     - name: Build application
       working-directory: quote-lambda-tf-frontend
-      run: npm run build
-      env:
-        VITE_ENV: ${{ github.event.inputs.environment }}
+      run: |
+        if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
+          npm run build
+        else
+          npm run build -- --mode development
+        fi
       
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
