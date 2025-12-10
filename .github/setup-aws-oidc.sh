@@ -15,7 +15,7 @@ AWS_ACCOUNT_ID=$1
 GITHUB_USERNAME=$2
 REPO_NAME="quote-lambda-tf"
 ROLE_NAME="GitHubActionsLambdaDeployRole"
-POLICY_NAME="LambdaDeployPolicy"
+POLICY_NAME="GitHubActionsDeployPolicy"
 AWS_REGION="eu-central-1"
 
 echo "Setting up AWS OIDC provider and IAM role for GitHub Actions..."
@@ -75,13 +75,14 @@ else
     echo "✓ Role $ROLE_NAME created"
 fi
 
-# Create Lambda deployment policy
-echo "Creating Lambda deployment policy..."
+# Create deployment policy for Lambda and Frontend
+echo "Creating deployment policy for Lambda and Frontend..."
 cat > /tmp/lambda-deploy-policy.json <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "LambdaDeployment",
       "Effect": "Allow",
       "Action": [
         "lambda:UpdateFunctionCode",
@@ -95,6 +96,29 @@ cat > /tmp/lambda-deploy-policy.json <<EOF
         "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend",
         "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:quote-lambda-tf-backend:*"
       ]
+    },
+    {
+      "Sid": "S3FrontendDeployment",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::quote-lambda-tf-frontend",
+        "arn:aws:s3:::quote-lambda-tf-frontend/*"
+      ]
+    },
+    {
+      "Sid": "CloudFrontInvalidation",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetInvalidation"
+      ],
+      "Resource": "*"
     }
   ]
 }
@@ -134,6 +158,11 @@ rm /tmp/lambda-deploy-policy.json
 echo ""
 echo "✓ Setup complete!"
 echo ""
+echo "The IAM role has been configured with permissions for:"
+echo "  - Lambda deployment (quote-lambda-tf-backend)"
+echo "  - S3 deployment (quote-lambda-tf-frontend)"
+echo "  - CloudFront cache invalidation"
+echo ""
 echo "Next steps:"
 echo "1. Add the following secret to your GitHub repository:"
 echo "   Name: AWS_ROLE_ARN"
@@ -142,5 +171,9 @@ echo ""
 echo "2. Go to: https://github.com/${GITHUB_USERNAME}/${REPO_NAME}/settings/secrets/actions"
 echo "3. Click 'New repository secret'"
 echo "4. Add the secret with the name and value above"
+echo ""
+echo "This secret will be used by both workflows:"
+echo "  - .github/workflows/deploy-lambda.yml"
+echo "  - .github/workflows/deploy-frontend.yml"
 echo ""
 echo "Role ARN: arn:aws:iam::${AWS_ACCOUNT_ID}:role/${ROLE_NAME}"
