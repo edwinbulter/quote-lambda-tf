@@ -51,16 +51,21 @@ quote-lambda-tf-backend/
 
 ## Terraform State Management
 
-This project uses **remote state storage** in AWS S3 for better collaboration and state management.
+This project uses **remote state storage** in AWS S3 with a **shared bucket architecture** for better collaboration and state management.
+
+> **📚 New Documentation**: This project now uses a shared Terraform state infrastructure. For complete details, see:
+> - [Infrastructure README](../infrastructure/README.md) - Quick reference and deployment guide
+> - [Migration Guide](../infrastructure/MIGRATION.md) - How to migrate from old bucket structure
+> - [Terraform State Architecture](../../TERRAFORM_STATE_ARCHITECTURE.md) - Complete architecture overview
 
 ### State Storage Configuration
 
 The Terraform state is stored in:
-- **S3 Bucket**: `quote-lambda-tf-backend-terraform-state`
-- **State File Path**: `quote-lambda-tf-backend/terraform.tfstate`
+- **S3 Bucket**: `edwinbulter-terraform-state` (shared across all projects)
+- **State File Path**: `quote-lambda-tf-backend/terraform.tfstate` (unique to this project)
 - **Region**: `eu-central-1`
 - **Encryption**: Enabled (server-side encryption)
-- **State Locking**: DynamoDB table `terraform-locks` (prevents concurrent modifications)
+- **State Locking**: DynamoDB table `terraform-locks` (shared across all projects)
 
 ### Benefits of Remote State
 
@@ -70,105 +75,44 @@ The Terraform state is stored in:
 - **Versioning**: S3 versioning allows rollback to previous states
 - **Backup**: State is safely stored in AWS, not on local machines
 
-### Backend Bootstrap Process
+### Shared Bootstrap Infrastructure
 
-The backend configuration requires the S3 bucket and DynamoDB table to exist **before** you can use remote state. This creates a chicken-and-egg problem that we solve using a bootstrap process.
+The bootstrap infrastructure (S3 bucket and DynamoDB table) is **shared across all projects** in this repository and only needs to be created once.
 
-#### Why Bootstrap is Needed
+#### Bootstrap Location
 
-Terraform's backend configuration does not support variables and must reference existing resources. The `backend.tf` file is commented out initially to allow you to create these resources first using local state.
+The bootstrap infrastructure is managed in:
+- **Location**: `../quote-lambda-tf-frontend/infrastructure/bootstrap/`
+- **Documentation**: See [Bootstrap README](../../quote-lambda-tf-frontend/infrastructure/bootstrap/README.md)
 
-#### Step-by-Step Bootstrap Instructions
+#### Prerequisites
 
-**Step 1: Initial Setup (Backend Commented Out)**
-
-The `infrastructure/backend.tf` file comes with the backend block commented out:
-
-```hcl
-# terraform {
-#   backend "s3" {
-#     bucket         = "quote-lambda-tf-backend-terraform-state"
-#     key            = "quote-lambda-tf-backend/terraform.tfstate"
-#     region         = "eu-central-1"
-#     dynamodb_table = "terraform-locks"
-#     encrypt        = true
-#   }
-# }
-```
-
-**Step 2: Initialize with Local State**
+Before deploying this backend infrastructure, ensure the bootstrap infrastructure exists:
 
 ```bash
-cd infrastructure
+# Check if shared bucket exists
+aws s3 ls s3://edwinbulter-terraform-state/
+
+# If not, create it (one-time setup)
+cd ../quote-lambda-tf-frontend/infrastructure/bootstrap/
 terraform init
-```
-
-This initializes Terraform using **local state** (stored in `terraform.tfstate` file).
-
-**Step 3: Create Bootstrap Resources**
-
-The `bootstrap.tf` file contains resources to create:
-- S3 bucket: `quote-lambda-tf-backend-terraform-state`
-- DynamoDB table: `terraform-locks`
-
-Apply the configuration:
-
-```bash
 terraform apply
 ```
 
-Review the plan and type `yes` to create:
-- S3 bucket with versioning and encryption
-- DynamoDB table for state locking
+#### Why Shared Bootstrap?
 
-**Step 4: Enable Remote Backend**
+Using a single S3 bucket for all project states provides:
+- ✅ **Cost efficiency**: One bucket instead of multiple
+- ✅ **Centralized management**: All state files in one place
+- ✅ **Simplified IAM**: Single bucket policy for all projects
+- ✅ **Project isolation**: Each project uses a unique key path
+- ✅ **Shared locking**: One DynamoDB table handles locking for all projects
 
-After the resources are created, uncomment the backend block in `backend.tf`:
+See [Bucket Structure](../../quote-lambda-tf-frontend/infrastructure/bootstrap/BUCKET_STRUCTURE.md) for details.
 
-```hcl
-terraform {
-  backend "s3" {
-    bucket         = "quote-lambda-tf-backend-terraform-state"
-    key            = "quote-lambda-tf-backend/terraform.tfstate"
-    region         = "eu-central-1"
-    dynamodb_table = "terraform-locks"
-    encrypt        = true
-  }
-}
-```
+#### Migrating from Old Structure
 
-**Step 5: Migrate State to S3**
-
-```bash
-terraform init -migrate-state
-```
-
-Terraform will detect the backend configuration change and prompt:
-
-```
-Do you want to copy existing state to the new backend?
-```
-
-Type `yes` to migrate your local state file to S3.
-
-**Step 6: Verify Migration**
-
-Check that your state is now in S3:
-
-```bash
-aws s3 ls s3://quote-lambda-tf-backend-terraform-state/
-```
-
-You should see: `quote-lambda-tf-backend/terraform.tfstate`
-
-Your local `terraform.tfstate` file can now be safely deleted.
-
-#### Important Notes
-
-- **Backend configuration does not support variables** - This is a Terraform limitation, not a bug
-- **Bootstrap resources have `prevent_destroy = true`** - This prevents accidental deletion of your state storage
-- **State locking prevents concurrent modifications** - Multiple users can safely work on the infrastructure
-- **S3 versioning enables state rollback** - You can recover from mistakes by restoring previous versions
+If you're migrating from the old project-specific bucket (`quote-lambda-tf-backend-terraform-state`), follow the [Migration Guide](../infrastructure/MIGRATION.md).
 
 ## Deployment
 
