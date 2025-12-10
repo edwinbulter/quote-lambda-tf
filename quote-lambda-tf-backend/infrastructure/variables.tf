@@ -6,8 +6,14 @@ variable "aws_region" {
 
 variable "project_name" {
   type        = string
-  default     = "quotes-lambda-java"
+  default     = "quote-lambda-tf-backend"
   description = "Project name used for resource naming"
+}
+
+variable "quotes_table_name" {
+  type        = string
+  default     = "quote-lambda-tf-quotes"
+  description = "DynamoDB table name for storing quotes"
 }
 
 variable "lambda_memory_size" {

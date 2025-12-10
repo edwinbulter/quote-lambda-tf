@@ -1,6 +1,6 @@
 # S3 bucket for storing the Terraform state
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "quote-lambda-java-terraform-state"
+  bucket = "${var.project_name}-terraform-state"
   
   # Prevent accidental deletion of this S3 bucket
   lifecycle {

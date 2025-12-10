@@ -217,7 +217,6 @@ The infrastructure is managed using Terraform. Refer to the [infrastructure/READ
 #### Key Infrastructure Components
 - **S3 Bucket**: Hosts the static website
 - **CloudFront**: CDN for global content delivery
-- **Route 53**: DNS management
 - **ACM**: SSL/TLS certificates
 
 #### First-Time Setup

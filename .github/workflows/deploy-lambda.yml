@@ -5,12 +5,14 @@ on:
     branches:
       - main
     paths:
-      - 'quote-lambda-tf-backend/**'
+      - 'quote-lambda-tf-backend/**'  # Note: Path filters cannot use env variables
   workflow_dispatch:
 
 env:
   AWS_REGION: eu-central-1
   JAVA_VERSION: 21
+  PROJECT_NAME: quote-lambda-tf-backend
+  LAMBDA_FUNCTION_NAME: quote-lambda-tf-backend
 
 jobs:
   build-and-test:
@@ -27,21 +29,21 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'corretto'
           cache: 'maven'
-          cache-dependency-path: quote-lambda-tf-backend/pom.xml
+          cache-dependency-path: ${{ env.PROJECT_NAME }}/pom.xml
       
       - name: Build with Maven
-        working-directory: quote-lambda-tf-backend
+        working-directory: ${{ env.PROJECT_NAME }}
         run: mvn clean package
       
       - name: Run tests
-        working-directory: quote-lambda-tf-backend
+        working-directory: ${{ env.PROJECT_NAME }}
         run: mvn test
       
       - name: Upload Lambda artifact
         uses: actions/upload-artifact@v4
         with:
           name: lambda-jar
-          path: quote-lambda-tf-backend/target/quote-lambda-java-*.jar
+          path: ${{ env.PROJECT_NAME }}/target/${{ env.PROJECT_NAME }}-*.jar
           retention-days: 1
 
   deploy:
@@ -61,7 +63,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lambda-jar
-          path: quote-lambda-tf-backend/target/
+          path: ${{ env.PROJECT_NAME }}/target/
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -70,24 +72,24 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Deploy Lambda function
-        working-directory: quote-lambda-tf-backend
+        working-directory: ${{ env.PROJECT_NAME }}
         run: |
-          JAR_FILE=$(ls target/quote-lambda-java-*.jar | head -n 1)
+          JAR_FILE=$(ls target/${{ env.PROJECT_NAME }}-*.jar | head -n 1)
           aws lambda update-function-code \
-            --function-name quotes-lambda-java \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --zip-file fileb://$JAR_FILE \
             --region ${{ env.AWS_REGION }}
       
       - name: Wait for Lambda update to complete
         run: |
           aws lambda wait function-updated \
-            --function-name quotes-lambda-java \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --region ${{ env.AWS_REGION }}
       
       - name: Publish new Lambda version for SnapStart
         run: |
           VERSION=$(aws lambda publish-version \
-            --function-name quotes-lambda-java \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --region ${{ env.AWS_REGION }} \
             --query 'Version' \
             --output text)
@@ -95,7 +97,7 @@ jobs:
           
           # Update the 'live' alias to point to the new version
           aws lambda update-alias \
-            --function-name quotes-lambda-java \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --name live \
             --function-version $VERSION \
             --region ${{ env.AWS_REGION }}
@@ -104,7 +106,7 @@ jobs:
       - name: Verify deployment
         run: |
           aws lambda get-function \
-            --function-name quotes-lambda-java \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --region ${{ env.AWS_REGION }} \
             --query 'Configuration.[FunctionName,Runtime,LastModified]' \
             --output table
@@ -112,7 +114,7 @@ jobs:
           echo ""
           echo "SnapStart Status:"
           aws lambda get-function \
-            --function-name quotes-lambda-java:live \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }}:live \
             --region ${{ env.AWS_REGION }} \
             --query 'Configuration.SnapStart' \
             --output table

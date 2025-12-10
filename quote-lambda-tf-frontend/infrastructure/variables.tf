@@ -5,5 +5,5 @@ variable "aws_region" {
 
 variable "bucket_name" {
   type        = string
-  default     = "quote-lambda-frontend"
+  default     = "quote-lambda-tf-frontend"
 }

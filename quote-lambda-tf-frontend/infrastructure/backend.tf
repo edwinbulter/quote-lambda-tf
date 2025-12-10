@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
-    bucket         = "quote-lambda-frontend-terraform-state"
-    key            = "quote-lambda-frontend/terraform.tfstate"
+    bucket         = "quote-lambda-tf-frontend-terraform-state"
+    key            = "quote-lambda-tf-frontend/terraform.tfstate"
     region         = "eu-central-1"
     dynamodb_table = "terraform-locks"
     encrypt        = true
@@ -14,7 +14,7 @@ terraform {
 
 # S3 bucket for storing the Terraform state
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "quote-lambda-frontend-terraform-state"
+  bucket = "quote-lambda-tf-frontend-terraform-state"
   
   # Prevent accidental deletion of this S3 bucket
   lifecycle {
