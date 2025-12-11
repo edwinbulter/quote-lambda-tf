@@ -81,13 +81,76 @@ git push origin v1.0.0
 
 ### 8. Merge Back to Main
 
+After creating the release, merge the release branch back to `main` to keep it synchronized with production.
+
 ```bash
 git checkout main
 git merge release/1.0.0
 git push origin main
-git branch -d release/1.0.0
-git push origin --delete release/1.0.0
+git branch -d release/1.0.0           # Delete local branch
+git push origin --delete release/1.0.0 # Delete remote branch
 ```
+
+**Why delete the release branch?**
+- The tag `v1.0.0` preserves the exact release state (immutable)
+- All changes are now in `main`
+- Release branches are temporary by design
+- Keeps the branch list clean and prevents confusion
+- Use the tag for future reference: `git checkout v1.0.0`
+
+**Why merge back to main?**
+
+This step ensures that `main` reflects the exact state of production:
+
+```
+1. Start: main (1.0.0-SNAPSHOT or previous version)
+   ↓
+2. Create: release/1.0.0 (version changed to 1.0.0, SNAPSHOT removed)
+   ↓
+3. Tag: v1.0.0 (immutable release point)
+   ↓
+4. Merge to: main (1.0.0) ← main now matches production
+```
+
+**Key benefits:**
+- **Version synchronization**: `main` has the release version (`1.0.0`), not `-SNAPSHOT`
+- **Production parity**: `main` represents what's actually deployed
+- **Hotfix base**: Future hotfixes branch from the correct production version
+- **Complete history**: All release changes are preserved in `main`
+
+### 9. Bump Version for Next Development Cycle
+
+Immediately after merging, bump the version to prepare for the next release cycle:
+
+#### Backend
+```bash
+cd quote-lambda-tf-backend
+mvn versions:set -DnewVersion=1.1.0-SNAPSHOT
+mvn versions:commit
+cd ..
+```
+
+#### Frontend
+```bash
+cd quote-lambda-tf-frontend
+npm version 1.1.0-SNAPSHOT --no-git-tag-version
+cd ..
+```
+
+**Note:** npm accepts any version string, so `1.1.0-SNAPSHOT` works directly. Alternatively, manually edit `package.json` to set `"version": "1.1.0-SNAPSHOT"`.
+
+#### Commit the version bump
+```bash
+git add .
+git commit -m "chore: bump version to 1.1.0-SNAPSHOT for next development cycle"
+git push origin main
+```
+
+**Why bump to SNAPSHOT?**
+- Indicates work-in-progress for the next release
+- Prevents confusion between released (`1.0.0`) and development (`1.1.0-SNAPSHOT`) versions
+- Standard practice in Maven/Java projects, also useful for npm projects
+- Makes it clear that `main` is now working toward version `1.1.0`
 
 ## Versioning Rules
 
@@ -124,6 +187,12 @@ git merge release/1.0.1
 git push origin main
 git branch -d release/1.0.1
 git push origin --delete release/1.0.1
+# Bump version for next development cycle
+cd quote-lambda-tf-backend && mvn versions:set -DnewVersion=1.0.2-SNAPSHOT && mvn versions:commit && cd ..
+cd quote-lambda-tf-frontend && npm version 1.0.2-SNAPSHOT --no-git-tag-version && cd ..
+git add .
+git commit -m "chore: bump version to 1.0.2-SNAPSHOT for next development cycle"
+git push origin main
 ```
 
 ## Version Files
