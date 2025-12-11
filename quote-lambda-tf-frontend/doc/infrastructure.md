@@ -75,7 +75,7 @@ This project uses **remote state storage** in AWS S3 with a **shared bucket arch
 > - [Infrastructure README](../infrastructure/README.md) - Quick reference and deployment guide
 > - [Bootstrap README](../infrastructure/bootstrap/README.md) - Bootstrap infrastructure details
 > - [Bucket Structure](../infrastructure/bootstrap/BUCKET_STRUCTURE.md) - Shared bucket organization
-> - [Terraform State Architecture](../../doc/TERRAFORM_STATE_ARCHITECTURE.md) - Complete architecture overview
+> - [Terraform State Architecture](../../doc/terraform-state-architecture.md) - Complete architecture overview
 
 ### State Storage Configuration
 

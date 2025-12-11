@@ -221,8 +221,8 @@ aws s3 sync dist/ s3://quote-lambda-tf-frontend --delete
 - [GitHub Workflows](./quote-lambda-tf-frontend/doc/github-workflows.md) - Deployment automation
 
 ### Shared Documentation
-- [Terraform State Architecture](doc/TERRAFORM_STATE_ARCHITECTURE.md) - Complete state management architecture
-- [Multi-Environment Setup](doc/MULTI_ENVIRONMENT_SETUP.md) - Dev/Prod environment configuration
+- [Terraform State Architecture](doc/terraform-state-architecture.md) - Complete state management architecture
+- [Multi-Environment Setup](doc/multi-environment-setup.md) - Dev/Prod environment configuration
 - [AWS OIDC Setup Script](./.github/setup-aws-oidc.sh) - Automated IAM role configuration
 
 ## 🔐 GitHub Actions Setup

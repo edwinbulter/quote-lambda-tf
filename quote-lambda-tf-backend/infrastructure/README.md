@@ -95,4 +95,4 @@ The state infrastructure is managed separately in `../quote-lambda-tf-frontend/i
 - [Infrastructure Details](../doc/infrastructure.md)
 - [GitHub Workflows](../doc/github-workflows.md)
 - [SnapStart Setup](../doc/snapstart-setup.md)
-- [Shared State Architecture](../../doc/TERRAFORM_STATE_ARCHITECTURE.md)
+- [Shared State Architecture](../../doc/terraform-state-architecture.md)
