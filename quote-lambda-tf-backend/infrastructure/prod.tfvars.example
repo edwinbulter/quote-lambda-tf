@@ -1,0 +1,17 @@
+# Production Environment Variables
+# Copy this file to prod.tfvars and fill in your actual GitHub OAuth credentials
+# DO NOT commit prod.tfvars to version control!
+
+# GitHub OAuth Configuration for Production
+# Create a SEPARATE GitHub OAuth App at: https://github.com/settings/developers
+# 
+# Settings for your GitHub OAuth App:
+# - Application name: Quote App - Production
+# - Homepage URL: https://your-production-domain.com
+# - Authorization callback URL: https://quote-lambda-tf-backend-prod.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+#   (Get the exact URL from: terraform output cognito_domain after first apply)
+
+github_oauth_client_id     = ""  # Your GitHub OAuth Client ID (PRODUCTION)
+github_oauth_client_secret = ""  # Your GitHub OAuth Client Secret (PRODUCTION)
+
+# Leave empty to skip GitHub OAuth and use email/password only

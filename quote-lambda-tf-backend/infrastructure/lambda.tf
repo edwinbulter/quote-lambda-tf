@@ -1,6 +1,6 @@
 # IAM role for Lambda execution
 resource "aws_iam_role" "lambda_execution_role" {
-  name = var.environment == "prod" ? "${var.project_name}-lambda-role" : "${var.project_name}-lambda-role-${var.environment}"
+  name = local.environment == "prod" ? "${var.project_name}-lambda-role" : "${var.project_name}-lambda-role-${local.environment}"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -18,7 +18,7 @@ resource "aws_iam_role" "lambda_execution_role" {
 
 # IAM policy for Lambda to access DynamoDB
 resource "aws_iam_policy" "lambda_dynamodb_policy" {
-  name        = var.environment == "prod" ? "${var.project_name}-dynamodb-policy" : "${var.project_name}-dynamodb-policy-${var.environment}"
+  name        = local.environment == "prod" ? "${var.project_name}-dynamodb-policy" : "${var.project_name}-dynamodb-policy-${local.environment}"
   description = "IAM policy for Lambda to access DynamoDB"
   
   policy = jsonencode({
@@ -60,7 +60,7 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attachment" {
 
 # Lambda function
 resource "aws_lambda_function" "quote_lambda" {
-  function_name = var.environment == "prod" ? var.project_name : "${var.project_name}-${var.environment}"
+  function_name = local.environment == "prod" ? var.project_name : "${var.project_name}-${local.environment}"
   role          = aws_iam_role.lambda_execution_role.arn
   handler       = "ebulter.quote.lambda.QuoteHandler::handleRequest"
   runtime       = "java21"

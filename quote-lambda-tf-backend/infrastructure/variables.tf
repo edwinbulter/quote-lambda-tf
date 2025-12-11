@@ -45,3 +45,18 @@ variable "dynamodb_write_capacity" {
   default     = 5
   description = "DynamoDB write capacity units"
 }
+
+# GitHub OAuth Configuration (optional)
+variable "github_oauth_client_id" {
+  type        = string
+  description = "GitHub OAuth Client ID for Cognito authentication"
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_oauth_client_secret" {
+  type        = string
+  description = "GitHub OAuth Client Secret for Cognito authentication"
+  sensitive   = true
+  default     = ""
+}
