@@ -18,7 +18,8 @@ Ensure all changes are merged to `main` and all tests pass:
 ```bash
 git checkout main
 git pull origin main
-./mvnw verify  # For backend
+git fetch --tags --force  # Ensure you have the latest tags from remote
+cd quote-lambda-tf-backend && mvn verify && cd ..  # For backend
 cd quote-lambda-tf-frontend && npm test && cd ..  # For frontend
 ```
 
@@ -106,6 +107,9 @@ git push origin --delete release/1.0.0
 
 ```bash
 # From main
+git checkout main
+git pull origin main
+git fetch --tags --force
 git checkout -b release/1.0.1
 cd quote-lambda-tf-frontend && npm version patch --no-git-tag-version && cd ..
 cd quote-lambda-tf-backend && mvn versions:set -DnewVersion=1.0.1 && mvn versions:commit && cd ..

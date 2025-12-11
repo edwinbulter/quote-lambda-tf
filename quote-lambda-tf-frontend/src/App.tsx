@@ -24,6 +24,8 @@ const App: React.FC = () => {
             const firstQuote = await quoteApi.getQuote(); // Fetch initial quote
             setQuote(firstQuote);
             setReceivedQuotes([firstQuote]); // Store the first quote in the received quotes array
+        } catch (error) {
+            console.error('Failed to fetch first quote:', error);
         } finally {
             setLoading(false);
         }
@@ -36,6 +38,8 @@ const App: React.FC = () => {
             setQuote(uniqueQuote);
             indexRef.current = receivedQuotes.length; // Update the reference to the index
             setReceivedQuotes((prevQuotes) => [...prevQuotes, uniqueQuote]); // Add the new quote
+        } catch (error) {
+            console.error('Failed to fetch new quote:', error);
         } finally {
             setLoading(false);
         }
@@ -61,6 +65,8 @@ const App: React.FC = () => {
                     console.log("Failed to like quote for some reason, id=" + quote.id);
                 }
             }
+        } catch (error) {
+            console.error('Failed to like quote:', error);
         } finally {
             setLiking(false);
         }
