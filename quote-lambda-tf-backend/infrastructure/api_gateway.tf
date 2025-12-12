@@ -7,7 +7,7 @@ resource "aws_apigatewayv2_api" "quote_api" {
   cors_configuration {
     allow_origins = ["*"]
     allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
-    allow_headers = ["content-type"]
+    allow_headers = ["content-type", "authorization"]
     max_age       = 300
   }
 }
@@ -55,7 +55,7 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   integration_uri    = aws_lambda_alias.quote_lambda_live.invoke_arn
 }
 
-# API Gateway route for all methods
+# API Gateway route for all methods (no authorization - handled in Lambda)
 resource "aws_apigatewayv2_route" "api_route" {
   api_id    = aws_apigatewayv2_api.quote_api.id
   route_key = "ANY /{proxy+}"

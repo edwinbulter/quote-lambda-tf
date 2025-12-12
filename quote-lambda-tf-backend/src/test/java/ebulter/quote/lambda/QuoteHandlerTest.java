@@ -44,23 +44,24 @@ public class QuoteHandlerTest {
     }
 
     private static APIGatewayProxyRequestEvent createEventWithUserRole(String path, String method) {
-        // Create mock authorizer with USER role
-        Map<String, String> claims = new HashMap<>();
-        claims.put("sub", "test-user-id");
-        claims.put("email", "test@example.com");
-        claims.put("custom:roles", "USER");
+        // Create a mock JWT token with USER group
+        // Format: header.payload.signature (we only need a decodable payload for testing)
+        String header = base64UrlEncode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+        String payload = base64UrlEncode("{\"sub\":\"test-user-id\",\"email\":\"test@example.com\",\"cognito:groups\":[\"USER\"]}");
+        String signature = "mock-signature";
+        String mockToken = header + "." + payload + "." + signature;
 
-        Map<String, Object> authorizer = new HashMap<>();
-        authorizer.put("claims", claims);
-
-        APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = 
-            new APIGatewayProxyRequestEvent.ProxyRequestContext();
-        requestContext.setAuthorizer(authorizer);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("authorization", mockToken);
 
         return new APIGatewayProxyRequestEvent()
             .withHttpMethod(method)
             .withPath(path)
-            .withRequestContext(requestContext);
+            .withHeaders(headers);
+    }
+
+    private static String base64UrlEncode(String input) {
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(input.getBytes());
     }
 
     @Test
