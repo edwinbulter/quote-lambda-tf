@@ -5,10 +5,12 @@ resource "aws_apigatewayv2_api" "quote_api" {
   description   = "HTTP API for ${var.project_name} (${local.environment})"
   
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
-    allow_headers = ["content-type", "authorization"]
-    max_age       = 300
+    allow_origins     = ["*"]
+    allow_methods     = ["GET", "POST", "PATCH", "OPTIONS"]
+    allow_headers     = ["content-type", "authorization"]
+    expose_headers    = ["content-type", "authorization"]
+    allow_credentials = false
+    max_age           = 300
   }
 }
 

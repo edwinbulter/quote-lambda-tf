@@ -43,6 +43,11 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
 
             logger.info("path={}, httpMethod={}", path, httpMethod);
 
+            // Handle CORS preflight OPTIONS requests
+            if ("OPTIONS".equals(httpMethod)) {
+                return createOptionsResponse();
+            }
+
         if (path.endsWith("/quote")) {
             Set<Integer> idsToExclude;
             if ("POST".equals(httpMethod)) {
@@ -109,6 +114,19 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         headers.put("Content-Type", "application/json");
         headers.put("Access-Control-Allow-Origin", "*");  // enable CORS
         response.setHeaders(headers);
+        return response;
+    }
+
+    private static APIGatewayProxyResponseEvent createOptionsResponse() {
+        APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
+        response.setStatusCode(HttpStatus.SC_OK);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Access-Control-Allow-Origin", "*");
+        headers.put("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+        headers.put("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        headers.put("Access-Control-Max-Age", "300");
+        response.setHeaders(headers);
+        response.setBody("");
         return response;
     }
 
