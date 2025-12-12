@@ -132,13 +132,20 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             
             @SuppressWarnings("unchecked")
             Map<String, String> claims = (Map<String, String>) authorizer.get("claims");
-            String roles = claims.get("custom:roles");
             
-            if (roles == null || roles.isEmpty()) {
-                return false;
+            // Check for Cognito Groups (recommended approach)
+            String groups = claims.get("cognito:groups");
+            if (groups != null && !groups.isEmpty()) {
+                return groups.contains("USER") || groups.contains("ADMIN");
             }
             
-            return Arrays.asList(roles.split(",")).contains("USER");
+            // Fallback: Check for custom:roles attribute (for backward compatibility)
+            String roles = claims.get("custom:roles");
+            if (roles != null && !roles.isEmpty()) {
+                return Arrays.asList(roles.split(",")).contains("USER");
+            }
+            
+            return false;
         } catch (Exception e) {
             logger.error("Error checking user role", e);
             return false;

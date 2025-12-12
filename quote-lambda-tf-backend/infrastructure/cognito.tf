@@ -95,6 +95,21 @@ resource "aws_cognito_user_pool_domain" "main" {
   user_pool_id = aws_cognito_user_pool.quote_app.id
 }
 
+# Cognito User Groups for role-based access control
+resource "aws_cognito_user_group" "users" {
+  name         = "USER"
+  user_pool_id = aws_cognito_user_pool.quote_app.id
+  description  = "Standard users who can like quotes"
+  precedence   = 10
+}
+
+resource "aws_cognito_user_group" "admins" {
+  name         = "ADMIN"
+  user_pool_id = aws_cognito_user_pool.quote_app.id
+  description  = "Administrators with full access"
+  precedence   = 1
+}
+
 # GitHub Identity Provider (Required)
 resource "aws_cognito_identity_provider" "github" {
   user_pool_id  = aws_cognito_user_pool.quote_app.id

@@ -456,6 +456,32 @@ aws cognito-idp sign-up \
 aws cognito-idp admin-confirm-sign-up \
     --user-pool-id <YOUR_USER_POOL_ID> \
     --username user@example.com
+    
+# IMPORTANT: Add the user to the USER group
+aws cognito-idp admin-add-user-to-group \
+    --user-pool-id <YOUR_USER_POOL_ID> \
+    --username user@example.com \
+    --group-name USER    
+```
+
+```shell
+# sign-up and confirm with values from .env.development
+aws cognito-idp sign-up \
+    --client-id 7lkohh6t96igkm9q16rdchansh \
+    --username user@example.com \
+    --password Passw0rd! \
+    --user-attributes Name=email,Value=user@example.com
+
+# Confirm user (if auto-verify is off)
+aws cognito-idp admin-confirm-sign-up \
+    --user-pool-id eu-central-1_XrKxJWy5u \
+    --username user@example.com
+
+# IMPORTANT: Add the user to the USER group
+aws cognito-idp admin-add-user-to-group \
+    --user-pool-id eu-central-1_XrKxJWy5u \
+    --username user@example.com \
+    --group-name USER
 ```
 
 ### 2. Test Authentication
@@ -470,6 +496,21 @@ TOKEN=$(aws cognito-idp initiate-auth \
 
 # Test protected endpoint
 curl -X POST https://<YOUR_API_ID>.execute-api.<REGION>.amazonaws.com/prod/like \
+    -H "Authorization: $TOKEN" \
+    -H "Content-Type: application/json"
+```
+
+```bash
+# Get tokens
+TOKEN=$(aws cognito-idp initiate-auth \
+    --client-id 7lkohh6t96igkm9q16rdchansh \
+    --auth-flow USER_PASSWORD_AUTH \
+    --auth-parameters USERNAME=user@example.com,PASSWORD=Passw0rd! \
+    --query 'AuthenticationResult.IdToken' \
+    --output text)
+
+# Test protected endpoint
+curl -X POST https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/quote/1/like \
     -H "Authorization: $TOKEN" \
     -H "Content-Type: application/json"
 ```
