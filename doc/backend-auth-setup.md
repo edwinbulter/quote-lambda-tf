@@ -1,7 +1,9 @@
-# Week 1: Backend Setup Guide
+# Backend Authentication Setup Guide
 
 ## Overview
-This document provides step-by-step instructions for setting up the backend authentication system using AWS Cognito and API Gateway. By the end of this week, you'll have a working authentication backend with email/password and GitHub sign-in capabilities.
+This document provides step-by-step instructions for setting up the backend authentication system using AWS Cognito. The infrastructure (API Gateway, Lambda, DynamoDB) is already configured via Terraform. This guide focuses on deploying and configuring the authentication components.
+
+**Estimated Time:** 2-3 hours for initial setup + testing
 
 ## Prerequisites
 - AWS Account with admin access
@@ -9,7 +11,7 @@ This document provides step-by-step instructions for setting up the backend auth
 - Node.js and npm installed
 - Basic knowledge of AWS services
 
-## Day 1-2: Cognito Setup with Terraform
+## Part 1: Cognito Setup and Deployment (~1-2 hours)
 
 ### 1. Verify Terraform Configuration
 
@@ -235,94 +237,212 @@ import awsConfig from './config/aws-exports';
 Amplify.configure(awsConfig);
 ```
 
-## Day 3-4: API Gateway Setup
+## Part 2: Verify Infrastructure (~10 minutes)
 
-### 1. Create API Gateway
-```yaml
-# template.yaml
-AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+### API Gateway Configuration
 
-Resources:
-  QuoteApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      StageName: prod
-      Auth:
-        DefaultAuthorizer: CognitoAuthorizer
-        Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !GetAtt UserPool.Arn
+The API Gateway is already configured in your Terraform infrastructure. The setup includes:
 
-  LikeFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: backend/like/
-      Handler: index.handler
-      Runtime: java11
-      Events:
-        ApiEvent:
-          Type: Api
-          Properties:
-            Path: /like
-            Method: post
-            RestApiId: !Ref QuoteApi
+**File:** `quote-lambda-tf-backend/infrastructure/api_gateway.tf`
+
+**What's already configured:**
+- **HTTP API Gateway** (API Gateway v2) - Modern, lower latency than REST API
+- **CORS Configuration** - Allows origins: `*`, methods: `GET, POST, PATCH, OPTIONS`
+- **Lambda Integration** - Configured with `ANY /{proxy+}` route for all requests
+- **CloudWatch Logging** - Detailed request/response logging enabled
+- **Throttling** - Burst limit: 100, Rate limit: 100 requests/second
+
+**Key Resources:**
+```hcl
+# API Gateway with CORS
+resource "aws_apigatewayv2_api" "quote_api"
+
+# Stage with logging and throttling
+resource "aws_apigatewayv2_stage" "api_stage"
+
+# Lambda integration (uses SnapStart alias)
+resource "aws_apigatewayv2_integration" "lambda_integration"
+
+# Catch-all route
+resource "aws_apigatewayv2_route" "api_route"
 ```
 
-### 2. Configure CORS
-```yaml
-  QuoteApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      # ... existing config ...
-      Cors:
-        AllowMethods: "'GET,POST,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-        AllowOrigin: "'*'"
+**Get your API Gateway URL:**
+```bash
+cd quote-lambda-tf-backend/infrastructure
+terraform output api_gateway_url
 ```
 
-## Day 5: Lambda Function
+### Adding Cognito Authorization (Optional)
 
-### 1. Create Like Lambda (Java)
+If you want to protect specific endpoints with Cognito authentication, you can add a JWT authorizer:
+
+```hcl
+# Add to api_gateway.tf
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.quote_api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.client.id]
+    issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
+  }
+}
+
+# Update route to use authorizer
+resource "aws_apigatewayv2_route" "protected_route" {
+  api_id             = aws_apigatewayv2_api.quote_api.id
+  route_key          = "POST /like"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+```
+
+**Note:** The current setup uses a catch-all route (`ANY /{proxy+}`), which means authorization is handled in the Lambda function code, not at the API Gateway level. This provides more flexibility for mixed public/protected endpoints.
+
+## Part 3: Add Authorization to Lambda Function (~30 minutes)
+
+### 1. Add Role-Based Authorization to QuoteHandler
+
+The existing `QuoteHandler` already handles the like functionality at `/quote/{id}/like`. You need to add authorization checks to ensure only authenticated users with the `USER` role can like quotes.
+
+**File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/QuoteHandler.java`
+
+**Add authorization check before processing the like request:**
+
 ```java
-// src/main/java/com/example/LikeHandler.java
-public class LikeHandler implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
-    
-    @Override
-    public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
-        // Get user info from Cognito
-        Map<String, String> claims = (Map<String, String>) event.getRequestContext()
-            .getAuthorizer()
-            .get("claims");
+public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
+    try {
+        String path = event.getPath();
+        String httpMethod = event.getHttpMethod();
+
+        logger.info("path={}, httpMethod={}", path, httpMethod);
+
+        if (path.endsWith("/quote")) {
+            // ... existing quote retrieval code ...
+        } else if (path.endsWith("/like")) {
+            // Check authorization for like endpoint
+            if (!hasUserRole(event)) {
+                return createForbiddenResponse("USER role required to like quotes");
+            }
             
-        String userId = claims.get("sub");
-        List<String> roles = Arrays.asList(claims.get("custom:roles").split(","));
-        
-        if (!roles.contains("USER")) {
-            return new APIGatewayProxyResponseEvent()
-                .withStatusCode(403)
-                .withBody("{\"error\": \"Forbidden: USER role required\"}");
+            // Extract ID from path like "/quote/75/like"
+            String[] pathParts = path.split("/");
+            int id = Integer.parseInt(pathParts[pathParts.length - 2]);
+            Quote quote = quoteService.likeQuote(id);
+            return createResponse(quote);
+        } else if (path.endsWith("/liked")) {
+            // ... existing liked quotes code ...
+        } else {
+            return createErrorResponse("Invalid request");
+        }
+    } catch (Exception e) {
+        logger.error("Error handling request", e);
+        return createErrorResponse("Internal server error: " + e.getMessage());
+    }
+}
+
+// Add helper method to check user role
+private boolean hasUserRole(APIGatewayProxyRequestEvent event) {
+    try {
+        Map<String, Object> requestContext = event.getRequestContext();
+        if (requestContext == null || !requestContext.containsKey("authorizer")) {
+            return false;
         }
         
-        // Process like
-        return new APIGatewayProxyResponseEvent()
-            .withStatusCode(200)
-            .withBody("{\"message\": \"Like processed\"}");
+        Map<String, Object> authorizer = (Map<String, Object>) requestContext.get("authorizer");
+        if (authorizer == null || !authorizer.containsKey("claims")) {
+            return false;
+        }
+        
+        Map<String, String> claims = (Map<String, String>) authorizer.get("claims");
+        String roles = claims.get("custom:roles");
+        
+        if (roles == null || roles.isEmpty()) {
+            return false;
+        }
+        
+        return Arrays.asList(roles.split(",")).contains("USER");
+    } catch (Exception e) {
+        logger.error("Error checking user role", e);
+        return false;
+    }
+}
+
+// Add helper method for forbidden response
+private static APIGatewayProxyResponseEvent createForbiddenResponse(String message) {
+    APIGatewayProxyResponseEvent response = createBaseResponse();
+    response.setStatusCode(HttpStatus.SC_FORBIDDEN); // 403
+    String responseBody = gson.toJson(QuoteUtil.getErrorQuote(message), quoteType);
+    response.setBody(responseBody);
+    return response;
+}
+```
+
+**Optional: Log user information for auditing:**
+```java
+private void logUserInfo(APIGatewayProxyRequestEvent event, String action) {
+    try {
+        Map<String, Object> authorizer = (Map<String, Object>) event.getRequestContext().get("authorizer");
+        Map<String, String> claims = (Map<String, String>) authorizer.get("claims");
+        String userId = claims.get("sub");
+        String email = claims.get("email");
+        logger.info("User action: userId={}, email={}, action={}", userId, email, action);
+    } catch (Exception e) {
+        logger.warn("Could not log user info", e);
     }
 }
 ```
 
 ### 2. Build and Deploy
+
+The Lambda function is already configured in Terraform. To deploy code changes:
+
 ```bash
-# Build
+# Build the Lambda function
 cd quote-lambda-tf-backend
 mvn clean package
 
-# Deploy
-sam deploy --guided
+# The JAR is created at: target/quote-lambda-tf-backend-1.0-SNAPSHOT.jar
+
+# Deploy via Terraform (infrastructure + code)
+cd infrastructure
+terraform workspace select dev
+terraform apply -var-file="dev.tfvars"
 ```
 
-## Testing
+**Alternative: Update Lambda code only (faster for code-only changes):**
+```bash
+# After building with Maven
+aws lambda update-function-code \
+  --function-name quote-lambda-tf-backend-dev \
+  --zip-file fileb://target/quote-lambda-tf-backend-1.0-SNAPSHOT.jar \
+  --region eu-central-1
+
+# Publish new version and update alias
+NEW_VERSION=$(aws lambda publish-version \
+  --function-name quote-lambda-tf-backend-dev \
+  --region eu-central-1 \
+  --query 'Version' \
+  --output text)
+
+aws lambda update-alias \
+  --function-name quote-lambda-tf-backend-dev \
+  --name live \
+  --function-version $NEW_VERSION \
+  --region eu-central-1
+```
+
+**Note:** The Lambda function uses SnapStart for faster cold starts. The infrastructure includes:
+- Lambda function with Java 21 runtime
+- SnapStart enabled for performance
+- Alias-based deployment (`live` alias)
+- API Gateway integration via the alias
+
+## Part 4: Testing (~30 minutes)
 
 ### 1. Create Test User
 ```bash
@@ -378,9 +498,10 @@ aws logs get-log-events \
 ```
 
 ## Next Steps
-- [ ] Set up frontend integration (Week 2)
-- [ ] Implement admin interface (Week 2)
-- [ ] Add monitoring and alerts (Week 3)
+- [ ] Integrate authentication in frontend components
+- [ ] Implement role-based access control in Lambda functions
+- [ ] Add user management features (admin interface)
+- [ ] Set up monitoring and alerts for authentication flows
 
 ## Resources
 - [AWS Cognito Documentation](https://docs.aws.amazon.com/cognito/)

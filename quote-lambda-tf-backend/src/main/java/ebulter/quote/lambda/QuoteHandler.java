@@ -52,6 +52,14 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             Quote quote = quoteService.getQuote(idsToExclude);
             return createResponse(quote);
         } else if (path.endsWith("/like")) {
+            // Check authorization for like endpoint
+            if (!hasUserRole(event)) {
+                return createForbiddenResponse("USER role required to like quotes");
+            }
+            
+            // Log user information for auditing
+            logUserInfo(event, "LIKE_QUOTE");
+            
             // Extract ID from path like "/quote/75/like"
             String[] pathParts = path.split("/");
             int id = Integer.parseInt(pathParts[pathParts.length - 2]);
@@ -102,5 +110,61 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         return response;
     }
 
+    private static APIGatewayProxyResponseEvent createForbiddenResponse(String message) {
+        APIGatewayProxyResponseEvent response = createBaseResponse();
+        response.setStatusCode(HttpStatus.SC_FORBIDDEN);
+        String responseBody = gson.toJson(QuoteUtil.getErrorQuote(message), quoteType);
+        response.setBody(responseBody);
+        return response;
+    }
+
+    private boolean hasUserRole(APIGatewayProxyRequestEvent event) {
+        try {
+            APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = event.getRequestContext();
+            if (requestContext == null) {
+                return false;
+            }
+            
+            Map<String, Object> authorizer = requestContext.getAuthorizer();
+            if (authorizer == null || !authorizer.containsKey("claims")) {
+                return false;
+            }
+            
+            @SuppressWarnings("unchecked")
+            Map<String, String> claims = (Map<String, String>) authorizer.get("claims");
+            String roles = claims.get("custom:roles");
+            
+            if (roles == null || roles.isEmpty()) {
+                return false;
+            }
+            
+            return Arrays.asList(roles.split(",")).contains("USER");
+        } catch (Exception e) {
+            logger.error("Error checking user role", e);
+            return false;
+        }
+    }
+
+    private void logUserInfo(APIGatewayProxyRequestEvent event, String action) {
+        try {
+            APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = event.getRequestContext();
+            if (requestContext == null) {
+                return;
+            }
+            
+            Map<String, Object> authorizer = requestContext.getAuthorizer();
+            if (authorizer == null || !authorizer.containsKey("claims")) {
+                return;
+            }
+            
+            @SuppressWarnings("unchecked")
+            Map<String, String> claims = (Map<String, String>) authorizer.get("claims");
+            String userId = claims.get("sub");
+            String email = claims.get("email");
+            logger.info("User action: userId={}, email={}, action={}", userId, email, action);
+        } catch (Exception e) {
+            logger.warn("Could not log user info", e);
+        }
+    }
 
 }

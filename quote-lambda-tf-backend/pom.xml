@@ -54,6 +54,13 @@
             <version>1.5.12</version>
         </dependency>
 
+        <!-- JSON logging for CloudWatch -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
