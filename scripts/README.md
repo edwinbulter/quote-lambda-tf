@@ -2,7 +2,55 @@
 
 This directory contains utility scripts for managing the Quote Lambda TF project.
 
+## Table of Contents
+
+- [Available Scripts](#available-scripts)
+  - [setup-workspaces.sh](#setup-workspacessh)
+  - [generate-frontend-config.sh](#generate-frontend-configsh)
+
 ## Available Scripts
+
+### `setup-workspaces.sh`
+
+Interactive script for setting up Terraform workspaces for multi-environment deployments (development and production).
+
+**Purpose:** Automates the initial setup of separate development and production environments using Terraform workspaces, ensuring proper isolation and configuration.
+
+#### Usage
+
+```bash
+# From the repository root
+./scripts/setup-workspaces.sh
+```
+
+#### What It Does
+
+1. Reinitializes Terraform backends with workspace support
+2. Verifies your production environment (default workspace)
+3. Creates a development workspace
+4. Deploys development infrastructure for both backend and frontend
+5. Saves development URLs to files for easy reference
+
+The script is interactive and will ask for confirmation before making changes.
+
+#### Prerequisites
+
+- Terraform installed and configured
+- AWS credentials configured
+- Production infrastructure already deployed (or ready to verify)
+- Run from the repository root directory
+
+#### Output Files
+
+- `dev-api-url.txt` - Development API Gateway URL
+- `dev-cloudfront-url.txt` - Development CloudFront URL
+
+#### Documentation
+
+For detailed information about multi-environment setup and workspace management, see:
+- [Multi-Environment Setup Guide](../doc/multi-environment-setup.md)
+
+---
 
 ### `generate-frontend-config.sh`
 

@@ -72,7 +72,7 @@ The easiest way to set up workspaces is using the provided setup script:
 
 ```bash
 # From the repository root
-./setup-workspaces.sh
+./scripts/setup-workspaces.sh
 ```
 
 **What the script does:**
