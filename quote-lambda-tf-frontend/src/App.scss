@@ -65,6 +65,30 @@
   color: green;
 }
 
+.userInitial {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 900;
+  color: green;
+  background-color: #e8f5e9;
+  border-radius: 50%;
+  cursor: default;
+  transition: all 0.3s ease;
+}
+
+.userInitial:hover {
+  background-color: #c8e6c9;
+  transform: translateX(-50%) scale(1.1);
+}
+
 .basicButton {
   position: absolute;
   width: 100px;
@@ -87,37 +111,42 @@
 
 .newQuoteButton {
   @extend .basicButton;
-  top: 100px;
+  top: 140px;
   left: 20px;
 }
 
 .likeButton {
   @extend .basicButton;
-  top: 160px;
+  top: 200px;
   left: 20px;
 }
 
 .previousButton {
   @extend .basicButton;
-  top: 220px;
+  top: 260px;
   left: 20px;
 }
 
 .nextButton {
   @extend .basicButton;
-  top: 280px;
+  top: 320px;
   left: 20px;
 }
 
 .firstButton {
   @extend .basicButton;
-  top: 340px;
+  top: 380px;
   left: 20px;
 }
 
 .lastButton {
   @extend .basicButton;
-  top: 400px;
+  top: 440px;
   left: 20px;
 }
 
+.signinButton {
+  @extend .basicButton;
+  top: 500px;
+  left: 20px;
+}

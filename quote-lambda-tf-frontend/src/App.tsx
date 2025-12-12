@@ -5,18 +5,36 @@ import FavouritesComponent, { FavouritesComponentHandle } from "./components/Fav
 
 // Import `Quote` interface from the appropriate file
 import { Quote } from "./types/Quote"; // Adjust the path based on your project
+import { useAuth } from './contexts/AuthContext';
+import { Login } from './components/Login';
 
 const App: React.FC = () => {
+    const { isAuthenticated, isLoading, signOut, user } = useAuth();
     const [quote, setQuote] = useState<Quote | null>(null); // Allow `null` for initial state
     const [receivedQuotes, setReceivedQuotes] = useState<Quote[]>([]); // Array of `Quote` objects
     const [loading, setLoading] = useState<boolean>(true); // Loading state
     const [liking, setLiking] = useState<boolean>(false); // Liking state
+    const [signingIn, setSigningIn] = useState<boolean>(false);
     const indexRef = useRef<number>(0); // Reference to the current quote index
     const favouritesRef = useRef<FavouritesComponentHandle>(null);
 
     useEffect(() => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
     }, []);
+
+    // Close login screen when user becomes authenticated
+    useEffect(() => {
+        if (isAuthenticated && signingIn) {
+            setSigningIn(false);
+        }
+    }, [isAuthenticated, signingIn]);
+
+    // Log user when authenticated
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            console.log('User authenticated:', user);
+        }
+    }, [isAuthenticated, user]);
 
     const fetchFirstQuote = async (): Promise<void> => {
         try {
@@ -96,25 +114,40 @@ const App: React.FC = () => {
         setQuote(receivedQuotes[indexRef.current]); // Jump to the last quote
     };
 
+    const signIn = (): void => {
+        setSigningIn(!signingIn);
+    };
+
     return (
         <div className="app">
             <div className="quoteView">
-                <p>
-                    "{loading ? "Loading..." : quote?.quoteText || ""}"
-                </p>
-                <p className="author">
-                    {loading ? "" : quote?.author || ""}
-                </p>
+                {signingIn && !isAuthenticated ? (
+                    <Login />
+                ) : (
+                    <>
+                        <p>
+                            "{loading ? "Loading..." : quote?.quoteText || ""}"
+                        </p>
+                        <p className="author">
+                            {loading ? "" : quote?.author || ""}
+                        </p>
+                    </>
+                )}
             </div>
             <div className="buttonBar">
                 <div className="logo">
-                    <div className="logo-header">CODE-BUTLER</div>
+                    <div className="logo-header">CODE-BULTER</div>
                     <div className="logo-main">Quote</div>
                 </div>
+                {isAuthenticated && user && (
+                    <div className="userInitial" title={user.username}>
+                        {user.username.charAt(0).toUpperCase()}
+                    </div>
+                )}
                 <button className="newQuoteButton" disabled={loading} onClick={newQuote}>
                     {loading ? "Loading..." : "New Quote"}
                 </button>
-                <button className="likeButton" disabled={liking || !!quote?.liked} onClick={like}>
+                <button className="likeButton" disabled={!isAuthenticated || liking || !!quote?.liked} onClick={like}>
                     {liking ? "Liking..." : "Like"}
                 </button>
                 <button className="previousButton" disabled={indexRef.current === 0} onClick={previous}>
@@ -132,6 +165,9 @@ const App: React.FC = () => {
                 </button>
                 <button className="lastButton" onClick={jumpToLast}>
                     Last
+                </button>
+                <button className="signinButton" disabled={isLoading} onClick={isAuthenticated ? signOut : signIn}>
+                    {isLoading ? "Loading..." : (isAuthenticated ? "Sign Out" : "Sign In")}
                 </button>
             </div>
             <FavouritesComponent ref={favouritesRef}/>

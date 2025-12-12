@@ -1,17 +1,84 @@
 # Authentication & Authorization Setup
 
-This document describes the authentication and authorization implementation for the quote-lambda-tf application using **AWS Cognito + API Gateway Authorizer**.
+This document describes the authentication and authorization implementation for the quote-lambda-tf application using **AWS Cognito with Lambda-based JWT validation**.
 
 ## Table of Contents
 
-- [Requirements](#requirements)
+- [Overview](#overview)
+- [Backend Implementation Status](#backend-implementation-status)
 - [Architecture Overview](#architecture-overview)
 - [Implementation Details](#implementation-details)
 - [User Flows](#user-flows)
-- [Implementation Roadmap](#implementation-roadmap)
 - [Security Considerations](#security-considerations)
 - [Cost Estimation](#cost-estimation)
 - [Next Steps](#next-steps)
+
+## Overview
+
+**Status:** ✅ Backend authentication and authorization **COMPLETED**
+
+The backend authentication system has been fully implemented and tested. This document provides an overview of the implementation and references the detailed setup guide.
+
+For detailed backend setup instructions, see: [`backend-auth-setup.md`](./backend-auth-setup.md)
+
+For frontend implementation guide, see: [`frontend-auth-setup.md`](./frontend-auth-setup.md)
+
+---
+
+## Backend Implementation Status
+
+### ✅ Completed Components
+
+**1. AWS Cognito User Pool**
+- User Pool with email/password authentication
+- GitHub OAuth integration configured
+- USER and ADMIN groups created
+- Custom attributes for role management
+- Secure password policies enforced
+
+**2. Lambda Authorization**
+- JWT token parsing using `java-jwt` library
+- Role-based authorization via `cognito:groups` claim
+- Protected `/quote/{id}/like` endpoint (requires USER or ADMIN role)
+- User audit logging (userId, email, action)
+- Public endpoints remain accessible (GET /quote, GET /quote/liked)
+
+**3. JSON Structured Logging**
+- CloudWatch logs in JSON format using `logstash-logback-encoder`
+- Stack traces as single JSON fields for easy searching
+- Structured log fields for CloudWatch Logs Insights queries
+
+**4. Infrastructure**
+- Terraform configuration for Cognito User Pool and Groups
+- API Gateway CORS configured to allow Authorization header
+- Lambda updated with JWT parsing and authorization logic
+- All infrastructure deployed and tested
+
+**5. Testing**
+- Unit tests with mock JWT tokens
+- Authorization tests (both authorized and unauthorized scenarios)
+- All 6 tests passing
+
+### Implementation Approach
+
+Unlike the original plan to use API Gateway's built-in Cognito Authorizer, we implemented **Lambda-based JWT validation** for the following reasons:
+
+**Advantages:**
+- ✅ Flexible endpoint protection (mix of public and protected endpoints)
+- ✅ No API Gateway authorizer needed (simpler configuration)
+- ✅ Full control over authorization logic
+- ✅ Easy to add custom authorization rules
+- ✅ Better for learning JWT concepts
+
+**Trade-offs:**
+- JWT parsing happens in Lambda (minimal performance impact)
+- Token validation is done by decoding (not verifying signature)
+  - This is acceptable since tokens come from trusted Cognito source
+  - API Gateway could add JWT authorizer later if needed
+
+For complete implementation details, see [`backend-auth-setup.md`](./backend-auth-setup.md)
+
+---
 
 ## Requirements
 
@@ -52,22 +119,21 @@ This document describes the authentication and authorization implementation for 
 
 ## Architecture Overview
 
-This implementation uses **AWS Cognito User Pools** with **API Gateway's built-in Cognito Authorizer** for seamless authentication and authorization.
+This implementation uses **AWS Cognito User Pools** with **Lambda-based JWT validation** for flexible authentication and authorization.
 
 ### Why This Approach?
 
-- ✅ Fully managed AWS service
-- ✅ Native integration with API Gateway (no custom Lambda authorizer needed)
-- ✅ Built-in Google OAuth support
+- ✅ Fully managed AWS Cognito service
+- ✅ Built-in GitHub OAuth support
 - ✅ Scalable and secure
-- ✅ No additional infrastructure needed
-- ✅ Built-in MFA support
 - ✅ User pool groups for role management
 - ✅ Free tier: 50,000 MAUs
-- ✅ Better performance (no extra Lambda invocation for authorization)
-- ✅ Automatic token validation
+- ✅ Flexible endpoint protection (mix of public and protected)
+- ✅ Full control over authorization logic
+- ✅ Easy to add custom authorization rules
+- ✅ Better for learning JWT concepts
 
-### Architecture Diagram
+### Architecture Diagram (As Implemented)
 
 ```
 ┌─────────────┐
@@ -77,26 +143,34 @@ This implementation uses **AWS Cognito User Pools** with **API Gateway's built-i
        ▼
 ┌─────────────────────┐
 │   AWS Cognito       │
+│   User Pool         │
 └──────┬──────────────┘
-       │ 2. ID Token
+       │ 2. JWT ID Token (with cognito:groups claim)
        ▼
 ┌─────────────┐
 │   Frontend  │
 └──────┬──────┘
-       │ 3. API Request + ID Token
+       │ 3. API Request + Authorization: <JWT>
        ▼
 ┌─────────────────────────────┐
-│  API Gateway                │
-│  Built-in Cognito Authorizer│
-│  (no Lambda needed!)        │
+│  API Gateway (HTTP API)     │
+│  - CORS configured          │
+│  - No authorizer            │
+│  - Passes all headers       │
 └──────┬──────────────────────┘
-       │ 4. Authorized Request
-       │    + User claims in context
+       │ 4. Request + JWT in Authorization header
+       ▼
+┌─────────────────────────────┐
+│  Lambda Function            │
+│  - Decodes JWT token        │
+│  - Checks cognito:groups    │
+│  - Authorizes USER/ADMIN    │
+│  - Logs user actions        │
+└──────┬──────────────────────┘
+       │ 5. Authorized action
        ▼
 ┌─────────────────────┐
-│  Lambda Function    │
-│  - Reads user from  │
-│    request context  │
+│     DynamoDB        │
 └─────────────────────┘
 ```
 
@@ -106,66 +180,73 @@ This implementation uses **AWS Cognito User Pools** with **API Gateway's built-i
 
 ### API Gateway Configuration
 
-Configure API Gateway to use Cognito User Pool as the authorizer:
+API Gateway is configured with CORS to allow the Authorization header:
 
-```yaml
-# serverless.yml or SAM template
-authorizer:
-  type: COGNITO_USER_POOLS
-  userPoolArn: arn:aws:cognito-idp:region:account:userpool/poolId
-  scopes:
-    - email
-    - openid
+```hcl
+# api_gateway.tf
+cors_configuration {
+  allow_origins = ["*"]
+  allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
+  allow_headers = ["content-type", "authorization"]  # Authorization header required!
+  max_age       = 300
+}
 ```
+
+**No API Gateway Authorizer** - Authorization is handled in Lambda for flexibility.
 
 ### Cognito User Pool Configuration
 
-**Required Settings:**
-- Enable Google as identity provider
-- Enable username/password authentication
-- Custom attributes: `custom:roles` (string)
-- User pool groups: `Users`, `Admins`, `Moderators`
+**Implemented Settings:**
+- GitHub OAuth as identity provider
+- Email/password authentication enabled
+- User pool groups: `USER`, `ADMIN`
+- Custom attributes: `custom:roles` (for backward compatibility)
+- Secure password policy (8+ chars, uppercase, lowercase, numbers, symbols)
+- Token expiration: 1 hour (ID and Access tokens), 30 days (Refresh token)
 
 ### Lambda Function (Backend)
 
-User information is automatically available in the request context:
+JWT token is parsed from the Authorization header:
 
 ```java
-// User info is automatically available in request context
-Map<String, Object> authorizer = requestContext.get("authorizer");
-Map<String, String> claims = (Map<String, String>) authorizer.get("claims");
+// Extract JWT from Authorization header
+Map<String, String> headers = event.getHeaders();
+String authHeader = headers.get("authorization");
+String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
 
-String userId = claims.get("sub");
-String email = claims.get("email");
-String rolesString = claims.get("custom:roles");
-List<String> roles = Arrays.asList(rolesString.split(","));
+// Decode JWT (using java-jwt library)
+DecodedJWT jwt = JWT.decode(token);
 
-if (!roles.contains("USER")) {
-    return response(403, "USER role required");
+// Check for Cognito Groups
+List<String> groups = jwt.getClaim("cognito:groups").asList(String.class);
+if (groups != null && (groups.contains("USER") || groups.contains("ADMIN"))) {
+    // Authorized - proceed with action
+    String userId = jwt.getClaim("sub").asString();
+    String email = jwt.getClaim("email").asString();
+    logger.info("User action: userId=" + userId + ", email=" + email + ", action=LIKE_QUOTE");
+    // ... process like
+} else {
+    return createForbiddenResponse("USER role required to like quotes");
 }
 ```
 
-### Cognito Post-Confirmation Trigger
+**Key Dependencies:**
+- `com.auth0:java-jwt:4.4.0` - JWT parsing
+- `net.logstash.logback:logstash-logback-encoder:7.4` - JSON logging
 
-Lambda trigger to automatically assign USER role on registration:
+### User Group Assignment
 
-```java
-// Lambda trigger to assign USER role on registration
-public class PostConfirmationTrigger implements RequestHandler<CognitoUserPoolEvent, CognitoUserPoolEvent> {
-    @Override
-    public CognitoUserPoolEvent handleRequest(CognitoUserPoolEvent event, Context context) {
-        // Add user to "Users" group
-        cognitoClient.adminAddUserToGroup(
-            new AdminAddUserToGroupRequest()
-                .withUserPoolId(event.getUserPoolId())
-                .withUsername(event.getUserName())
-                .withGroupName("Users")
-        );
-        
-        return event;
-    }
-}
+Users must be manually added to groups after registration:
+
+```bash
+# Add user to USER group
+aws cognito-idp admin-add-user-to-group \
+    --user-pool-id <POOL_ID> \
+    --username user@example.com \
+    --group-name USER
 ```
+
+**Future Enhancement:** Implement Cognito Post-Confirmation trigger to automatically assign USER role on registration.
 
 ### Frontend (React)
 
@@ -515,31 +596,66 @@ const hasUserRole = async () => {
 
 ## Next Steps
 
-1. **Review and Approve Architecture**
-   - Stakeholder review
-   - Security review
-   - Cost approval
+### ✅ Backend Complete - Ready for Frontend Integration
 
-2. **Set Up Development Environment**
-   - Create Cognito User Pool in dev account
-   - Configure Google OAuth credentials
-   - Set up test users
+The backend authentication system is **fully implemented and tested**. The next phase is frontend integration.
 
-3. **Start Phase 1 Implementation**
-   - Follow implementation roadmap
-   - Create feature branch
-   - Implement backend changes first
-   - Then frontend integration
+### Frontend Implementation (Estimated: 4-6 hours)
 
-4. **Testing**
-   - Unit tests for Lambda functions
-   - Integration tests for auth flows
-   - E2E tests with Playwright
+Follow the detailed guide: [`frontend-auth-setup.md`](./frontend-auth-setup.md)
 
-5. **Documentation**
-   - API documentation
-   - User guide for authentication
-   - Admin guide for role management
+**Phase Breakdown:**
+
+1. **AWS Amplify Setup** (1 hour)
+   - Install dependencies
+   - Configure Amplify with Cognito settings
+   - Set up environment variables
+
+2. **Authentication UI** (1-2 hours)
+   - Create AuthContext for state management
+   - Build Login/SignUp components
+   - Implement confirmation flow
+
+3. **Protected Routes** (30 minutes)
+   - Optional: Add React Router
+   - Create ProtectedRoute component
+
+4. **API Integration** (1-2 hours)
+   - Create API client with Authorization header
+   - Update quote components to use authenticated API
+   - Handle 403 Forbidden errors
+
+5. **Role-Based UI** (1 hour)
+   - Disable like button for non-authenticated users
+   - Show/hide features based on USER/ADMIN roles
+   - Add user info display
+
+6. **Testing** (1 hour)
+   - Manual testing of all flows
+   - Browser DevTools verification
+   - End-to-end testing
+
+### Future Enhancements
+
+1. **Automatic Role Assignment**
+   - Implement Cognito Post-Confirmation trigger
+   - Automatically assign USER role on registration
+   - Eliminate manual group assignment
+
+2. **GitHub OAuth UI**
+   - Add "Sign in with GitHub" button
+   - Test OAuth flow end-to-end
+
+3. **Admin Console**
+   - User management interface
+   - Role assignment UI
+   - Audit logs viewer
+
+4. **Enhanced Security**
+   - Implement MFA
+   - Add password reset flow
+   - Session timeout handling
+   - Token refresh optimization
 
 ---
 

@@ -4,11 +4,14 @@ import './index.css'
 import App from './App.tsx'
 import { Amplify } from 'aws-amplify';
 import awsConfig from './config/aws-exports';
+import {AuthProvider} from "./contexts/AuthContext.tsx";
 
 Amplify.configure(awsConfig);
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+    <StrictMode>
+        <AuthProvider>
+            <App />
+        </AuthProvider>
+    </StrictMode>,
 )

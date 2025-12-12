@@ -66,8 +66,9 @@ resource "aws_cognito_user_pool_client" "web_client" {
   
   # Authentication flows
   explicit_auth_flows = [
-    "ALLOW_USER_PASSWORD_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH"
+    "ALLOW_USER_SRP_AUTH",        # Required for Amplify v6 (secure password auth)
+    "ALLOW_USER_PASSWORD_AUTH",   # Alternative auth flow
+    "ALLOW_REFRESH_TOKEN_AUTH"    # Required for token refresh
   ]
   
   # OAuth settings

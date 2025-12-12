@@ -1,0 +1,152 @@
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 40px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  h2 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: #2e7d32;
+    text-align: center;
+  }
+
+  p {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 16px;
+
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      outline: none;
+      transition: all 0.3s ease;
+      font-family: Arial, Helvetica, sans-serif;
+      box-sizing: border-box;
+
+      &:focus {
+        border-color: #4caf50;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+      }
+
+      &::placeholder {
+        color: #999;
+      }
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      background-color: #4caf50;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: Arial, Helvetica, sans-serif;
+
+      &:hover {
+        background-color: #45a049;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      &:disabled {
+        background-color: #c8e6c9;
+        cursor: not-allowed;
+        transform: none;
+      }
+    }
+  }
+
+  .error {
+    color: #d32f2f;
+    font-size: 14px;
+    margin: -8px 0 0 0;
+    padding: 8px 12px;
+    background-color: #ffebee;
+    border-radius: 6px;
+    border-left: 4px solid #d32f2f;
+  }
+
+  > button {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4caf50;
+    background-color: transparent;
+    border: 2px solid #4caf50;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: Arial, Helvetica, sans-serif;
+
+    &:hover {
+      background-color: #f1f8f4;
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 30px 20px;
+    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+
+    h2 {
+      font-size: 24px;
+    }
+
+    form {
+      input {
+        font-size: 14px;
+        padding: 10px 14px;
+      }
+
+      button[type="submit"] {
+        font-size: 14px;
+        padding: 12px 14px;
+      }
+    }
+
+    > button {
+      font-size: 13px;
+      padding: 10px 14px;
+    }
+  }
+}
