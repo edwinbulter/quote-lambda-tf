@@ -70,46 +70,29 @@ terraform apply
 
 **Note**: You no longer need to set `TF_VAR_environment` - the environment is automatically derived from the workspace name!
 
-### 3. Configure GitHub OAuth (Optional)
+### 3. Configure GitHub OAuth (Required)
 
 **Why GitHub?** GitHub OAuth is completely free and doesn't require a credit card, making it perfect for learning projects.
 
-**Note:** The GitHub identity provider is already configured in `cognito.tf` but requires credentials to be activated. You can skip this section if you only want email/password authentication.
+**Important:** GitHub OAuth is required for this project. You must create a GitHub OAuth App and provide credentials before deploying.
 
-#### Step 1: First Apply Without GitHub OAuth
+#### Step 1: Create a GitHub OAuth App
 
-Apply Terraform first to get your Cognito domain:
-
-```bash
-cd quote-lambda-tf-backend/infrastructure
-terraform workspace select dev
-terraform apply
-```
-
-After applying, get your Cognito domain:
-
-```bash
-terraform output cognito_domain
-```
-
-You'll get something like: `quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com`
-
-#### Step 2: Create a GitHub OAuth App
+Before applying Terraform, you need to create a GitHub OAuth App. We'll use a placeholder callback URL first, then update it after getting the actual Cognito domain.
 
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click **"New OAuth App"**
 3. Fill in the application details:
    - **Application name**: `Quote App - Development`
    - **Homepage URL**: `http://localhost:5173`
-   - **Authorization callback URL**: `https://<your-cognito-domain>/oauth2/idpresponse`
-     - Example: `https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse`
+   - **Authorization callback URL**: `https://placeholder.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse` (temporary)
 4. Click **"Register application"**
 5. Copy the **Client ID**
 6. Click **"Generate a new client secret"** and copy the **Client Secret**
 
 **Important:** Create separate OAuth apps for dev and prod environments!
 
-#### Step 3: Configure Your Secrets
+#### Step 2: Configure Your Secrets
 
 Create a `dev.tfvars` file from the example:
 
@@ -127,7 +110,7 @@ github_oauth_client_secret = "abc123def456ghi789jkl012mno345pqr678stu"
 
 **Security Note:** The `dev.tfvars` file is excluded from version control via `.gitignore`. Never commit this file!
 
-#### Step 4: Apply Terraform with GitHub OAuth
+#### Step 3: Apply Terraform
 
 ```bash
 cd quote-lambda-tf-backend/infrastructure
@@ -136,7 +119,24 @@ terraform plan -var-file="dev.tfvars"
 terraform apply -var-file="dev.tfvars"
 ```
 
-The GitHub identity provider will now be created and enabled.
+**Important:** You must always use `-var-file="dev.tfvars"` when running Terraform commands, as GitHub OAuth credentials are required.
+
+#### Step 4: Update GitHub OAuth Callback URL
+
+After Terraform creates your Cognito User Pool, get the actual domain:
+
+```bash
+terraform output cognito_domain
+```
+
+You'll get something like: `quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com`
+
+Now update your GitHub OAuth App:
+1. Go back to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click on your OAuth App
+3. Update the **Authorization callback URL** to: `https://<your-cognito-domain>/oauth2/idpresponse`
+   - Example: `https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse`
+4. Click **"Update application"**
 
 #### Step 5: Verify the Setup
 
@@ -154,37 +154,85 @@ You should see "GitHub" in the list of providers.
 
 **For detailed information about secrets management, see:** `quote-lambda-tf-backend/infrastructure/SECRETS_SETUP.md`
 
-### 4. Frontend Configuration
+### 4. Generate Frontend Configuration
 
-Use the following configuration in your frontend (e.g., in `src/config/aws-exports.js` or similar):
+Instead of hardcoding values, automatically generate environment-specific configuration from Terraform outputs.
 
-```javascript
-// Replace these values with your Terraform outputs
-export default {
-  Auth: {
-    region: 'eu-central-1', // or your region
-    userPoolId: 'YOUR_USER_POOL_ID',         // terraform output user_pool_id
-    userPoolWebClientId: 'YOUR_CLIENT_ID',   // terraform output user_pool_client_id
-    oauth: {
-      domain: 'YOUR_COGNITO_DOMAIN',         // terraform output cognito_domain
-      scope: ['email', 'openid', 'profile'],
-      redirectSignIn: 'http://localhost:5173/',
-      redirectSignOut: 'http://localhost:5173/logout',
-      responseType: 'code'
-    }
-  }
-};
+#### Option A: Auto-Generate Config (Recommended)
+
+Use the provided script to generate frontend configuration:
+
+```bash
+# Generate dev environment config
+./scripts/generate-frontend-config.sh dev
+
+# Generate prod environment config
+./scripts/generate-frontend-config.sh prod
 ```
 
-### 5. Initialize Amplify in Your Frontend
+This creates `.env.development` and `.env.production` files in your frontend directory with values from Terraform outputs.
 
-In your main application file (e.g., `main.js` or `App.js`):
+#### Option B: Manual Configuration
 
-```javascript
+If you prefer to set up manually, get the values from Terraform:
+
+```bash
+cd quote-lambda-tf-backend/infrastructure
+terraform workspace select dev
+terraform output
+```
+
+Create `.env.development` in your frontend directory:
+
+```bash
+VITE_AWS_REGION=eu-central-1
+VITE_COGNITO_USER_POOL_ID=<from terraform output user_pool_id>
+VITE_COGNITO_CLIENT_ID=<from terraform output user_pool_client_id>
+VITE_COGNITO_DOMAIN=<from terraform output cognito_domain>
+VITE_API_URL=<from terraform output api_gateway_url>
+```
+
+**Security Note:** Add `.env.development` and `.env.production` to your frontend's `.gitignore`. Only commit `.env.*.example` files.
+
+### 5. Create AWS Configuration File
+
+Create `src/config/aws-exports.ts` in your frontend:
+
+```typescript
+import { ResourcesConfig } from 'aws-amplify';
+
+const awsConfig: ResourcesConfig = {
+  Auth: {
+    Cognito: {
+      userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
+      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
+      loginWith: {
+        oauth: {
+          domain: import.meta.env.VITE_COGNITO_DOMAIN,
+          scopes: ['email', 'openid', 'profile'],
+          redirectSignIn: [window.location.origin + '/'],
+          redirectSignOut: [window.location.origin + '/logout'],
+          responseType: 'code',
+        },
+      },
+    },
+  },
+};
+
+export default awsConfig;
+```
+
+**Note:** This uses AWS Amplify v6 configuration format. The environment variables are automatically selected based on your build mode (`npm run dev` uses `.env.development`, `npm run build` uses `.env.production`).
+
+### 6. Initialize Amplify in Your Frontend
+
+In your main application file (e.g., `src/main.tsx`):
+
+```typescript
 import { Amplify } from 'aws-amplify';
-import config from './config/aws-exports';
+import awsConfig from './config/aws-exports';
 
-Amplify.configure(config);
+Amplify.configure(awsConfig);
 ```
 
 ## Day 3-4: API Gateway Setup

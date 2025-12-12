@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Environment files (contain sensitive AWS configuration)
+.env.development
+.env.production
+.env.local
+.env.*.local
+
+# But keep example files
+!.env.*.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

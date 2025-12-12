@@ -2,7 +2,7 @@
 # Copy this file to dev.tfvars and fill in your actual GitHub OAuth credentials
 # DO NOT commit dev.tfvars to version control!
 
-# GitHub OAuth Configuration for Development
+# GitHub OAuth Configuration for Development (REQUIRED)
 # Create a GitHub OAuth App at: https://github.com/settings/developers
 # 
 # Settings for your GitHub OAuth App:
@@ -11,7 +11,6 @@
 # - Authorization callback URL: https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
 #   (Get the exact URL from: terraform output cognito_domain after first apply)
 
-github_oauth_client_id     = ""  # Your GitHub OAuth Client ID
-github_oauth_client_secret = ""  # Your GitHub OAuth Client Secret
-
-# Leave empty to skip GitHub OAuth and use email/password only
+# REQUIRED: You must provide these values
+github_oauth_client_id     = "your-github-client-id-here"
+github_oauth_client_secret = "your-github-client-secret-here"

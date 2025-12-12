@@ -61,6 +61,9 @@ resource "aws_cognito_user_pool_client" "web_client" {
   
   user_pool_id = aws_cognito_user_pool.quote_app.id
   
+  # Supported identity providers
+  supported_identity_providers = ["COGNITO", "GitHub"]
+  
   # Authentication flows
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
@@ -92,10 +95,8 @@ resource "aws_cognito_user_pool_domain" "main" {
   user_pool_id = aws_cognito_user_pool.quote_app.id
 }
 
-# GitHub Identity Provider (Optional - only created if credentials are provided)
+# GitHub Identity Provider (Required)
 resource "aws_cognito_identity_provider" "github" {
-  count = var.github_oauth_client_id != "" ? 1 : 0
-  
   user_pool_id  = aws_cognito_user_pool.quote_app.id
   provider_name = "GitHub"
   provider_type = "OIDC"

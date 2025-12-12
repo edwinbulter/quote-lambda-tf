@@ -2,9 +2,9 @@
 # Copy this file to dev.tfvars or prod.tfvars and fill in your actual values
 # DO NOT commit the actual .tfvars files to version control!
 
-# GitHub OAuth Configuration (Optional)
+# GitHub OAuth Configuration (REQUIRED)
 # Get these values from: https://github.com/settings/developers
-# Leave empty if you don't want to use GitHub OAuth
+# You MUST provide these values - GitHub OAuth is required for this project
 github_oauth_client_id     = "your-github-client-id-here"
 github_oauth_client_secret = "your-github-client-secret-here"
 
