@@ -108,6 +108,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     font-family: Arial, Helvetica, sans-serif;
+    margin-top: 8px;
 
     &:hover {
       background-color: #f1f8f4;
@@ -116,6 +117,17 @@
 
     &:active {
       transform: translateY(0);
+    }
+  }
+
+  .cancel-button {
+    color: #6c757d;
+    border-color: #6c757d;
+
+    &:hover {
+      background-color: #f8f9fa;
+      color: #5a6268;
+      border-color: #5a6268;
     }
   }
 }

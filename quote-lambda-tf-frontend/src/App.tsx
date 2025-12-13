@@ -9,12 +9,13 @@ import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/Login';
 
 const App: React.FC = () => {
-    const { isAuthenticated, isLoading, signOut, user } = useAuth();
+    const { isAuthenticated, isLoading, signOut, user, hasRole, userGroups } = useAuth();
     const [quote, setQuote] = useState<Quote | null>(null); // Allow `null` for initial state
     const [receivedQuotes, setReceivedQuotes] = useState<Quote[]>([]); // Array of `Quote` objects
     const [loading, setLoading] = useState<boolean>(true); // Loading state
     const [liking, setLiking] = useState<boolean>(false); // Liking state
     const [signingIn, setSigningIn] = useState<boolean>(false);
+    const [showProfile, setShowProfile] = useState<boolean>(false);
     const indexRef = useRef<number>(0); // Reference to the current quote index
     const favouritesRef = useRef<FavouritesComponentHandle>(null);
 
@@ -118,11 +119,41 @@ const App: React.FC = () => {
         setSigningIn(!signingIn);
     };
 
+    const toggleProfile = (): void => {
+        setShowProfile(!showProfile);
+    };
+
+    const handleSignOut = async (): Promise<void> => {
+        await signOut();
+        setShowProfile(false);
+    };
+
+    const closeProfile = (): void => {
+        setShowProfile(false);
+    };
+
     return (
         <div className="app">
-            <div className="quoteView">
+            <div className={`quoteView ${(signingIn || showProfile) ? 'fullHeight' : ''}`}>
                 {signingIn && !isAuthenticated ? (
-                    <Login />
+                    <Login onCancel={() => setSigningIn(false)} />
+                ) : showProfile && isAuthenticated && user ? (
+                    <div className="profile">
+                        <h2>User Profile</h2>
+                        <div className="profile-info">
+                            <p><strong>Username:</strong> {user.username}</p>
+                            <p><strong>User ID:</strong> {user.userId}</p>
+                            <p><strong>Roles:</strong> {userGroups.length > 0 ? userGroups.join(', ') : 'No roles assigned'}</p>
+                        </div>
+                        <div className="profile-actions">
+                            <button className="signOutButton" onClick={handleSignOut}>
+                                Sign Out
+                            </button>
+                            <button className="cancelButton" onClick={closeProfile}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
                 ) : (
                     <>
                         <p>
@@ -140,37 +171,46 @@ const App: React.FC = () => {
                     <div className="logo-main">Quote</div>
                 </div>
                 {isAuthenticated && user && (
-                    <div className="userInitial" title={user.username}>
+                    <div className="userInitial" title={user.username} onClick={toggleProfile} style={{ cursor: 'pointer' }}>
                         {user.username.charAt(0).toUpperCase()}
                     </div>
                 )}
-                <button className="newQuoteButton" disabled={loading} onClick={newQuote}>
+                <button className="newQuoteButton" disabled={loading || signingIn || showProfile} onClick={newQuote}>
                     {loading ? "Loading..." : "New Quote"}
                 </button>
-                <button className="likeButton" disabled={!isAuthenticated || liking || !!quote?.liked} onClick={like}>
+                <button 
+                    className="likeButton" 
+                    disabled={!isAuthenticated || !hasRole('USER') || liking || !!quote?.liked || signingIn || showProfile} 
+                    onClick={like}
+                    title={!isAuthenticated ? "Sign in to like quotes" : !hasRole('USER') ? "USER role required to like quotes" : ""}
+                >
                     {liking ? "Liking..." : "Like"}
                 </button>
-                <button className="previousButton" disabled={indexRef.current === 0} onClick={previous}>
+                <button className="previousButton" disabled={indexRef.current === 0 || signingIn || showProfile} onClick={previous}>
                     Previous
                 </button>
                 <button
                     className="nextButton"
-                    disabled={indexRef.current >= receivedQuotes.length - 1}
+                    disabled={indexRef.current >= receivedQuotes.length - 1 || signingIn || showProfile}
                     onClick={next}
                 >
                     Next
                 </button>
-                <button className="firstButton" onClick={jumpToFirst}>
+                <button className="firstButton" disabled={signingIn || showProfile} onClick={jumpToFirst}>
                     First
                 </button>
-                <button className="lastButton" onClick={jumpToLast}>
+                <button className="lastButton" disabled={signingIn || showProfile} onClick={jumpToLast}>
                     Last
                 </button>
-                <button className="signinButton" disabled={isLoading} onClick={isAuthenticated ? signOut : signIn}>
-                    {isLoading ? "Loading..." : (isAuthenticated ? "Sign Out" : "Sign In")}
-                </button>
+                {!isAuthenticated ? (
+                    <button className="signinButton" disabled={isLoading || signingIn || showProfile} onClick={isAuthenticated ? signOut : signIn}>
+                        {isLoading ? "Loading..." : (isAuthenticated ? "Sign Out" : "Sign In")}
+                    </button>
+                ) : ""}
             </div>
-            <FavouritesComponent ref={favouritesRef}/>
+            {!signingIn && !showProfile && (
+                <FavouritesComponent ref={favouritesRef}/>
+            )}
         </div>
     );
 };

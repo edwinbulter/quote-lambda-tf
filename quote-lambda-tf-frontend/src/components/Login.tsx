@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './Login.scss';
 
-export const Login: React.FC = () => {
+interface LoginProps {
+    onCancel?: () => void;
+}
+
+export const Login: React.FC<LoginProps> = ({ onCancel }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -65,6 +69,11 @@ export const Login: React.FC = () => {
                     {error && <p className="error">{error}</p>}
                     <button type="submit">Confirm</button>
                 </form>
+                {onCancel && (
+                    <button className="cancel-button" onClick={onCancel}>
+                        Cancel
+                    </button>
+                )}
             </div>
         );
     }
@@ -95,6 +104,11 @@ export const Login: React.FC = () => {
             <button onClick={() => setIsSignUp(!isSignUp)}>
                 {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
             </button>
+            {onCancel && (
+                <button className="cancel-button" onClick={onCancel}>
+                    Cancel
+                </button>
+            )}
         </div>
     );
 };
