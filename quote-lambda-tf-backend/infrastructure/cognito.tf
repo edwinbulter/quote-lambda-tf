@@ -62,7 +62,7 @@ resource "aws_cognito_user_pool_client" "web_client" {
   user_pool_id = aws_cognito_user_pool.quote_app.id
   
   # Supported identity providers
-  supported_identity_providers = ["COGNITO"]
+  supported_identity_providers = ["COGNITO", "Google"]
   
   # Authentication flows
   explicit_auth_flows = [
@@ -94,6 +94,25 @@ resource "aws_cognito_user_pool_client" "web_client" {
 resource "aws_cognito_user_pool_domain" "main" {
   domain       = "${var.project_name}-${local.environment}"
   user_pool_id = aws_cognito_user_pool.quote_app.id
+}
+
+# Google Identity Provider
+resource "aws_cognito_identity_provider" "google" {
+  user_pool_id  = aws_cognito_user_pool.quote_app.id
+  provider_name = "Google"
+  provider_type = "Google"
+
+  provider_details = {
+    client_id     = var.google_oauth_client_id
+    client_secret = var.google_oauth_client_secret
+    authorize_scopes = "email openid profile"
+  }
+
+  attribute_mapping = {
+    email    = "email"
+    name     = "name"
+    username = "email"
+  }
 }
 
 # Cognito User Groups for role-based access control
