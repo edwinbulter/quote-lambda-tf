@@ -19,6 +19,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.when;
 
@@ -40,6 +41,27 @@ public class QuoteHandlerTest {
 
     public static Quote parseJsonForQuote(String json) {
         return gson.fromJson(json, quoteType);
+    }
+
+    private static APIGatewayProxyRequestEvent createEventWithUserRole(String path, String method) {
+        // Create a mock JWT token with USER group
+        // Format: header.payload.signature (we only need a decodable payload for testing)
+        String header = base64UrlEncode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+        String payload = base64UrlEncode("{\"sub\":\"test-user-id\",\"email\":\"test@example.com\",\"cognito:groups\":[\"USER\"]}");
+        String signature = "mock-signature";
+        String mockToken = header + "." + payload + "." + signature;
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("authorization", mockToken);
+
+        return new APIGatewayProxyRequestEvent()
+            .withHttpMethod(method)
+            .withPath(path)
+            .withHeaders(headers);
+    }
+
+    private static String base64UrlEncode(String input) {
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(input.getBytes());
     }
 
     @Test
@@ -93,9 +115,7 @@ public class QuoteHandlerTest {
         when(quoteRepositoryMock.findById(1)).thenReturn(quote);
 
         QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-            .withHttpMethod("POST")
-            .withPath("/quote/1/like");
+        APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/like", "POST");
         Context context = Mockito.mock(Context.class);
 
         // Act
@@ -105,6 +125,22 @@ public class QuoteHandlerTest {
         Quote resultQuote = parseJsonForQuote(response.getBody());
         Assertions.assertEquals(1, resultQuote.getLikes());
         Assertions.assertEquals(200, response.getStatusCode());
+    }
+
+    @Test
+    public void handleRequest_LikeQuote_WithoutAuthorization_ShouldReturn403() {
+        // Arrange
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
+        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+            .withHttpMethod("POST")
+            .withPath("/quote/1/like");
+        Context context = Mockito.mock(Context.class);
+
+        // Act
+        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+        // Assert
+        Assertions.assertEquals(403, response.getStatusCode());
     }
 
     @Test

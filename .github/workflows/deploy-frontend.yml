@@ -53,6 +53,65 @@ jobs:
       working-directory: quote-lambda-tf-frontend
       run: npm ci
       
+    - name: Configure AWS credentials (for Terraform outputs)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+      
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_wrapper: false
+        
+    - name: Generate frontend configuration from Terraform
+      working-directory: quote-lambda-tf-backend/infrastructure
+      run: |
+        echo "🔧 Generating frontend configuration from Terraform outputs..."
+        
+        # Initialize Terraform
+        terraform init
+        
+        # Select workspace based on environment
+        if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
+          terraform workspace select default || terraform workspace new default
+        else
+          terraform workspace select ${{ github.event.inputs.environment }} || terraform workspace new ${{ github.event.inputs.environment }}
+        fi
+        
+        # Get Terraform outputs
+        USER_POOL_ID=$(terraform output -raw user_pool_id)
+        CLIENT_ID=$(terraform output -raw user_pool_client_id)
+        COGNITO_DOMAIN=$(terraform output -raw cognito_domain)
+        API_URL=$(terraform output -raw api_gateway_url)
+        REGION=$(terraform output -raw aws_region)
+        
+        # Create env file
+        if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
+          ENV_FILE="../../quote-lambda-tf-frontend/.env.production"
+        else
+          ENV_FILE="../../quote-lambda-tf-frontend/.env.development"
+        fi
+        
+        cat > "$ENV_FILE" << EOF
+        # Auto-generated from Terraform outputs in GitHub Actions
+        # Environment: ${{ github.event.inputs.environment }}
+        # Generated: $(date)
+        
+        VITE_AWS_REGION=$REGION
+        VITE_COGNITO_USER_POOL_ID=$USER_POOL_ID
+        VITE_COGNITO_CLIENT_ID=$CLIENT_ID
+        VITE_COGNITO_DOMAIN=$COGNITO_DOMAIN
+        VITE_REACT_APP_API_BASE_URL=$API_URL
+        EOF
+        
+        echo "✅ Frontend configuration generated"
+        echo "📋 Configuration:"
+        echo "  Region: $REGION"
+        echo "  User Pool ID: $USER_POOL_ID"
+        echo "  Client ID: $CLIENT_ID"
+        echo "  API URL: $API_URL"
+      
     - name: Build application
       working-directory: quote-lambda-tf-frontend
       run: |
@@ -61,12 +120,6 @@ jobs:
         else
           npm run build -- --mode development
         fi
-      
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
         
     - name: Deploy to S3
       working-directory: quote-lambda-tf-frontend
