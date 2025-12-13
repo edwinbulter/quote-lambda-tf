@@ -8,6 +8,7 @@ import {
   fetchAuthSession,
   AuthUser
 } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
 
 interface AuthContextType {
     user: AuthUser | null;
@@ -32,20 +33,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check if user is already authenticated on mount
     useEffect(() => {
         checkAuthState();
+
+        // Listen for auth events
+        const hubListener = Hub.listen('auth', ({ payload }) => {
+            console.log('Auth event:', payload);
+            switch (payload.event) {
+                case 'signedIn':
+                    console.log('User signed in');
+                    checkAuthState();
+                    break;
+                case 'signedOut':
+                    console.log('User signed out');
+                    setUser(null);
+                    setIsAuthenticated(false);
+                    setUserGroups([]);
+                    break;
+                case 'tokenRefresh':
+                    console.log('Token refreshed');
+                    checkAuthState();
+                    break;
+                case 'tokenRefresh_failure':
+                    console.log('Token refresh failed');
+                    setUser(null);
+                    setIsAuthenticated(false);
+                    setUserGroups([]);
+                    break;
+            }
+        });
+
+        return () => hubListener();
     }, []);
 
     const checkAuthState = async () => {
         try {
+            console.log('Checking auth state...');
             const currentUser = await getCurrentUser();
+            console.log('Current user:', currentUser);
             setUser(currentUser);
             setIsAuthenticated(true);
 
             // Extract groups from JWT token
             const session = await fetchAuthSession();
+            console.log('Session:', session);
             const idToken = session.tokens?.idToken;
             const groups = (idToken?.payload['cognito:groups'] as string[]) || [];
+            console.log('User groups:', groups);
             setUserGroups(groups);
-        } catch (error) {
+        } catch (error: any) {
+            // This is expected when user is not authenticated - not an error
+            if (error.name === 'UserUnAuthenticatedException') {
+                console.log('User not authenticated (expected on initial load)');
+            } else {
+                console.error('Auth state check error:', error);
+            }
             setUser(null);
             setIsAuthenticated(false);
             setUserGroups([]);

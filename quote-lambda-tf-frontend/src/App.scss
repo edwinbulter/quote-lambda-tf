@@ -25,6 +25,23 @@
   &.fullHeight {
     height: 100vh;
   }
+
+  &.fullWidth {
+    @media (max-width: 768px) {
+      left: 0;
+      width: 100vw;
+      padding-left: 15px;
+      padding-right: 15px;
+      overflow-y: auto;
+    }
+
+    @media (max-width: 480px) {
+      padding-left: 10px;
+      padding-right: 10px;
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+  }
 }
 
 .author {
@@ -39,6 +56,12 @@
   position: absolute;
   top: 0;
   left: 0;
+
+  &.hideOnNarrow {
+    @media (max-width: 768px) {
+      display: none;
+    }
+  }
 }
 
 .logo {
@@ -161,8 +184,9 @@
   align-items: center;
   justify-content: center;
   gap: 20px;
-  padding: 40px;
-  max-width: 500px;
+  padding: 30px 20px;
+  width: 90%;
+  max-width: 400px;
   margin: 0 auto;
 
   h2 {
@@ -220,6 +244,39 @@
 
       &:hover {
         background-color: #5a6268;
+      }
+    }
+  }
+
+  // Mobile responsiveness
+  @media (max-width: 480px) {
+    width: 95%;
+    padding: 20px 15px;
+    gap: 15px;
+
+    h2 {
+      font-size: 24px;
+      margin-bottom: 15px;
+    }
+
+    .profile-info {
+      padding: 15px;
+
+      p {
+        font-size: 16px;
+        margin: 8px 0;
+      }
+    }
+
+    .profile-actions {
+      flex-direction: column;
+      width: 100%;
+      gap: 10px;
+
+      button {
+        width: 100%;
+        padding: 10px 20px;
+        font-size: 15px;
       }
     }
   }

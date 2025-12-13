@@ -46,17 +46,3 @@ variable "dynamodb_write_capacity" {
   description = "DynamoDB write capacity units"
 }
 
-# GitHub OAuth Configuration (required)
-variable "github_oauth_client_id" {
-  type        = string
-  description = "GitHub OAuth Client ID for Cognito authentication (required)"
-  sensitive   = true
-  # No default - must be provided via tfvars file
-}
-
-variable "github_oauth_client_secret" {
-  type        = string
-  description = "GitHub OAuth Client Secret for Cognito authentication (required)"
-  sensitive   = true
-  # No default - must be provided via tfvars file
-}

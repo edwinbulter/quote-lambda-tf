@@ -101,6 +101,7 @@ export const Login: React.FC<LoginProps> = ({ onCancel }) => {
                     {isSignUp ? 'Sign Up' : 'Sign In'}
                 </button>
             </form>
+            
             <button onClick={() => setIsSignUp(!isSignUp)}>
                 {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
             </button>

@@ -134,7 +134,7 @@ const App: React.FC = () => {
 
     return (
         <div className="app">
-            <div className={`quoteView ${(signingIn || showProfile) ? 'fullHeight' : ''}`}>
+            <div className={`quoteView ${(signingIn || showProfile) ? 'fullHeight fullWidth' : ''}`}>
                 {signingIn && !isAuthenticated ? (
                     <Login onCancel={() => setSigningIn(false)} />
                 ) : showProfile && isAuthenticated && user ? (
@@ -165,7 +165,7 @@ const App: React.FC = () => {
                     </>
                 )}
             </div>
-            <div className="buttonBar">
+            <div className={`buttonBar ${(signingIn || showProfile) ? 'hideOnNarrow' : ''}`}>
                 <div className="logo">
                     <div className="logo-header">CODE-BULTER</div>
                     <div className="logo-main">Quote</div>
