@@ -81,8 +81,16 @@ resource "aws_cognito_user_pool_client" "web_client" {
   write_attributes = ["email", "name", "preferred_username"]
   
   # Callback URLs (update with your frontend URLs)
-  callback_urls = ["http://localhost:5173/"]
-  logout_urls   = ["http://localhost:5173/logout"]
+  callback_urls = [
+    "http://localhost:5173/",
+    "https://d1fzgis91zws1k.cloudfront.net/",
+    "https://d1fzgis91zws1k.cloudfront.net"
+  ]
+  logout_urls = [
+    "http://localhost:5173/logout",
+    "https://d1fzgis91zws1k.cloudfront.net/logout",
+    "https://d1fzgis91zws1k.cloudfront.net"
+  ]
   
   # Token configuration using duration format
   id_token_validity      = 1  # 1 hour (valid range: 1-24 hours)
