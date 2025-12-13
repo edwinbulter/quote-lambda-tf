@@ -395,7 +395,47 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 
 ---
 
-## Step 4: Verify Cognito Configuration
+## Step 4: Add Cognito Callback URL to Google OAuth App
+
+**IMPORTANT:** This step is required for Google OAuth to work.
+
+1. **Get your Cognito domain:**
+   ```bash
+   cd quote-lambda-tf-backend/infrastructure
+   terraform output cognito_domain
+   ```
+   This will output: `quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com`
+
+2. **Go to Google Cloud Console:**
+   - Navigate to [console.cloud.google.com](https://console.cloud.google.com/)
+   - Select your project
+
+3. **Go to APIs & Services → Credentials**
+
+4. **Click on your OAuth 2.0 Client ID** to edit it
+
+5. **Under "Authorized redirect URIs", add:**
+   ```
+   https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+   ```
+
+6. **Your complete redirect URIs should now be:**
+   ```
+   http://localhost:5173/
+   https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+   https://your-production-domain.com/ (if applicable)
+   ```
+
+7. **Click "SAVE"**
+
+**Important:** The redirect URI format is critical:
+- ✅ **Correct:** `https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse`
+- ❌ **Wrong:** `https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse/` (trailing slash)
+- ❌ **Wrong:** `http://` (must be `https://`)
+
+---
+
+## Step 5: Verify Cognito Configuration
 
 1. Go to **AWS Console → Cognito → User Pools**
 2. Select your user pool (`quote-lambda-tf-backend-user-pool-dev`)
@@ -407,38 +447,105 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 
 ---
 
-## Step 5: Test Google Sign-In
+## Step 6: Verify Attribute Mapping
 
-1. **Restart the frontend dev server:**
+The Google Identity Provider attribute mapping should be configured to map Google's claims to Cognito user attributes.
+
+Verify the `attribute_mapping` in the Google Identity Provider resource in `cognito.tf`:
+
+```hcl
+  attribute_mapping = {
+    email    = "email"
+    name     = "name"
+    username = "sub"
+  }
+```
+
+**Note:** AWS Cognito requires `username` to map to `sub` (the unique Google user ID). The username will appear as `Google_<google-user-id>` in Cognito, but the user's email will be available as the email attribute.
+
+Then apply Terraform:
+
+```bash
+cd quote-lambda-tf-backend/infrastructure
+terraform workspace select dev
+terraform apply -var-file="dev.tfvars"
+```
+
+---
+
+## Step 7: Test Google Sign-In
+
+1. **Clear browser cache:**
+   - Press F12 → Application tab → Clear storage
+   - Or use incognito mode
+
+2. **Restart the frontend dev server:**
    ```bash
    cd quote-lambda-tf-frontend
    npm run dev
    ```
 
-2. **Open the app:**
+3. **Open the app:**
    ```
    http://localhost:5173
    ```
 
-3. **Click "Sign In"**
+4. **Click "Sign In"**
 
-4. **Click "Sign in with Google"**
+5. **Click "Sign in with Google"**
 
-5. **Expected flow:**
+6. **Expected flow:**
    - Redirects to Google login page
    - Sign in with your Google account
    - Authorize the app
    - Redirected back to your app
    - User signed in and created in Cognito
 
-6. **Verify in Cognito:**
+7. **Verify in Cognito:**
    - Go to **AWS Console → Cognito → User Pools → Users**
-   - You should see a new user with email from your Google account
-   - Username will be something like `Google_<google-user-id>`
+   - You should see a new user created
+   - Username will be something like `Google_109747799293641433374` (Google user ID)
+   - Email attribute should be your Google email
+
+8. **Verify in your app:**
+   - Click "View Profile"
+   - You should see:
+     - **Username:** Google_<google-user-id>
+     - **User ID:** UUID
+     - **Roles:** (empty - no automatic group assignment)
 
 ---
 
 ## Troubleshooting
+
+### Error: "redirect_uri_mismatch" - Error 400
+
+**Full error:**
+```
+You can't sign in to this app because it doesn't comply with Google's OAuth 2.0 policy.
+If you're the app developer, register the redirect URI in the Google Cloud Console.
+Request details: redirect_uri=https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+```
+
+**Solution:**
+1. Get your Cognito domain:
+   ```bash
+   cd quote-lambda-tf-backend/infrastructure
+   terraform output cognito_domain
+   ```
+
+2. Go to **Google Cloud Console → APIs & Services → Credentials**
+
+3. Click on your OAuth 2.0 Client ID to edit it
+
+4. Under "Authorized redirect URIs", add:
+   ```
+   https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+   ```
+
+5. Click **SAVE**
+
+6. Clear browser cache and try again
 
 ### Error: "Invalid client_id or client_secret"
 
@@ -446,13 +553,6 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 - Verify credentials in `dev.tfvars` match Google Cloud Console
 - Regenerate credentials if needed
 - Run `terraform apply -var-file="dev.tfvars"` again
-
-### Error: "redirect_uri_mismatch"
-
-**Solution:**
-- Verify redirect URIs in Google Cloud Console match:
-  - `http://localhost:5173/` (for development)
-  - Your production domain (for production)
 
 ### User not created in Cognito
 
@@ -467,6 +567,47 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 - Clear browser cache and cookies
 - Restart dev server
 - Verify `.env.development` has correct Cognito domain
+
+### Error: "Invalid attribute mapping. email cannot be mapped to username"
+
+**Cause:** AWS Cognito doesn't allow mapping `email` to `username` for Google OAuth.
+
+**Solution:**
+- Verify attribute mapping in `cognito.tf` has `username = "sub"` (not `username = "email"`)
+- The username will be the Google user ID (e.g., `Google_109747799293641433374`)
+- The email is stored separately as the email attribute
+- Apply Terraform: `terraform apply -var-file="dev.tfvars"`
+
+---
+
+## Manual User Group Assignment
+
+Users are **not automatically assigned to groups** when they sign in with Google or register with email. To assign a user to the `USER` group:
+
+### Via AWS Console
+
+1. Go to **AWS Console → Cognito → User Pools**
+2. Select your user pool
+3. Go to **Users** tab
+4. Click on the user
+5. Scroll to **Group memberships**
+6. Click **Add user to groups**
+7. Select `USER` group
+8. Click **Add**
+
+### Via AWS CLI
+
+```bash
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id eu-central-1_XrKxJWy5u \
+  --username your-email@gmail.com \
+  --group-name USER \
+  --region eu-central-1
+```
+
+### Via Terraform
+
+If you want to automatically assign users to groups, you can add a post-confirmation or post-authentication Lambda trigger. See the [Google OAuth with AWS Cognito - Incompatibility Issue](./github-oauth-setup.md) document for an example Lambda implementation.
 
 ---
 

@@ -73,8 +73,12 @@ resource "aws_cognito_user_pool_client" "web_client" {
   
   # OAuth settings
   allowed_oauth_flows = ["code"]
-  allowed_oauth_scopes = ["email", "openid", "profile"]
+  allowed_oauth_scopes = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
   allowed_oauth_flows_user_pool_client = true
+  
+  # Read and write permissions for user attributes
+  read_attributes = ["email", "name", "preferred_username"]
+  write_attributes = ["email", "name", "preferred_username"]
   
   # Callback URLs (update with your frontend URLs)
   callback_urls = ["http://localhost:5173/"]
@@ -111,7 +115,8 @@ resource "aws_cognito_identity_provider" "google" {
   attribute_mapping = {
     email    = "email"
     name     = "name"
-    username = "email"
+    username = "sub"
+    # Don't map preferred_username - let users set it manually
   }
 }
 

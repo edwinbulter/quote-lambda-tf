@@ -15,6 +15,8 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     userGroups: string[];
+    needsUsernameSetup: boolean;
+    setNeedsUsernameSetup: (needs: boolean) => void;
     signIn: (username: string, password: string) => Promise<void>;
     signUp: (username: string, password: string, email: string) => Promise<void>;
     signOut: () => Promise<void>;
@@ -29,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [userGroups, setUserGroups] = useState<string[]>([]);
+    const [needsUsernameSetup, setNeedsUsernameSetup] = useState(false);
 
     // Check if user is already authenticated on mount
     useEffect(() => {
@@ -79,6 +82,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const groups = (idToken?.payload['cognito:groups'] as string[]) || [];
             console.log('User groups:', groups);
             setUserGroups(groups);
+
+            // Check if this is a Google OAuth user without a custom username
+            const username = currentUser.username || '';
+            const isGoogleUser = username.startsWith('Google_');
+            
+            if (isGoogleUser) {
+                // For Google users, check the actual user attributes (not just the token)
+                try {
+                    const { fetchUserAttributes } = await import('aws-amplify/auth');
+                    const attributes = await fetchUserAttributes();
+                    const preferredUsername = attributes.preferred_username;
+                    const email = attributes.email;
+                    
+                    console.log('Google user attributes check:', {
+                        preferredUsername,
+                        email,
+                        isEqual: preferredUsername === email
+                    });
+                    
+                    // Show username setup if:
+                    // 1. No preferred_username OR
+                    // 2. preferred_username equals email (default from Cognito)
+                    const needsSetup = !preferredUsername || preferredUsername === email;
+                    
+                    if (needsSetup) {
+                        console.log('Google user without custom username - showing setup modal');
+                        setNeedsUsernameSetup(true);
+                    } else {
+                        console.log('Google user has custom username:', preferredUsername);
+                        setNeedsUsernameSetup(false);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch user attributes for username check:', error);
+                    setNeedsUsernameSetup(false);
+                }
+            } else {
+                setNeedsUsernameSetup(false);
+            }
         } catch (error: any) {
             // This is expected when user is not authenticated - not an error
             if (error.name === 'UserUnAuthenticatedException') {
@@ -89,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(null);
             setIsAuthenticated(false);
             setUserGroups([]);
+            setNeedsUsernameSetup(false);
         } finally {
             setIsLoading(false);
         }
@@ -153,6 +195,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isAuthenticated,
                 isLoading,
                 userGroups,
+                needsUsernameSetup,
+                setNeedsUsernameSetup,
                 signIn,
                 signUp,
                 signOut,

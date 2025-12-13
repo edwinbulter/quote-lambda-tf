@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { signInWithRedirect } from 'aws-amplify/auth';
+import { signInWithRedirect, updateUserAttributes, signOut } from 'aws-amplify/auth';
 import './Login.scss';
 
 interface LoginProps {
@@ -9,21 +9,25 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onCancel }) => {
     const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [needsConfirmation, setNeedsConfirmation] = useState(false);
     const [confirmationCode, setConfirmationCode] = useState('');
+    const [googleUsername, setGoogleUsername] = useState('');
 
-    const { signIn, signUp, confirmSignUp } = useAuth();
+    const { signIn, signUp, confirmSignUp, needsUsernameSetup, setNeedsUsernameSetup } = useAuth();
 
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
         try {
+            // Use email as username for sign-in (Cognito accepts email as a username alias)
             await signIn(email, password);
         } catch (err: any) {
+            console.error('Sign in error details:', err);
             setError(err.message || 'Failed to sign in');
         }
     };
@@ -33,7 +37,7 @@ export const Login: React.FC<LoginProps> = ({ onCancel }) => {
         setError('');
 
         try {
-            await signUp(email, password, email);
+            await signUp(username, password, email);
             setNeedsConfirmation(true);
         } catch (err: any) {
             setError(err.message || 'Failed to sign up');
@@ -45,9 +49,12 @@ export const Login: React.FC<LoginProps> = ({ onCancel }) => {
         setError('');
 
         try {
-            await confirmSignUp(email, confirmationCode);
+            await confirmSignUp(username, confirmationCode);
             setNeedsConfirmation(false);
             setIsSignUp(false);
+            setUsername('');
+            setEmail('');
+            setPassword('');
             alert('Account confirmed! You can now sign in.');
         } catch (err: any) {
             setError(err.message || 'Failed to confirm account');
@@ -65,6 +72,91 @@ export const Login: React.FC<LoginProps> = ({ onCancel }) => {
             setError(err.message || 'Failed to sign in with Google');
         }
     };
+
+    const handleSetGoogleUsername = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (!googleUsername.trim()) {
+            setError('Username cannot be empty');
+            return;
+        }
+
+        try {
+            console.log('Setting custom username for Google user:', googleUsername);
+            // Store the custom username in the user's preferred_username attribute
+            await updateUserAttributes({
+                userAttributes: {
+                    preferred_username: googleUsername
+                }
+            });
+            console.log('Username set successfully');
+            setGoogleUsername('');
+            // Update the context to hide the modal
+            setNeedsUsernameSetup(false);
+            // Close the modal if onCancel is provided
+            if (onCancel) {
+                onCancel();
+            }
+        } catch (err: any) {
+            console.error('Error setting username:', err);
+            const errorMessage = err.message || 'Failed to set username';
+            if (errorMessage.includes('required scopes')) {
+                setError('Token expired. Please sign out and sign in again to update your username.');
+            } else {
+                setError(errorMessage);
+            }
+        }
+    };
+
+    const handleSignOutAndRetry = async () => {
+        try {
+            await signOut();
+            window.location.reload();
+        } catch (err) {
+            console.error('Sign out error:', err);
+        }
+    };
+
+    // Show username modal for Google OAuth users
+    if (needsUsernameSetup) {
+        return (
+            <div className="auth-container">
+                <h2>Choose Your Username</h2>
+                <p>Complete your profile by choosing a custom username.</p>
+                <form onSubmit={(e) => {
+                    handleSetGoogleUsername(e);
+                }}>
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        value={googleUsername}
+                        onChange={(e) => setGoogleUsername(e.target.value)}
+                        required
+                    />
+                    {error && <p className="error">{error}</p>}
+                    <button type="submit">Set Username</button>
+                </form>
+                {error && error.includes('Token expired') ? (
+                    <button 
+                        className="signOutButton" 
+                        onClick={handleSignOutAndRetry}
+                        style={{ marginTop: '10px', width: '100%' }}
+                    >
+                        Sign Out & Retry
+                    </button>
+                ) : (
+                    <button 
+                        className="cancel-button" 
+                        onClick={() => setNeedsUsernameSetup(false)}
+                        style={{ marginTop: '10px' }}
+                    >
+                        Skip for now
+                    </button>
+                )}
+            </div>
+        );
+    }
 
     if (needsConfirmation) {
         return (
@@ -96,12 +188,21 @@ export const Login: React.FC<LoginProps> = ({ onCancel }) => {
             <h2>{isSignUp ? 'Sign Up' : 'Sign In'}</h2>
             <form onSubmit={isSignUp ? handleSignUp : handleSignIn}>
                 <input
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder={isSignUp ? "Username" : "Username"}
+                    value={isSignUp ? username : email}
+                    onChange={(e) => isSignUp ? setUsername(e.target.value) : setEmail(e.target.value)}
                     required
                 />
+                {isSignUp && (
+                    <input
+                        type="email"
+                        placeholder="Email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                )}
                 <input
                     type="password"
                     placeholder="Password"
