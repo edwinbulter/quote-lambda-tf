@@ -174,13 +174,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signOut = async () => {
         try {
-            await amplifySignOut();
+            await amplifySignOut({
+                global: true
+            });
+            // Clear local state
             setUser(null);
             setIsAuthenticated(false);
             setUserGroups([]);
+            // Force a full page reload to ensure clean state
+            window.location.href = window.location.origin;
         } catch (error) {
             console.error('Sign out error:', error);
-            throw error;
+            // Even if there's an error, redirect to home
+            window.location.href = window.location.origin;
         }
     };
 
