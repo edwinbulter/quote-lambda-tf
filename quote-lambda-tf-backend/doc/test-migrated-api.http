@@ -56,7 +56,7 @@ Content-Type: application/json
 
 ### 3. Like a Quote (requires authentication)
 # Replace the quote ID (75) with an actual quote ID from your database
-POST {{baseUrl}}/quote/2/like
+POST {{baseUrl}}/quote/3/like
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
