@@ -244,7 +244,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             DecodedJWT jwt = JWT.decode(token);
             
             // Extract username from Cognito token
-            return jwt.getClaim("cognito:username").asString();
+            return jwt.getClaim("username").asString();
         } catch (Exception e) {
             logger.error("Error extracting username", e);
             return null;
