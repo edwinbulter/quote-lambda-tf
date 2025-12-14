@@ -116,7 +116,7 @@ DELETE {{baseUrl}}/quote/1/unlike
 # - /liked endpoint now returns quotes specific to the authenticated user
 # - /unlike endpoint is NEW - allows users to remove their likes
 # - All like operations are now user-specific (not global counters)
-# - Likes are stored in separate DynamoDB table: user-likes-dev
+# - Likes are stored in separate DynamoDB table: quote-lambda-tf-user-likes-dev
 #
 # Expected Behavior:
 # - Each user can like/unlike quotes independently

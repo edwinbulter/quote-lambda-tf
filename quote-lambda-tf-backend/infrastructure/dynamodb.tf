@@ -91,7 +91,7 @@ resource "aws_appautoscaling_policy" "dynamodb_table_write_policy" {
 
 # DynamoDB table for storing user likes
 resource "aws_dynamodb_table" "user_likes_table" {
-  name           = local.environment == "prod" ? "user-likes" : "user-likes-${local.environment}"
+  name           = local.environment == "prod" ? "quote-lambda-tf-user-likes" : "quote-lambda-tf-user-likes-${local.environment}"
   billing_mode   = "PROVISIONED"
   read_capacity  = var.dynamodb_read_capacity
   write_capacity = var.dynamodb_write_capacity
