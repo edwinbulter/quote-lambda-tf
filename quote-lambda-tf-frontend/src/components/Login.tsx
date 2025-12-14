@@ -17,7 +17,7 @@ export const Login: React.FC<LoginProps> = ({ onCancel }) => {
     const [confirmationCode, setConfirmationCode] = useState('');
     const [googleUsername, setGoogleUsername] = useState('');
 
-    const { signIn, signUp, confirmSignUp, needsUsernameSetup, setNeedsUsernameSetup } = useAuth();
+    const { signIn, signUp, confirmSignUp, needsUsernameSetup, setNeedsUsernameSetup, refreshUserAttributes } = useAuth();
 
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -92,6 +92,8 @@ export const Login: React.FC<LoginProps> = ({ onCancel }) => {
             });
             console.log('Username set successfully');
             setGoogleUsername('');
+            // Refresh user attributes to update the display
+            await refreshUserAttributes();
             // Update the context to hide the modal
             setNeedsUsernameSetup(false);
             // Close the modal if onCancel is provided

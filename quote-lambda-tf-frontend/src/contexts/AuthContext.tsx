@@ -22,6 +22,7 @@ interface AuthContextType {
     signOut: () => Promise<void>;
     confirmSignUp: (username: string, code: string) => Promise<void>;
     hasRole: (role: string) => boolean;
+    refreshUserAttributes: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -194,6 +195,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return userGroups.includes(role);
     };
 
+    const refreshUserAttributes = async () => {
+        // Force a re-check of the auth state to refresh user attributes
+        await checkAuthState();
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -207,7 +213,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 signUp,
                 signOut,
                 confirmSignUp,
-                hasRole
+                hasRole,
+                refreshUserAttributes
             }}
         >
             {children}

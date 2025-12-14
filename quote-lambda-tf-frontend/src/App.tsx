@@ -78,7 +78,7 @@ const App: React.FC = () => {
             }
         };
         fetchUserAttributes();
-    }, [isAuthenticated, user]);
+    }, [isAuthenticated, user, needsUsernameSetup]);
 
     const fetchFirstQuote = async (): Promise<void> => {
         try {
