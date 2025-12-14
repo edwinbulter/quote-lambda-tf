@@ -101,13 +101,8 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             response.setStatusCode(HttpStatus.SC_NO_CONTENT);
             return response;
         } else if (path.endsWith("/liked")) {
-            // Extract username from token
-            String username = extractUsername(event);
-            if (username == null) {
-                return createErrorResponse("Could not extract username from token");
-            }
-            
-            List<Quote> likedQuotes = quoteService.getLikedQuotes(username);
+            // Return all quotes that have at least one like (no authentication required)
+            List<Quote> likedQuotes = quoteService.getLikedQuotes();
             return createResponse(likedQuotes);
         } else {
             return createErrorResponse("Invalid request");

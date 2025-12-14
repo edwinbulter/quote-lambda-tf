@@ -41,8 +41,9 @@ async function getUniqueQuote(receivedQuotes: Quote[]): Promise<Quote> {
 async function likeQuote(quote: Quote): Promise<Quote> {
     const authHeaders = await getAuthHeaders();
     const response = await fetch(`${BASE_URL}/quote/${quote.id}/like`, {
-        method: "PATCH",
+        method: "POST",
         headers: {
+            'Content-Type': 'application/json',
             ...authHeaders,
         },
     });

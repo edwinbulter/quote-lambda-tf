@@ -628,11 +628,11 @@ output "user_likes_table_arn" {
 3. ✅ Test all endpoints with authenticated requests
 4. ✅ Verify DynamoDB tables are working correctly
 
-### Phase 5: Frontend Updates 🔜 PENDING
-1. Update frontend to use new API endpoints
-2. Add unlike functionality to UI
-3. Display like counts per quote
-4. Test end-to-end functionality
+### Phase 5: Frontend Updates ✅ COMPLETED
+1. ✅ Update frontend to use new API endpoints (POST for /like, authentication headers for /liked)
+2. 🔜 Add unlike functionality to UI (future enhancement)
+3. 🔜 Display like counts per quote (future enhancement)
+4. ✅ Test end-to-end functionality
 
 ### Phase 6: Cleanup (Optional)
 1. Remove old `likes` attribute from existing DynamoDB records (won't affect functionality if left)
@@ -646,11 +646,11 @@ output "user_likes_table_arn" {
 - `GET /quotes/liked` - Returns quotes with likes > 0
 
 ### New Endpoints
-- `POST /quotes/{id}/like` - Creates UserLike record (requires authenticated user)
-- `DELETE /quotes/{id}/like` - Removes UserLike record (unlike)
-- `GET /quotes/liked` - Returns quotes liked by authenticated user
-- `GET /quotes/{id}/likes/count` - Returns total like count for a quote
-- `GET /quotes/{id}/likes/status` - Returns whether current user has liked the quote
+- `POST /quotes/{id}/like` - Creates UserLike record (requires authenticated USER)
+- `DELETE /quotes/{id}/like` - Removes UserLike record (unlike, requires authenticated USER)
+- `GET /quotes/liked` - Returns all quotes with at least one like (no authentication required)
+- `GET /quotes/{id}/likes/count` - Returns total like count for a quote (future enhancement)
+- `GET /quotes/{id}/likes/status` - Returns whether current user has liked the quote (future enhancement)
 
 ---
 
@@ -661,7 +661,7 @@ output "user_likes_table_arn" {
 - [ ] Test UserLikeRepository CRUD operations
 - [ ] Test QuoteService.likeQuote() with username
 - [ ] Test QuoteService.unlikeQuote()
-- [ ] Test QuoteService.getLikedQuotes() returns user-specific likes
+- [ ] Test QuoteService.getLikedQuotes() returns all quotes with at least one like
 - [ ] Test QuoteService.getLikeCount() returns correct count
 - [ ] Test Quote model without likes field
 

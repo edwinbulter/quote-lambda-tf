@@ -74,7 +74,16 @@ public class QuoteService {
         userLikeRepository.deleteUserLike(username, quoteId);
     }
 
-    public List<Quote> getLikedQuotes(String username) {
+    public List<Quote> getLikedQuotes() {
+        // Get all quotes that have at least one like
+        List<Quote> allQuotes = quoteRepository.getAllQuotes();
+        return allQuotes.stream()
+                .filter(quote -> userLikeRepository.getLikeCountForQuote(quote.getId()) > 0)
+                .sorted((q1, q2) -> q1.getId() - q2.getId())
+                .toList();
+    }
+    
+    public List<Quote> getLikedQuotesByUser(String username) {
         List<UserLike> userLikes = userLikeRepository.getLikesByUser(username);
         return userLikes.stream()
                 .map(userLike -> quoteRepository.findById(userLike.getQuoteId()))
