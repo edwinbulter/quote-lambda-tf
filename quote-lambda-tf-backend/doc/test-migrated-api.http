@@ -1,0 +1,126 @@
+### Test Migrated User Likes API - Dev Environment
+### Base URL: https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com
+### 
+### Prerequisites:
+### 1. You must have a valid Cognito user with USER role
+### 2. Replace {{authToken}} with your actual JWT token from Cognito
+### 3. The token must include "cognito:username" claim
+###
+### To get a token, authenticate with Cognito:
+### - User Pool ID: eu-central-1_XrKxJWy5u
+### - Client ID: 7lkohh6t96igkm9q16rdchansh
+### - Domain: quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com
+
+@baseUrl = https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com
+@authToken = eyJraWQiOiIxMW95RFRGSzQ1QVVzWjFSc3ViYWJXSlwvUGFHZ0M2bHdkNmF1c0RubWtEVT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIzMzljMTgwNS02NDNjLTQ5YjUtYTYwMy1mZWJhNTZjNjM0ZDYiLCJjb2duaXRvOmdyb3VwcyI6WyJVU0VSIl0sImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS1jZW50cmFsLTEuYW1hem9uYXdzLmNvbVwvZXUtY2VudHJhbC0xX1hyS3hKV3k1dSIsImNsaWVudF9pZCI6Ijdsa29oaDZ0OTZpZ2ttOXExNnJkY2hhbnNoIiwib3JpZ2luX2p0aSI6IjUyMGY0NDNhLWVlYmEtNDgwZS04ODU1LTc0N2E4ZDQ1MGY4ZCIsImV2ZW50X2lkIjoiNjVmMTcxMmMtYTMxNC00YjZlLWFkYjQtZTU3Y2Y3YmEzNDBkIiwidG9rZW5fdXNlIjoiYWNjZXNzIiwic2NvcGUiOiJhd3MuY29nbml0by5zaWduaW4udXNlci5hZG1pbiIsImF1dGhfdGltZSI6MTc2NTczMzUyMywiZXhwIjoxNzY1NzM3MTIzLCJpYXQiOjE3NjU3MzM1MjMsImp0aSI6IjNmZGNiMWNiLTU0M2ItNDk4OC1hZjI1LTJiYmI5YzdiNTYyNSIsInVzZXJuYW1lIjoidXNlci0xIn0.s-eV70tXfvkx1Z2NQoyV637wA3AHugcm1N5fJ6aS75tfg8i07DXnk-C0dyJdUR1UGo6_0u7v7vTUWHhfuA6_w3EVupr40qe-IUBUz8b8AlSbTQu1DnIrM_9OhssZJiCrg7kPphELkBaAT6qdmwhpb0TymqGwtYvHIP0z4bvGn2lJvFqWiRWhl2cpsJVb5Tr0zPODnLD_5W5q-YnjxScJaxS8esZK_wd17dHpyYzG26qatxzy_fCmMAmgn-4Dhd9RjG911pBD4M0ZueMuIJ7chOnlHQOPrjEKisrOoQIIHwLDuWqfZ3bAjfFbOoBMJvqCaExazT3_t6lpOfBjloyDvw
+@cognitoClientId = 7lkohh6t96igkm9q16rdchansh
+@cognitoRegion = eu-central-1
+
+### ============================================
+### AUTHENTICATION - Get JWT Token
+### ============================================
+
+### 0. Get JWT Token from Cognito
+# This will return an IdToken that you should copy and use as {{authToken}}
+# Username: user-1
+# Password: Hello-user-1
+POST https://cognito-idp.{{cognitoRegion}}.amazonaws.com/
+Content-Type: application/x-amz-json-1.1
+X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth
+
+{
+  "AuthFlow": "USER_PASSWORD_AUTH",
+  "ClientId": "{{cognitoClientId}}",
+  "AuthParameters": {
+    "USERNAME": "user-1",
+    "PASSWORD": "Hello-user-1"
+  }
+}
+
+### ============================================
+### PUBLIC ENDPOINTS (No authentication required)
+### ============================================
+
+### 1. GET Random Quote
+GET {{baseUrl}}/quote
+
+### 2. POST Quote with exclusions (should return a quote not in the list)
+POST {{baseUrl}}/quote
+Content-Type: application/json
+
+[1, 2, 3, 4, 5]
+
+### ============================================
+### AUTHENTICATED ENDPOINTS (Require USER role)
+### ============================================
+
+### 3. Like a Quote (requires authentication)
+# Replace the quote ID (75) with an actual quote ID from your database
+POST {{baseUrl}}/quote/2/like
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### 4. Unlike a Quote (requires authentication) - NEW ENDPOINT
+# Replace the quote ID (75) with the same quote you liked
+DELETE {{baseUrl}}/quote/75/unlike
+Authorization: Bearer {{authToken}}
+
+### 5. Get All Quotes Liked by Current User (requires authentication)
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### TEST SEQUENCE: Complete Like/Unlike Flow
+### ============================================
+
+### Step 1: Get a random quote to like
+GET {{baseUrl}}/quote
+
+### Step 2: Like the quote (use the ID from Step 1)
+POST {{baseUrl}}/quote/1/like
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Step 3: Verify the quote appears in your liked quotes
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### Step 4: Unlike the quote
+DELETE {{baseUrl}}/quote/1/unlike
+Authorization: Bearer {{authToken}}
+
+### Step 5: Verify the quote no longer appears in your liked quotes
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### ERROR CASES
+### ============================================
+
+### 6. Try to like without authentication (should return 403)
+POST {{baseUrl}}/quote/1/like
+Content-Type: application/json
+
+### 7. Try to get liked quotes without authentication (should return 400 - no username)
+GET {{baseUrl}}/quote/liked
+
+### 8. Try to unlike without authentication (should return 403)
+DELETE {{baseUrl}}/quote/1/unlike
+
+### ============================================
+### NOTES
+### ============================================
+# 
+# Migration Changes:
+# - /like endpoint now requires username from JWT token
+# - /liked endpoint now returns quotes specific to the authenticated user
+# - /unlike endpoint is NEW - allows users to remove their likes
+# - All like operations are now user-specific (not global counters)
+# - Likes are stored in separate DynamoDB table: user-likes-dev
+#
+# Expected Behavior:
+# - Each user can like/unlike quotes independently
+# - Liking the same quote twice updates the timestamp
+# - Unlike removes the record completely (hard delete)
+# - /liked returns only quotes the current user has liked
+#

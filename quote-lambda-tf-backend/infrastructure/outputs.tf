@@ -22,3 +22,13 @@ output "aws_region" {
   description = "AWS region where resources are deployed"
   value       = var.aws_region
 }
+
+output "user_likes_table_name" {
+  description = "Name of the DynamoDB user likes table"
+  value       = aws_dynamodb_table.user_likes_table.name
+}
+
+output "user_likes_table_arn" {
+  description = "ARN of the DynamoDB user likes table"
+  value       = aws_dynamodb_table.user_likes_table.arn
+}

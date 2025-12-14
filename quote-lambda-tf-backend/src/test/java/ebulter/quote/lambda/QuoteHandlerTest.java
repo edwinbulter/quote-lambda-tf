@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import ebulter.quote.lambda.model.Quote;
 import ebulter.quote.lambda.repository.QuoteRepository;
+import ebulter.quote.lambda.repository.UserLikeRepository;
 import ebulter.quote.lambda.service.QuoteService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -30,11 +31,14 @@ public class QuoteHandlerTest {
 
     @Mock
     QuoteRepository quoteRepositoryMock;
+    
+    @Mock
+    UserLikeRepository userLikeRepositoryMock;
 
     public static List<Quote> getQuoteTestData(int numberOfQuotes) {
         List<Quote> quotes = new ArrayList<>();
         for (int i=1; i<=numberOfQuotes; i++) {
-            quotes.add(new Quote(i, "Quote"+i, "Author"+1, 0));
+            quotes.add(new Quote(i, "Quote"+i, "Author"+1));
         }
         return quotes;
     }
@@ -47,7 +51,7 @@ public class QuoteHandlerTest {
         // Create a mock JWT token with USER group
         // Format: header.payload.signature (we only need a decodable payload for testing)
         String header = base64UrlEncode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = base64UrlEncode("{\"sub\":\"test-user-id\",\"email\":\"test@example.com\",\"cognito:groups\":[\"USER\"]}");
+        String payload = base64UrlEncode("{\"sub\":\"test-user-id\",\"email\":\"test@example.com\",\"cognito:username\":\"testuser\",\"cognito:groups\":[\"USER\"]}");
         String signature = "mock-signature";
         String mockToken = header + "." + payload + "." + signature;
 
@@ -70,7 +74,7 @@ public class QuoteHandlerTest {
         List<Quote> quotes = getQuoteTestData(1);
         when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
 
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock));
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("GET")
                 .withPath("/quote");
@@ -92,7 +96,7 @@ public class QuoteHandlerTest {
         List<Quote> quotes = getQuoteTestData(6);
         when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
 
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock));
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
             .withHttpMethod("POST")
             .withBody("[1,2,3,4,5]")
@@ -109,12 +113,12 @@ public class QuoteHandlerTest {
     }
 
     @Test
-    public void handleRequest_LikeQuote_ShouldReturnTheLikedQuoteWithIncreasedLikesField() {
+    public void handleRequest_LikeQuote_ShouldReturnTheLikedQuote() {
         // Arrange
-        Quote quote = new Quote(1, "Quote 1", "Author 1", 0);
+        Quote quote = new Quote(1, "Quote 1", "Author 1");
         when(quoteRepositoryMock.findById(1)).thenReturn(quote);
 
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock));
         APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/like", "POST");
         Context context = Mockito.mock(Context.class);
 
@@ -123,14 +127,16 @@ public class QuoteHandlerTest {
 
         // Assert
         Quote resultQuote = parseJsonForQuote(response.getBody());
-        Assertions.assertEquals(1, resultQuote.getLikes());
+        Assertions.assertEquals(1, resultQuote.getId());
+        Assertions.assertEquals("Quote 1", resultQuote.getQuoteText());
+        Assertions.assertEquals("Author 1", resultQuote.getAuthor());
         Assertions.assertEquals(200, response.getStatusCode());
     }
 
     @Test
     public void handleRequest_LikeQuote_WithoutAuthorization_ShouldReturn403() {
         // Arrange
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock));
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
             .withHttpMethod("POST")
             .withPath("/quote/1/like");
@@ -146,10 +152,8 @@ public class QuoteHandlerTest {
     @Test
     public void handleRequest_GetLikedQuotes_Success() {
         // Arrange
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-            .withHttpMethod("GET")
-            .withPath("/quote/liked");
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock));
+        APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/liked", "GET");
         Context context = Mockito.mock(Context.class);
 
         // Act
@@ -162,7 +166,7 @@ public class QuoteHandlerTest {
     @Test
     public void handleRequest_InvalidRequest() {
         // Arrange
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock));
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock));
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
             .withHttpMethod("GET")
             .withPath("/invalid");

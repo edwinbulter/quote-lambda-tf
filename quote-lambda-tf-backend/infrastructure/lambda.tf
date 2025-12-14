@@ -36,7 +36,9 @@ resource "aws_iam_policy" "lambda_dynamodb_policy" {
         ]
         Resource = [
           aws_dynamodb_table.quotes_table.arn,
-          "${aws_dynamodb_table.quotes_table.arn}/index/*"
+          "${aws_dynamodb_table.quotes_table.arn}/index/*",
+          aws_dynamodb_table.user_likes_table.arn,
+          "${aws_dynamodb_table.user_likes_table.arn}/index/*"
         ]
       },
       {
@@ -72,7 +74,8 @@ resource "aws_lambda_function" "quote_lambda" {
   
   environment {
     variables = {
-      DYNAMODB_TABLE = aws_dynamodb_table.quotes_table.name
+      DYNAMODB_TABLE            = aws_dynamodb_table.quotes_table.name
+      DYNAMODB_USER_LIKES_TABLE = aws_dynamodb_table.user_likes_table.name
     }
   }
 

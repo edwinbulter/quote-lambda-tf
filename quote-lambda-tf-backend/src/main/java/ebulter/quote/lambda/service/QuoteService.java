@@ -2,7 +2,9 @@ package ebulter.quote.lambda.service;
 
 import ebulter.quote.lambda.client.ZenClient;
 import ebulter.quote.lambda.model.Quote;
+import ebulter.quote.lambda.model.UserLike;
 import ebulter.quote.lambda.repository.QuoteRepository;
+import ebulter.quote.lambda.repository.UserLikeRepository;
 import ebulter.quote.lambda.util.QuoteUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,9 +19,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class QuoteService {
     private static final Logger logger = LoggerFactory.getLogger(QuoteService.class);
     private final QuoteRepository quoteRepository;
+    private final UserLikeRepository userLikeRepository;
 
-    public QuoteService(QuoteRepository quoteRepository) {
+    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository) {
         this.quoteRepository = quoteRepository;
+        this.userLikeRepository = userLikeRepository;
     }
 
     public Quote getQuote(final Set<Integer> idsToExclude) {
@@ -55,19 +59,36 @@ public class QuoteService {
         }
     }
 
-    public Quote likeQuote(int idToLike) {
-        Quote quote = quoteRepository.findById(idToLike);
+    public Quote likeQuote(String username, int quoteId) {
+        Quote quote = quoteRepository.findById(quoteId);
         if (quote != null) {
-            quote.setLikes(quote.getLikes() + 1);
-            quoteRepository.updateLikes(quote);
+            UserLike userLike = new UserLike(username, quoteId, System.currentTimeMillis());
+            userLikeRepository.saveUserLike(userLike);
             return quote;
         } else {
             return QuoteUtil.getErrorQuote("Quote to like not found");
         }
     }
 
-    public List<Quote> getLikedQuotes() {
-        return quoteRepository.getLikedQuotes();
+    public void unlikeQuote(String username, int quoteId) {
+        userLikeRepository.deleteUserLike(username, quoteId);
+    }
+
+    public List<Quote> getLikedQuotes(String username) {
+        List<UserLike> userLikes = userLikeRepository.getLikesByUser(username);
+        return userLikes.stream()
+                .map(userLike -> quoteRepository.findById(userLike.getQuoteId()))
+                .filter(quote -> quote != null)
+                .sorted((q1, q2) -> q1.getId() - q2.getId())
+                .toList();
+    }
+
+    public int getLikeCount(int quoteId) {
+        return userLikeRepository.getLikeCountForQuote(quoteId);
+    }
+
+    public boolean hasUserLikedQuote(String username, int quoteId) {
+        return userLikeRepository.hasUserLikedQuote(username, quoteId);
     }
 
 }

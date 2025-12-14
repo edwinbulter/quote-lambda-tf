@@ -4,17 +4,14 @@ public class Quote {
     private int id;
     private String quoteText;
     private String author;
-    private int likes;
 
     public Quote() {
-        this.likes = 0;
     }
 
-    public Quote(int id, String quoteText, String author, int likes) {
+    public Quote(int id, String quoteText, String author) {
         this.id = id;
         this.quoteText = quoteText;
         this.author = author;
-        this.likes = likes;
     }
 
     public int getId() {
@@ -39,14 +36,6 @@ public class Quote {
 
     public void setAuthor(String author) {
         this.author = author;
-    }
-
-    public int getLikes() {
-        return likes;
-    }
-
-    public void setLikes(int likes) {
-        this.likes = likes;
     }
 
     @Override
