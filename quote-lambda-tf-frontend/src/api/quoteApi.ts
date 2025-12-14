@@ -6,7 +6,8 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 async function getAuthHeaders(): Promise<HeadersInit> {
     try {
         const session = await fetchAuthSession();
-        const token = session.tokens?.idToken?.toString();
+        // Use access token which contains "username" claim
+        const token = session.tokens?.accessToken?.toString();
         if (token) {
             return {
                 'Authorization': token,
