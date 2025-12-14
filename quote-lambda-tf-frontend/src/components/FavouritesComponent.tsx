@@ -8,7 +8,6 @@ export type FavouritesComponentHandle = {
 };
 
 const FavouritesComponent = forwardRef<FavouritesComponentHandle>((_, ref) => {
-
     const [messages, setMessages] = useState<string[]>([]); // List of messages as strings
     const [loading, setLoading] = useState<boolean>(false); // Loading state as a boolean
 
@@ -25,8 +24,11 @@ const FavouritesComponent = forwardRef<FavouritesComponentHandle>((_, ref) => {
     const loadFavouriteQuotes = async (): Promise<void> => {
         try {
             setLoading(true);
-            const quotes: Quote[] = await quoteApi.getLikedQuotes(); // Assume this returns an array of `Quote`
+            const quotes: Quote[] = await quoteApi.getLikedQuotes();
             setMessages(quotes.map((quote) => `${quote.quoteText} - ${quote.author}`));
+        } catch (error) {
+            console.error('Failed to load favourite quotes:', error);
+            setMessages([]);
         } finally {
             setLoading(false);
         }

@@ -1,14 +1,16 @@
 # HTTP API Gateway
 resource "aws_apigatewayv2_api" "quote_api" {
-  name          = var.environment == "prod" ? "${var.project_name}-api" : "${var.project_name}-api-${var.environment}"
+  name          = local.environment == "prod" ? "${var.project_name}-api" : "${var.project_name}-api-${local.environment}"
   protocol_type = "HTTP"
-  description   = "HTTP API for ${var.project_name} (${var.environment})"
+  description   = "HTTP API for ${var.project_name} (${local.environment})"
   
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
-    allow_headers = ["content-type"]
-    max_age       = 300
+    allow_origins     = ["*"]
+    allow_methods     = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    allow_headers     = ["content-type", "authorization"]
+    expose_headers    = ["content-type", "authorization"]
+    allow_credentials = false
+    max_age           = 300
   }
 }
 
@@ -18,12 +20,13 @@ resource "aws_apigatewayv2_stage" "api_stage" {
   name        = "$default"
   auto_deploy = true
 
-  # Enable CloudWatch logging
+  # Enable CloudWatch logging and throttling
   default_route_settings {
     detailed_metrics_enabled = true
-    logging_level            = "INFO"
     throttling_burst_limit   = 100
     throttling_rate_limit    = 100
+    # Note: logging_level is not supported in default_route_settings for HTTP APIs
+    # Access logs are configured via access_log_settings below
   }
 
   access_log_settings {
@@ -54,7 +57,7 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   integration_uri    = aws_lambda_alias.quote_lambda_live.invoke_arn
 }
 
-# API Gateway route for all methods
+# API Gateway route for all methods (no authorization - handled in Lambda)
 resource "aws_apigatewayv2_route" "api_route" {
   api_id    = aws_apigatewayv2_api.quote_api.id
   route_key = "ANY /{proxy+}"
@@ -63,7 +66,7 @@ resource "aws_apigatewayv2_route" "api_route" {
 
 # CloudWatch Log Group for API Gateway
 resource "aws_cloudwatch_log_group" "api_gateway" {
-  name              = var.environment == "prod" ? "/aws/api-gw/${var.project_name}" : "/aws/api-gw/${var.project_name}-${var.environment}"
+  name              = local.environment == "prod" ? "/aws/api-gw/${var.project_name}" : "/aws/api-gw/${var.project_name}-${local.environment}"
   retention_in_days = 30
 }
 

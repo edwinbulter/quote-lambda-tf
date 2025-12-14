@@ -55,7 +55,7 @@ test.describe('New Quote Button', () => {
 
     // Verify all other buttons are enabled
     await expect(page.locator('.newQuoteButton')).toBeEnabled();
-    await expect(page.locator('.likeButton')).toBeEnabled();
+    await expect(page.locator('.likeButton')).toBeDisabled();
     await expect(page.locator('.previousButton')).toBeEnabled();
     await expect(page.locator('.firstButton')).toBeEnabled();
     await expect(page.locator('.lastButton')).toBeEnabled();

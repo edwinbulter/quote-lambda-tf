@@ -41,6 +41,12 @@ Access the live application at:
 **Development Environment:**
 > **https://d1fzgis91zws1k.cloudfront.net/**
 
+Not all features can be used if you're not signed in.  
+If you don't want to register and test the restricted features, you can use these user/password combinations:  
+- user-1 with password Hello-user-1
+- user-2 with password Hello-user-2
+- user-3 with password Hello-user-3
+
 ## 📋 Overview
 
 This application allows users to:

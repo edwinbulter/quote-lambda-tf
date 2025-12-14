@@ -37,7 +37,7 @@ test.describe('Quote Display', () => {
     await expect(page.locator('.nextButton')).toBeDisabled();
     // Verify all other buttons are enabled
     await expect(page.locator('.newQuoteButton')).toBeEnabled();
-    await expect(page.locator('.likeButton')).toBeEnabled();
+    await expect(page.locator('.likeButton')).toBeDisabled();
     await expect(page.locator('.firstButton')).toBeEnabled();
     await expect(page.locator('.lastButton')).toBeEnabled();
   });

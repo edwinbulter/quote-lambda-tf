@@ -45,3 +45,16 @@ variable "dynamodb_write_capacity" {
   default     = 5
   description = "DynamoDB write capacity units"
 }
+
+# Google OAuth Configuration
+variable "google_oauth_client_id" {
+  type        = string
+  description = "Google OAuth Client ID for Cognito authentication"
+  sensitive   = true
+}
+
+variable "google_oauth_client_secret" {
+  type        = string
+  description = "Google OAuth Client Secret for Cognito authentication"
+  sensitive   = true
+}

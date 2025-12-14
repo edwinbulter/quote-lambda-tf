@@ -1,6 +1,6 @@
 # IAM role for Lambda execution
 resource "aws_iam_role" "lambda_execution_role" {
-  name = var.environment == "prod" ? "${var.project_name}-lambda-role" : "${var.project_name}-lambda-role-${var.environment}"
+  name = local.environment == "prod" ? "${var.project_name}-lambda-role" : "${var.project_name}-lambda-role-${local.environment}"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -18,7 +18,7 @@ resource "aws_iam_role" "lambda_execution_role" {
 
 # IAM policy for Lambda to access DynamoDB
 resource "aws_iam_policy" "lambda_dynamodb_policy" {
-  name        = var.environment == "prod" ? "${var.project_name}-dynamodb-policy" : "${var.project_name}-dynamodb-policy-${var.environment}"
+  name        = local.environment == "prod" ? "${var.project_name}-dynamodb-policy" : "${var.project_name}-dynamodb-policy-${local.environment}"
   description = "IAM policy for Lambda to access DynamoDB"
   
   policy = jsonencode({
@@ -36,7 +36,9 @@ resource "aws_iam_policy" "lambda_dynamodb_policy" {
         ]
         Resource = [
           aws_dynamodb_table.quotes_table.arn,
-          "${aws_dynamodb_table.quotes_table.arn}/index/*"
+          "${aws_dynamodb_table.quotes_table.arn}/index/*",
+          aws_dynamodb_table.user_likes_table.arn,
+          "${aws_dynamodb_table.user_likes_table.arn}/index/*"
         ]
       },
       {
@@ -60,19 +62,21 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attachment" {
 
 # Lambda function
 resource "aws_lambda_function" "quote_lambda" {
-  function_name = var.environment == "prod" ? var.project_name : "${var.project_name}-${var.environment}"
+  function_name = local.environment == "prod" ? var.project_name : "${var.project_name}-${local.environment}"
   role          = aws_iam_role.lambda_execution_role.arn
   handler       = "ebulter.quote.lambda.QuoteHandler::handleRequest"
   runtime       = "java21"
   memory_size   = var.lambda_memory_size
   timeout       = var.lambda_timeout
+  publish       = true
   
-  filename         = "${path.module}/../target/${var.project_name}-1.0-SNAPSHOT.jar"
-  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.0-SNAPSHOT.jar")
+  filename         = "${path.module}/../target/${var.project_name}-1.1.0-SNAPSHOT.jar"
+  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.1.0-SNAPSHOT.jar")
   
   environment {
     variables = {
-      DYNAMODB_TABLE = aws_dynamodb_table.quotes_table.name
+      DYNAMODB_TABLE            = aws_dynamodb_table.quotes_table.name
+      DYNAMODB_USER_LIKES_TABLE = aws_dynamodb_table.user_likes_table.name
     }
   }
 

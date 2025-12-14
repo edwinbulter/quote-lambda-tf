@@ -124,6 +124,27 @@ cat > /tmp/lambda-deploy-policy.json <<EOF
         "cloudfront:GetDistribution"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "TerraformStateAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::edwinbulter-terraform-state",
+        "arn:aws:s3:::edwinbulter-terraform-state/*"
+      ]
+    },
+    {
+      "Sid": "TerraformLockAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": "arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/terraform-locks"
     }
   ]
 }
@@ -167,6 +188,7 @@ echo "The IAM role has been configured with permissions for:"
 echo "  - Lambda deployment (quote-lambda-tf-backend and quote-lambda-tf-backend-*)"
 echo "  - S3 deployment (quote-lambda-tf-frontend and quote-lambda-tf-frontend-*)"
 echo "  - CloudFront cache invalidation (all distributions)"
+echo "  - Terraform state access (read-only for generating frontend config)"
 echo ""
 echo "Next steps:"
 echo "1. Add the following secret to your GitHub repository:"

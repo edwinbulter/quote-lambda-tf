@@ -22,6 +22,7 @@ This project uses **Terraform Workspaces** to manage multiple environments:
 - ✅ **State Isolation**: Each workspace has its own state file
 - ✅ **Shared Code**: Same Terraform configuration for all environments
 - ✅ **Environment-Specific Resources**: Resources are named with environment suffix
+- ✅ **Automatic Environment Detection**: Environment is automatically derived from workspace name
 
 ## Architecture
 
@@ -71,7 +72,7 @@ The easiest way to set up workspaces is using the provided setup script:
 
 ```bash
 # From the repository root
-./setup-workspaces.sh
+./scripts/setup-workspaces.sh
 ```
 
 **What the script does:**
@@ -93,17 +94,48 @@ cd quote-lambda-tf-backend/infrastructure/
 terraform init -reconfigure
 terraform workspace new dev
 terraform workspace select dev
-terraform apply -var="environment=dev"
+terraform apply  # Environment is automatically set to 'dev' from workspace
 
 # Frontend
 cd ../../quote-lambda-tf-frontend/infrastructure/
 terraform init -reconfigure
 terraform workspace new dev
 terraform workspace select dev
-terraform apply -var="environment=dev"
+terraform apply  # Environment is automatically set to 'dev' from workspace
 ```
 
+**Note:** The environment variable is automatically derived from the workspace name:
+- `default` workspace → `prod` environment
+- `dev` workspace → `dev` environment
+- Any other workspace → uses the workspace name as the environment
+
+You no longer need to pass `-var="environment=dev"` or set `TF_VAR_environment`!
+
 ## How to Use Workspaces
+
+### Automatic Environment Detection
+
+The project uses a `locals.tf` file to automatically derive the environment from the Terraform workspace:
+
+```hcl
+# locals.tf
+locals {
+  # Automatically set environment based on workspace
+  # "default" workspace maps to "prod", all others use their workspace name
+  environment = terraform.workspace == "default" ? "prod" : terraform.workspace
+}
+```
+
+This means:
+- When you select the `default` workspace, all resources are created with the `prod` environment
+- When you select the `dev` workspace, all resources are created with the `dev` environment
+- When you select any other workspace (e.g., `staging`), resources use that workspace name as the environment
+
+**Benefits:**
+- ✅ No need to pass `-var="environment=dev"` every time
+- ✅ No need to set `TF_VAR_environment` environment variable
+- ✅ Workspace and environment are always in sync
+- ✅ Reduces human error from mismatched workspace/environment
 
 ### Check Current Workspace
 
@@ -129,12 +161,12 @@ terraform workspace select default
 
 ```bash
 cd quote-lambda-tf-backend/infrastructure/
-terraform workspace select dev
+terraform workspace select dev  # Automatically sets environment to 'dev'
 terraform plan
 terraform apply
 
 cd ../../quote-lambda-tf-frontend/infrastructure/
-terraform workspace select dev
+terraform workspace select dev  # Automatically sets environment to 'dev'
 terraform plan
 terraform apply
 ```
@@ -143,12 +175,12 @@ terraform apply
 
 ```bash
 cd quote-lambda-tf-backend/infrastructure/
-terraform workspace select default
+terraform workspace select default  # Automatically sets environment to 'prod'
 terraform plan
 terraform apply
 
 cd ../../quote-lambda-tf-frontend/infrastructure/
-terraform workspace select default
+terraform workspace select default  # Automatically sets environment to 'prod'
 terraform plan
 terraform apply
 ```
@@ -255,30 +287,30 @@ aws cloudfront create-invalidation \
 ```bash
 # Backend
 cd quote-lambda-tf-backend/infrastructure/
-terraform workspace select dev
-terraform plan -var="environment=dev"
-terraform apply -var="environment=dev"
+terraform workspace select dev  # Environment automatically set to 'dev'
+terraform plan
+terraform apply
 
 # Frontend
 cd ../../quote-lambda-tf-frontend/infrastructure/
-terraform workspace select dev
-terraform plan -var="environment=dev"
-terraform apply -var="environment=dev"
+terraform workspace select dev  # Environment automatically set to 'dev'
+terraform plan
+terraform apply
 ```
 
 **Production:**
 ```bash
 # Backend
 cd quote-lambda-tf-backend/infrastructure/
-terraform workspace select default
-terraform plan -var="environment=prod"
-terraform apply -var="environment=prod"
+terraform workspace select default  # Environment automatically set to 'prod'
+terraform plan
+terraform apply
 
 # Frontend
 cd ../../quote-lambda-tf-frontend/infrastructure/
-terraform workspace select default
-terraform plan -var="environment=prod"
-terraform apply -var="environment=prod"
+terraform workspace select default  # Environment automatically set to 'prod'
+terraform plan
+terraform apply
 ```
 
 ### Destroying Development Environment
@@ -288,16 +320,16 @@ To save costs when not actively developing:
 ```bash
 # Backend
 cd quote-lambda-tf-backend/infrastructure/
-terraform workspace select dev
-terraform destroy -var="environment=dev"
+terraform workspace select dev  # Environment automatically set to 'dev'
+terraform destroy
 
 # Frontend
-cd quote-lambda-tf-frontend/infrastructure/
-terraform workspace select dev
-terraform destroy -var="environment=dev"
+cd ../../quote-lambda-tf-frontend/infrastructure/
+terraform workspace select dev  # Environment automatically set to 'dev'
+terraform destroy
 ```
 
-Recreate when needed with `terraform apply -var="environment=dev"`.
+Recreate when needed with `terraform apply`.
 
 ### Troubleshooting
 
@@ -368,7 +400,7 @@ Terraform Workspaces were selected for this project because they provide the bes
 - ✅ Simple to understand and maintain
 
 **Cons:**
-- ⚠️ Must remember to select correct workspace before applying
+- ⚠️ Must remember to select correct workspace before applying (mitigated by automatic environment detection)
 - ⚠️ All environments share same Terraform code (can't have env-specific configs easily)
 
 **Best for:** Small to medium projects with similar infrastructure across environments
