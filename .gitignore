@@ -1,0 +1,233 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+*.ids
+*.orig
+*.swp
+*.swo
+*~
+.idea_modules/
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/runConfigurations/
+!.idea/shelf/
+!.idea/scopes/
+!.idea/tasks/
+!.idea/workspace.xml
+!.idea/vcs.xml
+!.idea/aws.xml
+!.idea/misc.xml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build directories
+/dist
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+.terraform.tfstate.lock.info
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# IDE specific files
+.vscode/
+*.code-workspace
+
+# Java
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven
+target/
+
+# Gradle
+.gradle/
+build/
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Local development
+*.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.test
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+.nuxt-prod/
+
+# Gatsby
+.cache/
+public
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test/
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Vim swap files
+*.swp
+*.swo
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux files
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Project specific
+*.example
+!*.example.*
+
+# AWS CDK
+cdk.out/
+.aws-cdk/
+!*.d.ts
+
+# Serverless Framework
+.serverless/
+
+# SAM CLI
+.sam/
+
+# AWS Toolkit for JetBrains
+.aws-sam/
+
+# AWS CloudFormation
+template.yml
+template.yaml
+awsconfiguration.json
+
+# AWS Amplify
+amplify/
+#amplify/
+#.amplify/
+
+# IDE specific files
+.idea/
+*.iml
+*.iws
+*.ipr
+*.ids
+*.orig
+*.swp
+*.swo
+*~
+.idea_modules/
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/runConfigurations/
+!.idea/shelf/
+!.idea/scopes/
+!.idea/tasks/
+!.idea/workspace.xml
+!.idea/vcs.xml
+!.idea/aws.xml
+!.idea/misc.xml
