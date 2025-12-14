@@ -2,6 +2,27 @@
 
 This guide walks you through adding Google OAuth authentication to the Quote App using AWS Cognito.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Step 1: Create Google OAuth Credentials](#step-1-create-google-oauth-credentials)
+  - [1.1 Go to Google Cloud Console](#11-go-to-google-cloud-console)
+  - [1.2 Enable Google+ API](#12-enable-google-api)
+  - [1.3 Create OAuth 2.0 Credentials](#13-create-oauth-20-credentials)
+- [Step 2: Configure Terraform](#step-2-configure-terraform)
+- [Step 3: Update Frontend Configuration](#step-3-update-frontend-configuration)
+- [Step 4: Add Cognito Callback URL to Google OAuth App](#step-4-add-cognito-callback-url-to-google-oauth-app)
+- [Step 5: Verify Cognito Configuration](#step-5-verify-cognito-configuration)
+- [Step 6: Verify Attribute Mapping](#step-6-verify-attribute-mapping)
+- [Step 7: Test Google Sign-In](#step-7-test-google-sign-in)
+- [Troubleshooting](#troubleshooting)
+- [Manual User Group Assignment](#manual-user-group-assignment)
+- [Using Same Credentials for Dev and Prod](#using-same-credentials-for-dev-and-prod)
+- [Security Best Practices](#security-best-practices)
+- [Additional Resources](#additional-resources)
+
+---
+
 ## Overview
 
 Google OAuth is natively supported by AWS Cognito and works seamlessly with Amplify. This setup allows users to sign in using their Google accounts.
@@ -127,7 +148,7 @@ supported_identity_providers = ["COGNITO"]
 supported_identity_providers = ["COGNITO", "Google"]
 ```
 
-### 2.4 Add Google Credentials to dev.tfvars
+### 2.4 Add Google Credentials to tfvars Files
 
 Edit `quote-lambda-tf-backend/infrastructure/dev.tfvars` and add:
 
@@ -137,17 +158,42 @@ google_oauth_client_id     = "YOUR_GOOGLE_CLIENT_ID_HERE"
 google_oauth_client_secret = "YOUR_GOOGLE_CLIENT_SECRET_HERE"
 ```
 
-Replace with your actual credentials from Step 1.
-
-### 2.5 Apply Terraform
+Then copy to `prod.tfvars`:
 
 ```bash
 cd quote-lambda-tf-backend/infrastructure
-terraform workspace select dev
-terraform apply -var-file="dev.tfvars"
+cp dev.tfvars prod.tfvars
 ```
 
-Review the changes and type `yes` to confirm.
+Replace the placeholder values with your actual credentials from Step 1.
+
+⚠️ **IMPORTANT: Do NOT commit these files to version control!**
+
+- `dev.tfvars` and `prod.tfvars` contain sensitive credentials
+- These files are in `.gitignore` and should never be committed
+- Store these files securely outside the repository:
+  - Use a password manager (1Password, LastPass, Bitwarden)
+  - Use AWS Secrets Manager or Parameter Store
+  - Keep a local backup in an encrypted location
+  - Share with team members through secure channels only
+
+### 2.5 Apply Terraform
+
+Deploy to both environments:
+
+```bash
+cd quote-lambda-tf-backend/infrastructure
+
+# Deploy dev
+terraform workspace select dev
+terraform apply -var-file="dev.tfvars"
+
+# Deploy prod
+terraform workspace select default
+terraform apply -var-file="prod.tfvars"
+```
+
+Review the changes and type `yes` to confirm for each environment.
 
 ---
 
@@ -395,16 +441,24 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 
 ---
 
-## Step 4: Add Cognito Callback URL to Google OAuth App
+## Step 4: Add Cognito Callback URLs to Google OAuth App
 
 **IMPORTANT:** This step is required for Google OAuth to work.
 
-1. **Get your Cognito domain:**
+1. **Get your Cognito domains:**
    ```bash
    cd quote-lambda-tf-backend/infrastructure
+   
+   # Get dev domain
+   terraform workspace select dev
    terraform output cognito_domain
+   # Output: quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com
+   
+   # Get prod domain
+   terraform workspace select default
+   terraform output cognito_domain
+   # Output: quote-lambda-tf-backend-prod.auth.eu-central-1.amazoncognito.com
    ```
-   This will output: `quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com`
 
 2. **Go to Google Cloud Console:**
    - Navigate to [console.cloud.google.com](https://console.cloud.google.com/)
@@ -414,16 +468,18 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 
 4. **Click on your OAuth 2.0 Client ID** to edit it
 
-5. **Under "Authorized redirect URIs", add:**
+5. **Under "Authorized redirect URIs", add both dev and prod:**
    ```
    https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+   https://quote-lambda-tf-backend-prod.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
    ```
 
 6. **Your complete redirect URIs should now be:**
    ```
    http://localhost:5173/
    https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
-   https://your-production-domain.com/ (if applicable)
+   https://d1fzgis91zws1k.cloudfront.net/
+   https://quote-lambda-tf-backend-prod.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
    ```
 
 7. **Click "SAVE"**
@@ -439,7 +495,7 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 
 1. Go to **AWS Console → Cognito → User Pools**
 2. Select your user pool (`quote-lambda-tf-backend-user-pool-dev`)
-3. Go to **Sign-in experience → Federated identity provider sign-in**
+3. Go to **Authentication → Social and external providers**
 4. Verify **Google** is listed with:
    - Client ID: Your Google Client ID
    - Client Secret: Your Google Client Secret
@@ -447,11 +503,9 @@ Add this to `quote-lambda-tf-frontend/src/components/Login.scss`:
 
 ---
 
-## Step 6: Verify Attribute Mapping
+## Step 6: Attribute Mapping (Already Configured)
 
-The Google Identity Provider attribute mapping should be configured to map Google's claims to Cognito user attributes.
-
-Verify the `attribute_mapping` in the Google Identity Provider resource in `cognito.tf`:
+The Google Identity Provider attribute mapping is already configured in your `cognito.tf` file from Step 2.2:
 
 ```hcl
   attribute_mapping = {
@@ -463,13 +517,7 @@ Verify the `attribute_mapping` in the Google Identity Provider resource in `cogn
 
 **Note:** AWS Cognito requires `username` to map to `sub` (the unique Google user ID). The username will appear as `Google_<google-user-id>` in Cognito, but the user's email will be available as the email attribute.
 
-Then apply Terraform:
-
-```bash
-cd quote-lambda-tf-backend/infrastructure
-terraform workspace select dev
-terraform apply -var-file="dev.tfvars"
-```
+This mapping was already applied to both dev and prod when you ran `terraform apply` in Step 2.5, so no additional action is needed.
 
 ---
 
@@ -611,19 +659,69 @@ If you want to automatically assign users to groups, you can add a post-confirma
 
 ---
 
-## Production Setup
+## Using Same Credentials for Dev and Prod
 
-For production, repeat the same steps but:
+For demo applications, you can use the same Google OAuth credentials for both development and production environments. This simplifies credential management while keeping dev and prod environments isolated through separate Cognito User Pools.
 
-1. **Create separate Google OAuth credentials** with production domain
-2. **Update `prod.tfvars`** with production credentials
-3. **Update callback URLs** in Google Cloud Console to production domain
-4. **Deploy frontend** to production domain
-5. **Apply Terraform** with production workspace:
+### How It Works
+
+When you register all redirect URIs in a single Google OAuth application, Google will accept requests from any of those URIs:
+
+```
+Google Cloud Console → OAuth Client → Authorized redirect URIs:
+- http://localhost:5173/
+- https://quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+- https://d1fzgis91zws1k.cloudfront.net/
+- https://quote-lambda-tf-backend-prod.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse
+```
+
+### Setup Steps
+
+1. **Create a single Google OAuth application** with all redirect URIs registered (see Step 1)
+   - Register all dev and prod URIs in Google Cloud Console
+   - Copy the Client ID and Client Secret
+
+2. **Add credentials to dev.tfvars** (if not already done):
+   ```hcl
+   # quote-lambda-tf-backend/infrastructure/dev.tfvars
+   google_oauth_client_id     = "YOUR_SHARED_CLIENT_ID"
+   google_oauth_client_secret = "YOUR_SHARED_CLIENT_SECRET"
+   ```
+
+3. **Copy dev.tfvars to prod.tfvars:**
    ```bash
+   cd quote-lambda-tf-backend/infrastructure
+   cp dev.tfvars prod.tfvars
+   ```
+
+4. **Deploy both environments:**
+   ```bash
+   # Deploy dev (if not already deployed)
+   cd quote-lambda-tf-backend/infrastructure
+   terraform workspace select dev
+   terraform apply -var-file="dev.tfvars"
+
+   # Deploy prod
    terraform workspace select default
    terraform apply -var-file="prod.tfvars"
    ```
+
+That's it! Both environments will now use the same Google OAuth credentials while maintaining separate Cognito User Pools and user databases.
+
+### Why This Works
+
+- Each environment has its own **Cognito User Pool** (isolated user databases)
+- Each environment has its own **Cognito Domain** (different OAuth endpoints)
+- Google OAuth only validates that the redirect URI is registered—it doesn't care which environment it is
+- Users in dev and prod are completely separate
+
+### Important Notes
+
+⚠️ **This approach is acceptable for demo applications** but not recommended for production applications handling sensitive data. For production, consider:
+- Using separate Google OAuth credentials per environment
+- Implementing additional security controls
+- Regular credential rotation
+- Audit logging of OAuth flows
 
 ---
 
@@ -632,9 +730,9 @@ For production, repeat the same steps but:
 1. **Never commit credentials** to version control
    - `dev.tfvars` and `prod.tfvars` are in `.gitignore`
 
-2. **Use separate credentials** for each environment
-   - Development: localhost
-   - Production: your domain
+2. **Shared vs. Separate Credentials**
+   - **Shared (demo apps):** Simpler management, all URIs in one app
+   - **Separate (production):** Better isolation, separate credentials per environment
 
 3. **Rotate secrets regularly**
    - Regenerate Google Client Secret periodically
@@ -643,6 +741,10 @@ For production, repeat the same steps but:
 4. **Restrict OAuth scopes**
    - Only request: `email`, `openid`, `profile`
    - Don't request unnecessary permissions
+
+5. **Register all redirect URIs**
+   - Include all dev and prod URIs in Google Cloud Console
+   - Use exact URIs (no wildcards)
 
 ---
 
