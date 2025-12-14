@@ -22,6 +22,7 @@ A full-stack serverless quote management application built with modern cloud-nat
   - [Backend Documentation](#backend-documentation)
   - [Frontend Documentation](#frontend-documentation)
   - [Shared Documentation](#shared-documentation)
+- [🔐 Authentication & Authorization](#-authentication--authorization)
 - [🔐 GitHub Actions Setup](#-github-actions-setup)
   - [Required GitHub Secret](#required-github-secret)
   - [Workflows](#workflows)
@@ -230,6 +231,41 @@ aws s3 sync dist/ s3://quote-lambda-tf-frontend --delete
 - [Terraform State Architecture](doc/terraform-state-architecture.md) - Complete state management architecture
 - [Multi-Environment Setup](doc/multi-environment-setup.md) - Dev/Prod environment configuration
 - [AWS OIDC Setup Script](./.github/setup-aws-oidc.sh) - Automated IAM role configuration
+- [Authentication & Authorization Architecture](doc/authentication/authentication-authorization-setup.md) - How users authenticate and access is authorized
+
+## 🔐 Authentication & Authorization
+
+The application uses **AWS Cognito** for user authentication and **JWT-based authorization** for protecting API endpoints.
+
+### User Authentication
+
+Users can authenticate in two ways:
+
+1. **Email + Password Registration**
+   - Users register with email, choose a custom username, and set a password
+   - Email is verified via confirmation code
+   - Users are automatically assigned the `USER` role
+
+2. **Google OAuth Sign-In**
+   - Users can sign in with their Google account
+   - On first login, users choose a custom username
+   - Users are automatically assigned the `USER` role
+
+### Authorization
+
+- **Public endpoints** (`GET /quote`, `GET /quote/liked`) - No authentication required
+- **Protected endpoints** (`POST /quote/{id}/like`, `DELETE /quote/{id}/like`) - Requires `USER` role
+- **Authorization** is enforced in the Lambda function by validating JWT tokens and checking user roles
+
+### Key Features
+
+- ✅ Secure password hashing (bcrypt)
+- ✅ JWT tokens with 1-hour expiration (refreshable for 30 days)
+- ✅ Role-based access control (USER, ADMIN groups)
+- ✅ User action logging to CloudWatch
+- ✅ CORS configured for secure cross-origin requests
+
+For detailed architecture and implementation details, see: **[Authentication & Authorization Architecture](doc/authentication/authentication-authorization-setup.md)**
 
 ## 🔐 GitHub Actions Setup
 
