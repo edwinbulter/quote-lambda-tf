@@ -51,7 +51,7 @@ public class QuoteHandlerTest {
         // Create a mock JWT token with USER group
         // Format: header.payload.signature (we only need a decodable payload for testing)
         String header = base64UrlEncode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = base64UrlEncode("{\"sub\":\"test-user-id\",\"email\":\"test@example.com\",\"cognito:username\":\"testuser\",\"cognito:groups\":[\"USER\"]}");
+        String payload = base64UrlEncode("{\"sub\":\"test-user-id\",\"email\":\"test@example.com\",\"username\":\"testuser\",\"cognito:groups\":[\"USER\"]}");
         String signature = "mock-signature";
         String mockToken = header + "." + payload + "." + signature;
 
