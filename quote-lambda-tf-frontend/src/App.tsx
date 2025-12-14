@@ -27,11 +27,13 @@ const App: React.FC = () => {
 
     // Set document title based on environment
     useEffect(() => {
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const hostname = window.location.hostname;
+        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+        const isDevCloudFront = hostname === 'd1fzgis91zws1k.cloudfront.net';
         
         if (isLocalhost) {
             document.title = 'Quote (local)';
-        } else if (import.meta.env.DEV) {
+        } else if (isDevCloudFront) {
             document.title = 'Quote (dev)';
         } else {
             document.title = 'Quote';
