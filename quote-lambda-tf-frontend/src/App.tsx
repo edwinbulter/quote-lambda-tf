@@ -25,6 +25,19 @@ const App: React.FC = () => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
     }, []);
 
+    // Set document title based on environment
+    useEffect(() => {
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isLocalhost) {
+            document.title = 'Quote (local)';
+        } else if (import.meta.env.DEV) {
+            document.title = 'Quote (dev)';
+        } else {
+            document.title = 'Quote';
+        }
+    }, []);
+
     // Close login screen when user becomes authenticated
     useEffect(() => {
         if (isAuthenticated && signingIn) {
