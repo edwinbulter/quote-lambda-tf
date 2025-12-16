@@ -57,9 +57,18 @@ async function likeQuote(quote: Quote): Promise<Quote> {
 }
 
 async function getLikedQuotes(): Promise<Quote[]> {
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${BASE_URL}/quote/liked`, {
         method: "GET",
+        headers: {
+            ...authHeaders,
+        },
     });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch liked quotes: ${response.status} ${response.statusText}`);
+    }
+    
     return await response.json();
 }
 
