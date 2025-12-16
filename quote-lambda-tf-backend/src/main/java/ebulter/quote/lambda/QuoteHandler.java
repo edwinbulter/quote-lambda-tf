@@ -11,6 +11,7 @@ import com.google.gson.reflect.TypeToken;
 import ebulter.quote.lambda.model.Quote;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
+import ebulter.quote.lambda.repository.UserViewRepository;
 import ebulter.quote.lambda.service.QuoteService;
 import ebulter.quote.lambda.util.QuoteUtil;
 import org.apache.http.HttpStatus;
@@ -30,7 +31,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     private final QuoteService quoteService;
 
     public QuoteHandler() {
-        this.quoteService = new QuoteService(new QuoteRepository(), new UserLikeRepository());
+        this.quoteService = new QuoteService(new QuoteRepository(), new UserLikeRepository(), new UserViewRepository());
     }
 
     public QuoteHandler(QuoteService quoteService) {
@@ -50,14 +51,25 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             }
 
         if (path.endsWith("/quote")) {
+            // Extract username (may be null for unauthenticated users)
+            String username = extractUsername(event);
+            
             Set<Integer> idsToExclude;
             if ("POST".equals(httpMethod)) {
                 String jsonBody = event.getBody();
                 idsToExclude = gson.fromJson(jsonBody, new TypeToken<Set<Integer>>() {}.getType());
             } else {
-                idsToExclude = Collections.emptySet();
+                idsToExclude = new HashSet<>();
             }
-            Quote quote = quoteService.getQuote(idsToExclude);
+            
+            // Get quote (will exclude viewed quotes if username provided)
+            Quote quote = quoteService.getQuote(username, idsToExclude);
+            
+            // Record view if user is authenticated
+            if (username != null && !username.isEmpty()) {
+                quoteService.recordView(username, quote.getId());
+            }
+            
             return createResponse(quote);
         } else if (path.endsWith("/like")) {
             // Check authorization for like endpoint
@@ -101,9 +113,23 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             response.setStatusCode(HttpStatus.SC_NO_CONTENT);
             return response;
         } else if (path.endsWith("/liked")) {
-            // Return all quotes that have at least one like (no authentication required)
-            List<Quote> likedQuotes = quoteService.getLikedQuotes();
+            // Return quotes liked by the authenticated user
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required to view liked quotes");
+            }
+            
+            List<Quote> likedQuotes = quoteService.getLikedQuotesByUser(username);
             return createResponse(likedQuotes);
+        } else if (path.endsWith("/quote/history")) {
+            // Return user's view history (requires authentication)
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required to view history");
+            }
+            
+            List<Quote> viewedQuotes = quoteService.getViewedQuotesByUser(username);
+            return createResponse(viewedQuotes);
         } else {
             return createErrorResponse("Invalid request");
         }

@@ -11,7 +11,8 @@ import { Login } from './components/Login';
 const App: React.FC = () => {
     const { isAuthenticated, isLoading, signOut, user, hasRole, userGroups, needsUsernameSetup } = useAuth();
     const [quote, setQuote] = useState<Quote | null>(null); // Allow `null` for initial state
-    const [receivedQuotes, setReceivedQuotes] = useState<Quote[]>([]); // Array of `Quote` objects
+    const [receivedQuotes, setReceivedQuotes] = useState<Quote[]>([]); // Array of `Quote` objects (for unauthenticated users)
+    const [serverViewHistory, setServerViewHistory] = useState<Quote[]>([]); // Server-side view history (for authenticated users)
     const [loading, setLoading] = useState<boolean>(true); // Loading state
     const [liking, setLiking] = useState<boolean>(false); // Liking state
     const [signingIn, setSigningIn] = useState<boolean>(false);
@@ -24,6 +25,31 @@ const App: React.FC = () => {
     useEffect(() => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
     }, []);
+
+    // Load view history when user authenticates
+    useEffect(() => {
+        const loadViewHistory = async () => {
+            if (isAuthenticated && user) {
+                try {
+                    console.log('Loading view history for authenticated user...');
+                    const history = await quoteApi.getViewHistory();
+                    setServerViewHistory(history);
+                    if (history.length > 0) {
+                        // Set current quote to last viewed quote
+                        setQuote(history[history.length - 1]);
+                        indexRef.current = history.length - 1;
+                    }
+                    console.log(`Loaded ${history.length} quotes from view history`);
+                } catch (error) {
+                    console.error('Failed to load view history:', error);
+                }
+            } else {
+                // Clear server history when user signs out
+                setServerViewHistory([]);
+            }
+        };
+        loadViewHistory();
+    }, [isAuthenticated, user]);
 
     // Set document title based on environment
     useEffect(() => {
@@ -96,10 +122,20 @@ const App: React.FC = () => {
     const newQuote = async (): Promise<void> => {
         try {
             setLoading(true);
-            const uniqueQuote = await quoteApi.getUniqueQuote(receivedQuotes); // Fetch a unique quote
-            setQuote(uniqueQuote);
-            indexRef.current = receivedQuotes.length; // Update the reference to the index
-            setReceivedQuotes((prevQuotes) => [...prevQuotes, uniqueQuote]); // Add the new quote
+            if (isAuthenticated) {
+                // For authenticated users, backend handles exclusion and recording
+                const uniqueQuote = await quoteApi.getAuthenticatedQuote();
+                setQuote(uniqueQuote);
+                // Add to server history
+                setServerViewHistory((prev) => [...prev, uniqueQuote]);
+                indexRef.current = serverViewHistory.length;
+            } else {
+                // For unauthenticated users, use local exclusion
+                const uniqueQuote = await quoteApi.getUniqueQuote(receivedQuotes);
+                setQuote(uniqueQuote);
+                indexRef.current = receivedQuotes.length;
+                setReceivedQuotes((prevQuotes) => [...prevQuotes, uniqueQuote]);
+            }
         } catch (error) {
             console.error('Failed to fetch new quote:', error);
         } finally {
@@ -113,12 +149,20 @@ const App: React.FC = () => {
                 setLiking(true);
                 const updatedQuote = await quoteApi.likeQuote(quote);
                 if (updatedQuote && updatedQuote.id === quote.id) {
-                    // Update the `liked` property of the current quote in `receivedQuotes` array
-                    setReceivedQuotes((prevQuotes) =>
-                        prevQuotes.map((item) =>
-                            item.id === quote.id ? { ...item, liked: true } : item
-                        )
-                    );
+                    // Update the `liked` property in both histories
+                    if (isAuthenticated) {
+                        setServerViewHistory((prevQuotes) =>
+                            prevQuotes.map((item) =>
+                                item.id === quote.id ? { ...item, liked: true } : item
+                            )
+                        );
+                    } else {
+                        setReceivedQuotes((prevQuotes) =>
+                            prevQuotes.map((item) =>
+                                item.id === quote.id ? { ...item, liked: true } : item
+                            )
+                        );
+                    }
                     setQuote({ ...quote, liked: true }); // Update the `quote` state
                     if (favouritesRef.current) {
                         favouritesRef.current.reloadFavouriteQuotes();
@@ -135,27 +179,35 @@ const App: React.FC = () => {
     };
 
     const previous = (): void => {
+        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
         if (indexRef.current > 0) {
             indexRef.current = indexRef.current - 1;
-            setQuote(receivedQuotes[indexRef.current]); // Set the previous quote
+            setQuote(history[indexRef.current]);
         }
     };
 
     const next = (): void => {
-        if (indexRef.current < receivedQuotes.length - 1) {
+        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
+        if (indexRef.current < history.length - 1) {
             indexRef.current = indexRef.current + 1;
-            setQuote(receivedQuotes[indexRef.current]); // Set the next quote
+            setQuote(history[indexRef.current]);
         }
     };
 
     const jumpToFirst = (): void => {
-        indexRef.current = 0;
-        setQuote(receivedQuotes[indexRef.current]); // Jump to the first quote
+        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
+        if (history.length > 0) {
+            indexRef.current = 0;
+            setQuote(history[indexRef.current]);
+        }
     };
 
     const jumpToLast = (): void => {
-        indexRef.current = receivedQuotes.length - 1;
-        setQuote(receivedQuotes[indexRef.current]); // Jump to the last quote
+        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
+        if (history.length > 0) {
+            indexRef.current = history.length - 1;
+            setQuote(history[indexRef.current]);
+        }
     };
 
     const signIn = (): void => {
@@ -231,12 +283,16 @@ const App: React.FC = () => {
                 >
                     {liking ? "Liking..." : "Like"}
                 </button>
-                <button className="previousButton" disabled={indexRef.current === 0 || signingIn || showProfile || needsUsernameSetup} onClick={previous}>
+                <button 
+                    className="previousButton" 
+                    disabled={indexRef.current === 0 || signingIn || showProfile || needsUsernameSetup} 
+                    onClick={previous}
+                >
                     Previous
                 </button>
                 <button
                     className="nextButton"
-                    disabled={indexRef.current >= receivedQuotes.length - 1 || signingIn || showProfile || needsUsernameSetup}
+                    disabled={indexRef.current >= (isAuthenticated ? serverViewHistory : receivedQuotes).length - 1 || signingIn || showProfile || needsUsernameSetup}
                     onClick={next}
                 >
                     Next

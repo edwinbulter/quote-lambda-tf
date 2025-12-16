@@ -18,7 +18,6 @@
 !.idea/tasks/
 !.idea/workspace.xml
 !.idea/vcs.xml
-!.idea/aws.xml
 !.idea/misc.xml
 
 # OS generated files
@@ -229,5 +228,4 @@ amplify/
 !.idea/tasks/
 !.idea/workspace.xml
 !.idea/vcs.xml
-!.idea/aws.xml
 !.idea/misc.xml

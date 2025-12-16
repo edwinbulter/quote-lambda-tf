@@ -38,7 +38,9 @@ resource "aws_iam_policy" "lambda_dynamodb_policy" {
           aws_dynamodb_table.quotes_table.arn,
           "${aws_dynamodb_table.quotes_table.arn}/index/*",
           aws_dynamodb_table.user_likes_table.arn,
-          "${aws_dynamodb_table.user_likes_table.arn}/index/*"
+          "${aws_dynamodb_table.user_likes_table.arn}/index/*",
+          aws_dynamodb_table.user_views.arn,
+          "${aws_dynamodb_table.user_views.arn}/index/*"
         ]
       },
       {
@@ -77,6 +79,7 @@ resource "aws_lambda_function" "quote_lambda" {
     variables = {
       DYNAMODB_TABLE            = aws_dynamodb_table.quotes_table.name
       DYNAMODB_USER_LIKES_TABLE = aws_dynamodb_table.user_likes_table.name
+      DYNAMODB_USER_VIEWS_TABLE = aws_dynamodb_table.user_views.name
     }
   }
 

@@ -44,6 +44,7 @@ Implemented features:
     - The button is disabled while the new quote is loading (and displays loading...)
 - Like Button:
     - Sends a request to like the current quote
+    - The button is only enabled if the user is signed in and has the USER role.
     - The button is disabled and displays liking... while the request is being sent
     - The button is disabled and displays Like when the user has already liked the quote
 - Walking through the quote history:
