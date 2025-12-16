@@ -3,8 +3,10 @@ package ebulter.quote.lambda.service;
 import ebulter.quote.lambda.client.ZenClient;
 import ebulter.quote.lambda.model.Quote;
 import ebulter.quote.lambda.model.UserLike;
+import ebulter.quote.lambda.model.UserView;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
+import ebulter.quote.lambda.repository.UserViewRepository;
 import ebulter.quote.lambda.util.QuoteUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,13 +22,22 @@ public class QuoteService {
     private static final Logger logger = LoggerFactory.getLogger(QuoteService.class);
     private final QuoteRepository quoteRepository;
     private final UserLikeRepository userLikeRepository;
+    private final UserViewRepository userViewRepository;
 
-    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository) {
+    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository, UserViewRepository userViewRepository) {
         this.quoteRepository = quoteRepository;
         this.userLikeRepository = userLikeRepository;
+        this.userViewRepository = userViewRepository;
     }
 
-    public Quote getQuote(final Set<Integer> idsToExclude) {
+    public Quote getQuote(String username, final Set<Integer> idsToExclude) {
+        // If username provided, add their viewed quotes to exclusion list
+        if (username != null && !username.isEmpty()) {
+            List<Integer> viewedIds = userViewRepository.getViewedQuoteIds(username);
+            idsToExclude.addAll(viewedIds);
+            logger.info("User {} has viewed {} quotes, excluding them", username, viewedIds.size());
+        }
+        
         logger.info("start reading all quotes from DB, idsToExclude.size() = {}", idsToExclude.size());
         List<Quote> currentDatabaseQuotes = quoteRepository.getAllQuotes();
         logger.info("finished reading all quotes from DB, read {} quotes from DB", currentDatabaseQuotes.size());
@@ -98,6 +109,28 @@ public class QuoteService {
 
     public boolean hasUserLikedQuote(String username, int quoteId) {
         return userLikeRepository.hasUserLikedQuote(username, quoteId);
+    }
+
+    /**
+     * Record that a user viewed a quote
+     */
+    public void recordView(String username, int quoteId) {
+        if (username != null && !username.isEmpty()) {
+            UserView userView = new UserView(username, quoteId, System.currentTimeMillis());
+            userViewRepository.saveUserView(userView);
+            logger.info("Recorded view for user {} on quote {}", username, quoteId);
+        }
+    }
+
+    /**
+     * Get all quotes viewed by a user, in chronological order
+     */
+    public List<Quote> getViewedQuotesByUser(String username) {
+        List<UserView> userViews = userViewRepository.getViewsByUser(username);
+        return userViews.stream()
+                .map(userView -> quoteRepository.findById(userView.getQuoteId()))
+                .filter(quote -> quote != null)
+                .toList();
     }
 
 }
