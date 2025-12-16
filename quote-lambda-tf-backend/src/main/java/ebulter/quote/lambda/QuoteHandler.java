@@ -113,8 +113,13 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             response.setStatusCode(HttpStatus.SC_NO_CONTENT);
             return response;
         } else if (path.endsWith("/liked")) {
-            // Return all quotes that have at least one like (no authentication required)
-            List<Quote> likedQuotes = quoteService.getLikedQuotes();
+            // Return quotes liked by the authenticated user
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required to view liked quotes");
+            }
+            
+            List<Quote> likedQuotes = quoteService.getLikedQuotesByUser(username);
             return createResponse(likedQuotes);
         } else if (path.endsWith("/quote/history")) {
             // Return user's view history (requires authentication)
