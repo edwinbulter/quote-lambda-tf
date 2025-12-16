@@ -127,7 +127,24 @@ Sidepanel
 private Integer order; // Add this field with getter/setter
 ```
 
-#### 1.3 Create Reorder Endpoint
+#### 1.3 Update Like Endpoint to Set Initial Order
+**File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/QuoteHandler.java`
+
+When a user likes a quote, automatically assign an order value:
+- Query user's existing likes to find the highest order value
+- Set new like's order to `maxOrder + 1`
+- If user has no likes yet, set order to `1`
+
+```java
+// When liking a quote
+int maxOrder = userLikeRepository.getMaxOrderForUser(username);
+userLike.setOrder(maxOrder + 1);
+userLikeRepository.save(userLike);
+```
+
+This ensures new likes are automatically added to the end of the favourites list.
+
+#### 1.4 Create Reorder Endpoint
 **File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/QuoteHandler.java`
 
 Add new endpoint: `PUT /quote/{id}/reorder`
@@ -135,17 +152,28 @@ Add new endpoint: `PUT /quote/{id}/reorder`
 - Updates the order field for the user's like
 - Requires authentication and USER role
 
-#### 1.4 Update Get Liked Quotes Endpoint
+#### 1.5 Update Get Liked Quotes Endpoint
 **File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/service/QuoteService.java`
 
 Modify `getLikedQuotesByUser()` to:
 - Return quotes sorted by `order` field (ascending)
 - Handle null order values (put at end)
 
-#### 1.5 Update Unlike Endpoint
+#### 1.6 Update Unlike Endpoint
 **File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/QuoteHandler.java`
 
 Verify `DELETE /quote/{id}/unlike` endpoint exists and works correctly
+
+#### 1.7 Add Helper Method to UserLikeRepository
+**File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/repository/UserLikeRepository.java`
+
+Add method to find the maximum order for a user:
+```java
+public int getMaxOrderForUser(String username) {
+    // Query all likes for user and find max order
+    // Return 0 if no likes exist (so first like gets order 1)
+}
+```
 
 ### Phase 2: Frontend - Management Screen Structure
 
@@ -319,9 +347,21 @@ Replace quoteview and favourites component area with:
 ## Technical Considerations
 
 ### Backend
-1. **Order field**: Consider using float/double for order to allow inserting between items
-2. **Concurrency**: Handle race conditions when multiple clients reorder simultaneously
-3. **Validation**: Ensure order values are positive numbers
+1. **Order field**: Use integer values with simple direct update
+   - **Rationale**: 
+     - Favourites lists are typically small (< 100 items)
+     - Each user only modifies their own data (partitioned by username in DynamoDB)
+     - No cross-user conflicts possible
+     - Same-user conflicts are rare (only when reordering from multiple devices simultaneously)
+   - **Implementation**: When user moves an item, update only that item's order value
+   - **Benefit**: Simple logic, no version tracking needed, last-write-wins is acceptable for this use case
+   - **Future optimization**: If needed for very large lists (1000+), can refactor to batch reorder or lexicographic ordering
+2. **Race conditions**: Not a concern for this implementation
+   - Data is partitioned by username (hash key in user-likes table)
+   - Each user only reorders their own favourites
+   - Same-user concurrent reorders are rare; last-write-wins is acceptable
+   - No need for optimistic locking or version tracking
+3. **Validation**: Ensure order values are positive integers
 4. **Performance**: Consider pagination for large lists
 
 ### Frontend
