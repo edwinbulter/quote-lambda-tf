@@ -1,6 +1,6 @@
 # DynamoDB table for user views
 resource "aws_dynamodb_table" "user_views" {
-  name         = "${var.project_name}-user-views-${terraform.workspace}"
+  name         = "quote-lambda-tf-user-views-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "username"
   range_key    = "viewedAt"
@@ -29,9 +29,9 @@ resource "aws_dynamodb_table" "user_views" {
   }
 
   tags = {
-    Name        = "${var.project_name}-user-views-${terraform.workspace}"
+    Name        = "quote-lambda-tf-user-views-${terraform.workspace}"
     Environment = terraform.workspace
-    Project     = var.project_name
+    Project     = "quote-lambda-tf"
   }
 }
 
