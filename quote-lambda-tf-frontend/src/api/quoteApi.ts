@@ -63,9 +63,51 @@ async function getLikedQuotes(): Promise<Quote[]> {
     return await response.json();
 }
 
+/**
+ * Get user's view history (chronological order)
+ * Requires authentication
+ */
+async function getViewHistory(): Promise<Quote[]> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/history`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch view history: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Get a quote for authenticated users
+ * Backend automatically records view and excludes already viewed quotes
+ */
+async function getAuthenticatedQuote(): Promise<Quote> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
 export default {
     getQuote,
     getUniqueQuote,
+    getAuthenticatedQuote,
     likeQuote,
     getLikedQuotes,
+    getViewHistory,
 };
