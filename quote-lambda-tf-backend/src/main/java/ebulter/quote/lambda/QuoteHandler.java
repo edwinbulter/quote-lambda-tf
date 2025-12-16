@@ -59,7 +59,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                 String jsonBody = event.getBody();
                 idsToExclude = gson.fromJson(jsonBody, new TypeToken<Set<Integer>>() {}.getType());
             } else {
-                idsToExclude = Collections.emptySet();
+                idsToExclude = new HashSet<>();
             }
             
             // Get quote (will exclude viewed quotes if username provided)
