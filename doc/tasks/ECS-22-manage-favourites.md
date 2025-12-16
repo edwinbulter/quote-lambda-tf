@@ -149,8 +149,33 @@ This ensures new likes are automatically added to the end of the favourites list
 
 Add new endpoint: `PUT /quote/{id}/reorder`
 - Accepts: `{ "order": number }`
-- Updates the order field for the user's like
+- Maintains sequential ordering by:
+  - If moving to a higher order: decrement all likes between old and new order by 1
+  - If moving to a lower order: increment all likes between new and old order by 1
+  - Set the moved like to the new order value
+- Updates all affected likes in a single operation
+- Ensures no duplicate order values and no gaps in ordering
 - Requires authentication and USER role
+
+Examples:
+
+**Moving to a lower order (moving up in the list):**
+```
+Before: [A(1), B(2), C(3), D(4)]
+Move D to position 2 (order: 2):
+- Increment all likes with order >= 2 and < 4: B(2→3), C(3→4)
+- Set D to order 2
+- Result: [A(1), D(2), B(3), C(4)] ✓
+```
+
+**Moving to a higher order (moving down in the list):**
+```
+Before: [A(1), B(2), C(3), D(4)]
+Move A to position 3 (order: 3):
+- Decrement all likes with order > 1 and <= 3: B(2→1), C(3→2)
+- Set A to order 3
+- Result: [B(1), C(2), A(3), D(4)] ✓
+```
 
 #### 1.5 Update Get Liked Quotes Endpoint
 **File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/service/QuoteService.java`
