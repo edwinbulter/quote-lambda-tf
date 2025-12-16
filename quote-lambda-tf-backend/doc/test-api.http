@@ -1,17 +1,189 @@
-### GET Quote
-GET https://blgydc5rjk.execute-api.eu-central-1.amazonaws.com/quote
+### Test User Views API - Dev Environment
+### Base URL for dev environment can be found with:
+###      terraform workspace select dev
+###      terraform output api_gateway_url
+###
+### Prerequisites:
+### 1. You must have a valid Cognito user with USER role
+### 2. Replace {{authToken}} with your actual JWT token from Cognito
+### 3. The token must include "cognito:username" claim
+###
+### To get a token, authenticate with Cognito:
+### - User Pool ID: eu-central-1_XrKxJWy5u
+### - Client ID: 7lkohh6t96igkm9q16rdchansh
+### - Domain: quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com
 
-### POST Quote with ids to exclude from: should return a random quote with an id higher than 50
-POST https://blgydc5rjk.execute-api.eu-central-1.amazonaws.com/quote
+@baseUrl = https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/
+@authToken = eyJraWQiOiIxMW95RFRGSzQ1QVVzWjFSc3ViYWJXSlwvUGFHZ0M2bHdkNmF1c0RubWtEVT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIzMzljMTgwNS02NDNjLTQ5YjUtYTYwMy1mZWJhNTZjNjM0ZDYiLCJjb2duaXRvOmdyb3VwcyI6WyJVU0VSIl0sImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS1jZW50cmFsLTEuYW1hem9uYXdzLmNvbVwvZXUtY2VudHJhbC0xX1hyS3hKV3k1dSIsImNsaWVudF9pZCI6Ijdsa29oaDZ0OTZpZ2ttOXExNnJkY2hhbnNoIiwib3JpZ2luX2p0aSI6Ijc1ZTlkMTc0LWI2YjctNGYzMS1iZTEyLTMwOTM2MDlkZWVhNCIsImV2ZW50X2lkIjoiZTAzMmZjZGItNTE3MC00NDc5LWJmMDUtMmRlY2Y3YmYwN2RiIiwidG9rZW5fdXNlIjoiYWNjZXNzIiwic2NvcGUiOiJhd3MuY29nbml0by5zaWduaW4udXNlci5hZG1pbiIsImF1dGhfdGltZSI6MTc2NTg4Mzk4NiwiZXhwIjoxNzY1ODg3NTg2LCJpYXQiOjE3NjU4ODM5ODYsImp0aSI6ImQ1MjE1NWY0LWQwMmUtNGUwNi1iZTkzLTRjMDU2NjAyNzJlMiIsInVzZXJuYW1lIjoidXNlci0xIn0.nK1sKErr4e3RCMmpqyxlsecjzHTjfoEql-K5vYH8bjjGVlGq4lQwjh6X67KY6PT6qsoHTSSMmxwiSJUG22-JWR5eip_WFjKvK86scs-oUlDi1xrn6ql2YayZtf8540UV2zLhVn0SPjDoCUjvrTrKs3B29R51dl2kUJoNcoR6bYS_xLkU70Uu1_cbrH3U7wtXjVGfnyp5Q-rZ1Gp6b5WQ-Xl-GmyzGm3u9sktGrcLLjbkbvSbDDzOP1SbnC7dgiMjjhpledlwFWHXdUsBctIbZEihJjEyQqVDJGlaHqME19Xal3k7hucrFIXSMUjZHscH7sEQUC9jDm9JePPyrs5oQQ
+@cognitoClientId = 7lkohh6t96igkm9q16rdchansh
+@cognitoRegion = eu-central-1
+
+### ============================================
+### AUTHENTICATION - Get JWT Token
+### ============================================
+
+### 0. Get JWT Token from Cognito
+# This will return an IdToken that you should copy and use as {{authToken}}
+# Username: user-1
+# Password: Hello-user-1
+POST https://cognito-idp.{{cognitoRegion}}.amazonaws.com/
+Content-Type: application/x-amz-json-1.1
+X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth
+
+{
+  "AuthFlow": "USER_PASSWORD_AUTH",
+  "ClientId": "{{cognitoClientId}}",
+  "AuthParameters": {
+    "USERNAME": "user-1",
+    "PASSWORD": "Hello-user-1"
+  }
+}
+
+### ============================================
+### PUBLIC ENDPOINTS (No authentication required)
+### ============================================
+
+### 1. GET Random Quote (unauthenticated - no view recording)
+GET {{baseUrl}}/quote
+
+### 2. POST Quote with exclusions (unauthenticated)
+POST {{baseUrl}}/quote
 Content-Type: application/json
 
-[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+[1, 2, 3, 4, 5]
 
-### Like Quote
-PATCH https://blgydc5rjk.execute-api.eu-central-1.amazonaws.com/quote/72/like
+### 3. Get All Liked Quotes (public endpoint)
+GET {{baseUrl}}/quote/liked
+
+### ============================================
+### USER VIEWS ENDPOINTS (NEW - Require authentication)
+### ============================================
+
+### 4. GET Random Quote (authenticated - will record view)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### 5. GET View History (requires authentication) - NEW ENDPOINT
+# Returns all quotes viewed by the authenticated user in chronological order
+GET {{baseUrl}}/quote/history
+Authorization: Bearer {{authToken}}
+
+### 6. GET Another Quote (authenticated - will record another view)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### 7. GET View History Again (should show 2 quotes now)
+GET {{baseUrl}}/quote/history
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### LIKE/UNLIKE ENDPOINTS (Require authentication)
+### ============================================
+
+### 8. Like a Quote (requires authentication)
+# Replace the quote ID (3) with an actual quote ID from your database
+POST {{baseUrl}}/quote/3/like
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
-[]
+### 9. Unlike a Quote (requires authentication)
+# Replace the quote ID (3) with the same quote you liked
+DELETE {{baseUrl}}/quote/3/unlike
+Authorization: Bearer {{authToken}}
 
-### GET Liked Quotes
-GET https://blgydc5rjk.execute-api.eu-central-1.amazonaws.com/quote/liked
+### 10. Get All Quotes Liked by Current User (requires authentication)
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### TEST SEQUENCE: Complete User Views Flow
+### ============================================
+
+### Step 1: Get view history (should be empty for new user)
+GET {{baseUrl}}/quote/history
+Authorization: Bearer {{authToken}}
+
+### Step 2: Get a quote (will be recorded as viewed)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### Step 3: Get another quote (will be recorded as viewed)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### Step 4: Get another quote (will be recorded as viewed)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### Step 5: Check view history (should show 3 quotes)
+GET {{baseUrl}}/quote/history
+Authorization: Bearer {{authToken}}
+
+### Step 6: Get a quote again (should exclude previously viewed quotes)
+# This quote should be different from the ones you've already seen
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### Step 7: Check view history again (should show 4 quotes)
+GET {{baseUrl}}/quote/history
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### ERROR CASES
+### ============================================
+
+### 11. Try to get view history without authentication (should return 403)
+GET {{baseUrl}}/quote/history
+
+### 12. Try to like without authentication (should return 403)
+POST {{baseUrl}}/quote/1/like
+Content-Type: application/json
+
+### 13. Try to unlike without authentication (should return 403)
+DELETE {{baseUrl}}/quote/1/unlike
+
+### ============================================
+### COMBINED TEST: Views + Likes
+### ============================================
+
+### Step 1: Get a quote (records view)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### Step 2: Like the quote from Step 1 (use the ID from response)
+POST {{baseUrl}}/quote/1/like
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Step 3: Check view history (should include the liked quote)
+GET {{baseUrl}}/quote/history
+Authorization: Bearer {{authToken}}
+
+### Step 4: Check liked quotes (should include the same quote)
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### NOTES
+### ============================================
+#
+# User Views Feature:
+# - GET /quote with authentication automatically records the view
+# - GET /quote without authentication does NOT record views (uses local storage on frontend)
+# - GET /quote/history returns all quotes viewed by authenticated user (chronological order)
+# - GET /quote/history requires authentication (returns 403 without token)
+# - Viewed quotes are automatically excluded when fetching new quotes (authenticated users)
+# - Views are stored in separate DynamoDB table: quote-lambda-tf-user-views-dev
+#
+# Expected Behavior:
+# - Each authenticated user has their own view history
+# - Unauthenticated users don't have server-side view tracking
+# - View history is ordered by viewedAt timestamp (oldest first)
+# - Authenticated users won't see the same quote twice (excluded automatically)
+# - View recording happens automatically on every /quote request with auth
+#
+# DynamoDB Tables:
+# - quote-lambda-tf-user-views-dev: Stores user views (username, quoteId, viewedAt)
+# - quote-lambda-tf-user-likes-dev: Stores user likes (username, quoteId, likedAt)
+# - quote-lambda-tf-quotes-dev: Stores all quotes
+#
