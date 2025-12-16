@@ -73,7 +73,11 @@ public class QuoteService {
     public Quote likeQuote(String username, int quoteId) {
         Quote quote = quoteRepository.findById(quoteId);
         if (quote != null) {
-            UserLike userLike = new UserLike(username, quoteId, System.currentTimeMillis());
+            // Get max order for user and set new order to max + 1
+            int maxOrder = userLikeRepository.getMaxOrderForUser(username);
+            int newOrder = maxOrder + 1;
+            
+            UserLike userLike = new UserLike(username, quoteId, System.currentTimeMillis(), newOrder);
             userLikeRepository.saveUserLike(userLike);
             return quote;
         } else {
@@ -96,10 +100,10 @@ public class QuoteService {
     
     public List<Quote> getLikedQuotesByUser(String username) {
         List<UserLike> userLikes = userLikeRepository.getLikesByUser(username);
+        // userLikes are already sorted by order from repository
         return userLikes.stream()
                 .map(userLike -> quoteRepository.findById(userLike.getQuoteId()))
                 .filter(quote -> quote != null)
-                .sorted((q1, q2) -> q1.getId() - q2.getId())
                 .toList();
     }
 
@@ -131,6 +135,56 @@ public class QuoteService {
                 .map(userView -> quoteRepository.findById(userView.getQuoteId()))
                 .filter(quote -> quote != null)
                 .toList();
+    }
+
+    /**
+     * Reorder a liked quote for a user
+     * Updates all affected likes to maintain sequential ordering
+     */
+    public void reorderLikedQuote(String username, int quoteId, int newOrder) {
+        List<UserLike> allLikes = userLikeRepository.getLikesByUser(username);
+        
+        // Find the like to move
+        UserLike likeToMove = allLikes.stream()
+                .filter(like -> like.getQuoteId() == quoteId)
+                .findFirst()
+                .orElse(null);
+        
+        if (likeToMove == null) {
+            logger.warn("Quote {} not found in user {}'s likes", quoteId, username);
+            return;
+        }
+        
+        int oldOrder = likeToMove.getOrder() != null ? likeToMove.getOrder() : allLikes.indexOf(likeToMove) + 1;
+        
+        if (oldOrder == newOrder) {
+            return; // No change needed
+        }
+        
+        // Update orders for affected likes
+        if (newOrder > oldOrder) {
+            // Moving down: decrement orders between oldOrder and newOrder
+            allLikes.stream()
+                    .filter(like -> like.getOrder() != null && like.getOrder() > oldOrder && like.getOrder() <= newOrder)
+                    .forEach(like -> {
+                        like.setOrder(like.getOrder() - 1);
+                        userLikeRepository.saveUserLike(like);
+                    });
+        } else {
+            // Moving up: increment orders between newOrder and oldOrder
+            allLikes.stream()
+                    .filter(like -> like.getOrder() != null && like.getOrder() >= newOrder && like.getOrder() < oldOrder)
+                    .forEach(like -> {
+                        like.setOrder(like.getOrder() + 1);
+                        userLikeRepository.saveUserLike(like);
+                    });
+        }
+        
+        // Set the moved item to new order
+        likeToMove.setOrder(newOrder);
+        userLikeRepository.saveUserLike(likeToMove);
+        
+        logger.info("Reordered quote {} for user {} from order {} to {}", quoteId, username, oldOrder, newOrder);
     }
 
 }

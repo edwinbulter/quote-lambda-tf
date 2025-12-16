@@ -23,6 +23,10 @@ public class UserLikeRepository {
         item.put("username", AttributeValue.builder().s(userLike.getUsername()).build());
         item.put("quoteId", AttributeValue.builder().n(String.valueOf(userLike.getQuoteId())).build());
         item.put("likedAt", AttributeValue.builder().n(String.valueOf(userLike.getLikedAt())).build());
+        
+        if (userLike.getOrder() != null) {
+            item.put("order", AttributeValue.builder().n(String.valueOf(userLike.getOrder())).build());
+        }
 
         PutItemRequest putItemRequest = PutItemRequest.builder()
                 .tableName(TABLE_NAME)
@@ -33,7 +37,7 @@ public class UserLikeRepository {
     }
 
     /**
-     * Get all quotes liked by a specific user
+     * Get all quotes liked by a specific user, sorted by order
      */
     public List<UserLike> getLikesByUser(String username) {
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
@@ -48,11 +52,25 @@ public class UserLikeRepository {
         QueryResponse queryResponse = dynamoDb.query(queryRequest);
         
         return queryResponse.items().stream()
-                .map(item -> new UserLike(
-                        item.get("username").s(),
-                        Integer.parseInt(item.get("quoteId").n()),
-                        Long.parseLong(item.get("likedAt").n())
-                ))
+                .map(item -> {
+                    Integer order = null;
+                    if (item.containsKey("order")) {
+                        order = Integer.parseInt(item.get("order").n());
+                    }
+                    return new UserLike(
+                            item.get("username").s(),
+                            Integer.parseInt(item.get("quoteId").n()),
+                            Long.parseLong(item.get("likedAt").n()),
+                            order
+                    );
+                })
+                .sorted((a, b) -> {
+                    // Sort by order (ascending), null values go to end
+                    if (a.getOrder() == null && b.getOrder() == null) return 0;
+                    if (a.getOrder() == null) return 1;
+                    if (b.getOrder() == null) return -1;
+                    return Integer.compare(a.getOrder(), b.getOrder());
+                })
                 .toList();
     }
 
@@ -106,5 +124,18 @@ public class UserLikeRepository {
 
         QueryResponse queryResponse = dynamoDb.query(queryRequest);
         return queryResponse.count();
+    }
+
+    /**
+     * Get the maximum order value for a user's likes
+     * Returns 0 if user has no likes
+     */
+    public int getMaxOrderForUser(String username) {
+        List<UserLike> likes = getLikesByUser(username);
+        return likes.stream()
+                .filter(like -> like.getOrder() != null)
+                .mapToInt(UserLike::getOrder)
+                .max()
+                .orElse(0);
     }
 }

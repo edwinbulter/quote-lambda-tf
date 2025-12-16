@@ -11,6 +11,7 @@ import ebulter.quote.lambda.repository.UserLikeRepository;
 import ebulter.quote.lambda.repository.UserViewRepository;
 import ebulter.quote.lambda.service.QuoteService;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -72,99 +73,320 @@ public class QuoteHandlerTest {
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(input.getBytes());
     }
 
-    @Test
-    public void handleRequest_GetQuoteGet_ShouldReturnAQuote() {
-        // Arrange
-        List<Quote> quotes = getQuoteTestData(1);
-        when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+    @Nested
+    class GetQuoteTests {
+        @Test
+        public void handleRequest_GetQuoteGet_ShouldReturnAQuote() {
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(1);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
 
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+                    .withHttpMethod("GET")
+                    .withPath("/quote");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Quote quote = parseJsonForQuote(response.getBody());
+            Assertions.assertEquals(1, quote.getId());
+            Assertions.assertEquals(200, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_GetQuotePost_ShouldReturnTheQuoteWithTheNotExcludedId() {
+
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(6);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+                .withHttpMethod("POST")
+                .withBody("[1,2,3,4,5]")
+                .withPath("/quote");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Quote quote = parseJsonForQuote(response.getBody());
+            Assertions.assertEquals(6, quote.getId());
+            Assertions.assertEquals(200, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_GetQuoteWithAuthentication_ShouldRecordView() {
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(3);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userViewRepositoryMock.getViewedQuoteIds(Mockito.anyString())).thenReturn(new ArrayList<>());
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            // Verify that recordView was called (saveUserView should be invoked)
+            Mockito.verify(userViewRepositoryMock, Mockito.times(1)).saveUserView(Mockito.any());
+        }
+
+        @Test
+        public void handleRequest_GetQuoteWithoutAuthentication_ShouldNotRecordView() {
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(3);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("GET")
                 .withPath("/quote");
-        Context context = Mockito.mock(Context.class);
+            Context context = Mockito.mock(Context.class);
 
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
 
-        // Assert
-        Quote quote = parseJsonForQuote(response.getBody());
-        Assertions.assertEquals(1, quote.getId());
-        Assertions.assertEquals(200, response.getStatusCode());
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            // Verify that recordView was NOT called
+            Mockito.verify(userViewRepositoryMock, Mockito.never()).saveUserView(Mockito.any());
+        }
+
+        @Test
+        public void handleRequest_GetQuoteWithAuthentication_ShouldCallGetViewedQuoteIds() {
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(20);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userViewRepositoryMock.getViewedQuoteIds(Mockito.anyString())).thenReturn(new ArrayList<>());
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            // Verify that getViewedQuoteIds was called for authenticated user
+            Mockito.verify(userViewRepositoryMock, Mockito.times(1)).getViewedQuoteIds(Mockito.anyString());
+            // Verify that view was recorded
+            Mockito.verify(userViewRepositoryMock, Mockito.times(1)).saveUserView(Mockito.any());
+        }
     }
 
-    @Test
-    public void handleRequest_GetQuotePost_ShouldReturnTheQuoteWithTheNotExcludedId() {
+    @Nested
+    class LikeQuoteTests {
+        @Test
+        public void handleRequest_LikeQuote_ShouldReturnTheLikedQuote() {
+            // Arrange
+            Quote quote = new Quote(1, "Quote 1", "Author 1");
+            when(quoteRepositoryMock.findById(1)).thenReturn(quote);
 
-        // Arrange
-        List<Quote> quotes = getQuoteTestData(6);
-        when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/like", "POST");
+            Context context = Mockito.mock(Context.class);
 
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-            .withHttpMethod("POST")
-            .withBody("[1,2,3,4,5]")
-            .withPath("/quote");
-        Context context = Mockito.mock(Context.class);
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
 
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+            // Assert
+            Quote resultQuote = parseJsonForQuote(response.getBody());
+            Assertions.assertEquals(1, resultQuote.getId());
+            Assertions.assertEquals("Quote 1", resultQuote.getQuoteText());
+            Assertions.assertEquals("Author 1", resultQuote.getAuthor());
+            Assertions.assertEquals(200, response.getStatusCode());
+        }
 
-        // Assert
-        Quote quote = parseJsonForQuote(response.getBody());
-        Assertions.assertEquals(6, quote.getId());
-        Assertions.assertEquals(200, response.getStatusCode());
+        @Test
+        public void handleRequest_LikeQuote_WithoutAuthorization_ShouldReturn403() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+                .withHttpMethod("POST")
+                .withPath("/quote/1/like");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_GetLikedQuotes_Success() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/liked", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_UnlikeQuote_WithAuthentication_ShouldReturn204() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/unlike", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            // Verify that deleteUserLike was called
+            Mockito.verify(userLikeRepositoryMock, Mockito.times(1)).deleteUserLike(Mockito.anyString(), Mockito.eq(1));
+        }
+
+        @Test
+        public void handleRequest_UnlikeQuote_WithoutAuthorization_ShouldReturn403() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+                .withHttpMethod("DELETE")
+                .withPath("/quote/1/unlike");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+        }
     }
 
-    @Test
-    public void handleRequest_LikeQuote_ShouldReturnTheLikedQuote() {
-        // Arrange
-        Quote quote = new Quote(1, "Quote 1", "Author 1");
-        when(quoteRepositoryMock.findById(1)).thenReturn(quote);
+    @Nested
+    class ViewHistoryTests {
+        @Test
+        public void handleRequest_GetViewHistory_WithAuthentication_ShouldReturnHistory() {
+            // Arrange
+            when(userViewRepositoryMock.getViewsByUser(Mockito.anyString())).thenReturn(new ArrayList<>());
 
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/like", "POST");
-        Context context = Mockito.mock(Context.class);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/history", "GET");
+            Context context = Mockito.mock(Context.class);
 
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
 
-        // Assert
-        Quote resultQuote = parseJsonForQuote(response.getBody());
-        Assertions.assertEquals(1, resultQuote.getId());
-        Assertions.assertEquals("Quote 1", resultQuote.getQuoteText());
-        Assertions.assertEquals("Author 1", resultQuote.getAuthor());
-        Assertions.assertEquals(200, response.getStatusCode());
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Mockito.verify(userViewRepositoryMock, Mockito.times(1)).getViewsByUser(Mockito.anyString());
+        }
+
+        @Test
+        public void handleRequest_GetViewHistory_WithoutAuthentication_ShouldReturn403() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+                .withHttpMethod("GET")
+                .withPath("/quote/history");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+            // Verify that getViewsByUser was NOT called
+            Mockito.verify(userViewRepositoryMock, Mockito.never()).getViewsByUser(Mockito.anyString());
+        }
     }
 
-    @Test
-    public void handleRequest_LikeQuote_WithoutAuthorization_ShouldReturn403() {
-        // Arrange
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-            .withHttpMethod("POST")
-            .withPath("/quote/1/like");
-        Context context = Mockito.mock(Context.class);
+    @Nested
+    class ReorderQuoteTests {
+        @Test
+        public void handleRequest_ReorderQuote_WithValidOrder_ShouldReturn204() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/reorder", "PUT");
+            event.setBody("{\"order\": 2}");
+            Context context = Mockito.mock(Context.class);
 
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
 
-        // Assert
-        Assertions.assertEquals(403, response.getStatusCode());
-    }
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            // Verify that reorderLikedQuote was called
+            Mockito.verify(userLikeRepositoryMock, Mockito.atLeastOnce()).getLikesByUser(Mockito.anyString());
+        }
 
-    @Test
-    public void handleRequest_GetLikedQuotes_Success() {
-        // Arrange
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/liked", "GET");
-        Context context = Mockito.mock(Context.class);
+        @Test
+        public void handleRequest_ReorderQuote_WithoutAuthorization_ShouldReturn403() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
+                .withHttpMethod("PUT")
+                .withPath("/quote/1/reorder")
+                .withBody("{\"order\": 2}");
+            Context context = Mockito.mock(Context.class);
 
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
 
-        // Assert
-        Assertions.assertEquals(200, response.getStatusCode());
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_ReorderQuote_WithInvalidOrder_Zero_ShouldReturn400() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/reorder", "PUT");
+            event.setBody("{\"order\": 0}");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(400, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_ReorderQuote_WithInvalidOrder_Negative_ShouldReturn400() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/reorder", "PUT");
+            event.setBody("{\"order\": -5}");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(400, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_ReorderQuote_WithMissingOrder_ShouldReturn400() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/1/reorder", "PUT");
+            event.setBody("{}");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(400, response.getStatusCode());
+        }
     }
 
     @Test
@@ -181,103 +403,5 @@ public class QuoteHandlerTest {
 
         // Assert
         Assertions.assertEquals(400, response.getStatusCode());
-    }
-
-    @Test
-    public void handleRequest_GetQuoteWithAuthentication_ShouldRecordView() {
-        // Arrange
-        List<Quote> quotes = getQuoteTestData(3);
-        when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-        when(userViewRepositoryMock.getViewedQuoteIds(Mockito.anyString())).thenReturn(new ArrayList<>());
-
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote", "GET");
-        Context context = Mockito.mock(Context.class);
-
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
-
-        // Assert
-        Assertions.assertEquals(200, response.getStatusCode());
-        // Verify that recordView was called (saveUserView should be invoked)
-        Mockito.verify(userViewRepositoryMock, Mockito.times(1)).saveUserView(Mockito.any());
-    }
-
-    @Test
-    public void handleRequest_GetQuoteWithoutAuthentication_ShouldNotRecordView() {
-        // Arrange
-        List<Quote> quotes = getQuoteTestData(3);
-        when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-            .withHttpMethod("GET")
-            .withPath("/quote");
-        Context context = Mockito.mock(Context.class);
-
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
-
-        // Assert
-        Assertions.assertEquals(200, response.getStatusCode());
-        // Verify that recordView was NOT called
-        Mockito.verify(userViewRepositoryMock, Mockito.never()).saveUserView(Mockito.any());
-    }
-
-    @Test
-    public void handleRequest_GetViewHistory_WithAuthentication_ShouldReturnHistory() {
-        // Arrange
-        when(userViewRepositoryMock.getViewsByUser(Mockito.anyString())).thenReturn(new ArrayList<>());
-
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote/history", "GET");
-        Context context = Mockito.mock(Context.class);
-
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
-
-        // Assert
-        Assertions.assertEquals(200, response.getStatusCode());
-        Mockito.verify(userViewRepositoryMock, Mockito.times(1)).getViewsByUser(Mockito.anyString());
-    }
-
-    @Test
-    public void handleRequest_GetViewHistory_WithoutAuthentication_ShouldReturn403() {
-        // Arrange
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-            .withHttpMethod("GET")
-            .withPath("/quote/history");
-        Context context = Mockito.mock(Context.class);
-
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
-
-        // Assert
-        Assertions.assertEquals(403, response.getStatusCode());
-        // Verify that getViewsByUser was NOT called
-        Mockito.verify(userViewRepositoryMock, Mockito.never()).getViewsByUser(Mockito.anyString());
-    }
-
-    @Test
-    public void handleRequest_GetQuoteWithAuthentication_ShouldCallGetViewedQuoteIds() {
-        // Arrange
-        List<Quote> quotes = getQuoteTestData(20);
-        when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-        when(userViewRepositoryMock.getViewedQuoteIds(Mockito.anyString())).thenReturn(new ArrayList<>());
-
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
-        APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote", "GET");
-        Context context = Mockito.mock(Context.class);
-
-        // Act
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
-
-        // Assert
-        Assertions.assertEquals(200, response.getStatusCode());
-        // Verify that getViewedQuoteIds was called for authenticated user
-        Mockito.verify(userViewRepositoryMock, Mockito.times(1)).getViewedQuoteIds(Mockito.anyString());
-        // Verify that view was recorded
-        Mockito.verify(userViewRepositoryMock, Mockito.times(1)).saveUserView(Mockito.any());
     }
 }

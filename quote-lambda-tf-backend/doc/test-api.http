@@ -164,6 +164,100 @@ GET {{baseUrl}}/quote/liked
 Authorization: Bearer {{authToken}}
 
 ### ============================================
+### REORDER FAVOURITES ENDPOINTS (NEW - Require authentication)
+### ============================================
+
+### Step 1: Like multiple quotes to test reordering
+POST {{baseUrl}}/quote/1/like
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Step 2: Like another quote (should get order 2)
+POST {{baseUrl}}/quote/2/like
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Step 3: Like another quote (should get order 3)
+POST {{baseUrl}}/quote/3/like
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Step 4: Get liked quotes (should be in order 1, 2, 3)
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### Step 5: Reorder quote 3 to position 1 (moving up)
+# This should:
+# - Set quote 3's order to 1
+# - Increment quotes 1 and 2 to orders 2 and 3
+PUT {{baseUrl}}/quote/3/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "order": 1
+}
+
+### Step 6: Get liked quotes again (should now be in order 3, 1, 2)
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### Step 7: Reorder quote 1 to position 3 (moving down)
+# This should:
+# - Set quote 1's order to 3
+# - Decrement quotes 3 and 2 to orders 1 and 2
+PUT {{baseUrl}}/quote/1/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "order": 3
+}
+
+### Step 8: Get liked quotes again (should now be in order 2, 3, 1)
+GET {{baseUrl}}/quote/liked
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### REORDER ERROR CASES
+### ============================================
+
+### 11. Try to reorder without authentication (should return 403)
+PUT {{baseUrl}}/quote/1/reorder
+Content-Type: application/json
+
+{
+  "order": 2
+}
+
+### 12. Try to reorder with invalid order (0 or negative - should return 400)
+PUT {{baseUrl}}/quote/1/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "order": 0
+}
+
+### 13. Try to reorder with invalid order (negative - should return 400)
+PUT {{baseUrl}}/quote/1/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "order": -1
+}
+
+### 14. Try to reorder a quote that user hasn't liked (should be ignored)
+PUT {{baseUrl}}/quote/999/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "order": 1
+}
+
+### ============================================
 ### NOTES
 ### ============================================
 #
@@ -182,8 +276,25 @@ Authorization: Bearer {{authToken}}
 # - Authenticated users won't see the same quote twice (excluded automatically)
 # - View recording happens automatically on every /quote request with auth
 #
+# Reorder Favourites Feature (NEW):
+# - PUT /quote/{id}/reorder: Reorder a liked quote to a new position
+# - Requires authentication with USER role
+# - Request body: { "order": <positive integer> }
+# - Automatically updates all affected likes to maintain sequential ordering
+# - Moving up: increments quotes between new and old position
+# - Moving down: decrements quotes between old and new position
+# - Returns 204 No Content on success
+# - Returns 400 if order is not a positive integer
+# - Returns 403 if user doesn't have USER role
+# - Silently ignores if quote is not in user's likes
+#
+# Like Ordering:
+# - New likes automatically get order = maxOrder + 1 (added to end)
+# - Liked quotes are returned sorted by order (ascending)
+# - Order values are always sequential (1, 2, 3, ...) with no gaps
+#
 # DynamoDB Tables:
 # - quote-lambda-tf-user-views-dev: Stores user views (username, quoteId, viewedAt)
-# - quote-lambda-tf-user-likes-dev: Stores user likes (username, quoteId, likedAt)
+# - quote-lambda-tf-user-likes-dev: Stores user likes (username, quoteId, likedAt, order)
 # - quote-lambda-tf-quotes-dev: Stores all quotes
 #
