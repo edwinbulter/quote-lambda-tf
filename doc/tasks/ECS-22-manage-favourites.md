@@ -61,8 +61,9 @@ Sidepanel
 
 2. **Delete functionality**
    - Delete button for each favourite
-   - Confirmation dialog before deletion
+   - **No confirmation dialog** - Delete immediately on click
    - Update backend to remove like
+   - Show success/error feedback
 
 3. **Reorder functionality**
    - Up/Down arrow buttons OR drag-and-drop interface
@@ -386,22 +387,381 @@ Replace quoteview and favourites component area with:
    - Each user only reorders their own favourites
    - Same-user concurrent reorders are rare; last-write-wins is acceptable
    - No need for optimistic locking or version tracking
-3. **Validation**: Ensure order values are positive integers
-4. **Performance**: Consider pagination for large lists
+3. **Performance**: Consider pagination for large lists
 
 ### Frontend
-1. **State management**: Keep favourites and viewed quotes in sync
-2. **Optimistic updates**: Update UI immediately, rollback on error
-3. **Drag-and-drop**: Consider using a library like `react-beautiful-dnd` or `@dnd-kit/core`
-4. **Accessibility**: Ensure keyboard navigation works for reordering
-5. **Mobile**: Ensure touch-friendly controls for reordering
+1. **State management**: Management screens and main view are mutually exclusive
+   - When user opens Management screen, main view (quoteview + favourites) is hidden
+   - When user returns to main view, favourites are fetched fresh from backend
+   - No need to keep both in sync simultaneously
+   - If user wants to see updated data after management changes, they can refresh the page
+
+2. **Reordering calculation**: Simplified frontend reordering
+   - When user moves a favourite to a new position in the table:
+     - The order value is simply the position in the table (1, 2, 3, ...)
+     - No calculation needed: just assign order = position for all items
+   - Update local state optimistically with new order values
+   - Send only the moved item's new order to backend
+   - Backend applies the same logic to maintain consistency
+   - **Benefit**: Extremely simple logic, order values always stay positive and sequential, no complex calculations needed
+
+3. **Optimistic updates**: Update UI immediately, rollback on error
+   - Store current state before making API call
+   - Update UI immediately (no waiting for backend)
+   - Send API request asynchronously
+   - On success: Show confirmation message
+   - On error: Rollback UI to previous state and show error message
+   
+   **Example - Delete favourite:**
+   ```typescript
+   async function handleDeleteFavourite(quoteId: number) {
+     const previousFavourites = [...favourites];
+     
+     // Optimistic update
+     setFavourites(favourites.filter(f => f.id !== quoteId));
+     
+     try {
+       await api.unlikeQuote(quoteId);
+       showMessage("Favourite deleted");
+     } catch (error) {
+       // Rollback on error
+       setFavourites(previousFavourites);
+       showError("Failed to delete favourite. Please try again.");
+     }
+   }
+   ```
+   
+   **Example - Reorder favourite:**
+   ```typescript
+   async function handleReorderFavourite(quoteId: number, newPosition: number) {
+     const previousFavourites = [...favourites];
+     
+     // Optimistic update: Reorder in UI
+     const updatedFavourites = [...favourites];
+     const itemIndex = updatedFavourites.findIndex(f => f.id === quoteId);
+     const [item] = updatedFavourites.splice(itemIndex, 1);
+     updatedFavourites.splice(newPosition, 0, item);
+     
+     // Reassign order values based on new positions
+     updatedFavourites.forEach((fav, index) => {
+       fav.order = index + 1;
+     });
+     
+     setFavourites(updatedFavourites);
+     
+     try {
+       const movedItem = updatedFavourites[newPosition];
+       await api.reorderLikedQuote(quoteId, movedItem.order);
+       showMessage("Favourite reordered");
+     } catch (error) {
+       setFavourites(previousFavourites);
+       showError("Failed to reorder favourite. Please try again.");
+     }
+   }
+   ```
+   
+   **Example - Toggle like:**
+   ```typescript
+   async function handleToggleLike(quoteId: number, isCurrentlyLiked: boolean) {
+     const previousViewedQuotes = [...viewedQuotes];
+     
+     // Optimistic update: Toggle like state
+     const updatedViewedQuotes = viewedQuotes.map(q =>
+       q.id === quoteId ? { ...q, isLiked: !isCurrentlyLiked } : q
+     );
+     setViewedQuotes(updatedViewedQuotes);
+     
+     try {
+       if (isCurrentlyLiked) {
+         await api.unlikeQuote(quoteId);
+       } else {
+         await api.likeQuote(quoteId);
+       }
+       showMessage(isCurrentlyLiked ? "Removed from favourites" : "Added to favourites");
+     } catch (error) {
+       setViewedQuotes(previousViewedQuotes);
+       showError("Failed to update like. Please try again.");
+     }
+   }
+   ```
+   
+   **Benefits:**
+   - UI feels instant and responsive
+   - Better user experience
+   - Most operations succeed (errors are rare)
+   - Easy to rollback if something fails
+
+4. **Reordering UI**: Use Up/Down buttons instead of drag-and-drop
+   - **Recommendation**: Start with simple Up/Down buttons (no library needed)
+   - **Why**: 
+     - Simplest to implement and maintain
+     - No external dependencies
+     - Works perfectly on mobile (touch-friendly)
+     - Accessible (keyboard navigation works naturally)
+     - Clear UX (users understand exactly what will happen)
+     - Sufficient for small lists (< 100 items)
+   
+   **Implementation:**
+   ```typescript
+   function ManageFavouritesScreen() {
+     const [favourites, setFavourites] = useState([...]);
+
+     const handleMoveUp = (index: number) => {
+       if (index === 0) return;
+       
+       const newFavourites = [...favourites];
+       [newFavourites[index - 1], newFavourites[index]] = 
+       [newFavourites[index], newFavourites[index - 1]];
+       
+       newFavourites.forEach((fav, i) => {
+         fav.order = i + 1;
+       });
+       
+       setFavourites(newFavourites);
+       api.reorderLikedQuote(newFavourites[index - 1].id, newFavourites[index - 1].order);
+     };
+
+     const handleMoveDown = (index: number) => {
+       if (index === favourites.length - 1) return;
+       
+       const newFavourites = [...favourites];
+       [newFavourites[index], newFavourites[index + 1]] = 
+       [newFavourites[index + 1], newFavourites[index]];
+       
+       newFavourites.forEach((fav, i) => {
+         fav.order = i + 1;
+       });
+       
+       setFavourites(newFavourites);
+       api.reorderLikedQuote(newFavourites[index + 1].id, newFavourites[index + 1].order);
+     };
+
+     return (
+       <table>
+         <tbody>
+           {favourites.map((fav, index) => (
+             <tr key={fav.id}>
+               <td>{fav.quoteText}</td>
+               <td>{fav.author}</td>
+               <td>
+                 <button 
+                   onClick={() => handleMoveUp(index)} 
+                   disabled={index === 0}
+                   title="Move up"
+                 >
+                   ↑
+                 </button>
+                 <button 
+                   onClick={() => handleMoveDown(index)} 
+                   disabled={index === favourites.length - 1}
+                   title="Move down"
+                 >
+                   ↓
+                 </button>
+                 <button onClick={() => handleDelete(fav.id)}>Delete</button>
+               </td>
+             </tr>
+           ))}
+         </tbody>
+       </table>
+     );
+   }
+   ```
+   
+   **Future enhancement**: If users request drag-and-drop or list becomes very large (100+ items), upgrade to `@dnd-kit/core` (modern, actively maintained, better performance than `react-beautiful-dnd`)
+
+5. **Accessibility**: Basic keyboard support
+   - Buttons are focusable with Tab key
+   - Buttons can be activated with Enter/Space
+   - Add `aria-label` to buttons for screen readers
+   - Add visible focus indicators in CSS
+
+6. **Mobile**: Touch-friendly button design
+   - Minimum button size: 44x44px (Apple's recommended standard)
+   - Better labels: Use emoji + text (⬆️ Up, ⬇️ Down, 🗑️ Delete)
+   - Spacing: 4px margin between buttons for easier tapping
+   - Font size: 16px (prevents iOS auto-zoom)
+   - Touch feedback: Visual feedback on tap (active state)
+   
+   **CSS:**
+   ```css
+   button {
+     min-width: 44px;
+     min-height: 44px;
+     padding: 8px 12px;
+     margin: 4px;
+     font-size: 16px;
+     border: 1px solid #ccc;
+     border-radius: 4px;
+     background-color: #f9f9f9;
+     cursor: pointer;
+     transition: background-color 0.2s;
+   }
+
+   /* Touch feedback */
+   button:active {
+     background-color: #e0e0e0;
+     transform: scale(0.98);
+   }
+
+   /* Hover state */
+   button:hover:not(:disabled) {
+     background-color: #f0f0f0;
+   }
+
+   /* Disabled state */
+   button:disabled {
+     opacity: 0.5;
+     cursor: not-allowed;
+   }
+
+   /* Actions column spacing */
+   .actions {
+     display: flex;
+     gap: 4px;
+     flex-wrap: wrap;
+   }
+   ```
+   
+   **Updated button labels:**
+   ```typescript
+   <button onClick={() => handleMoveUp(index)} disabled={index === 0}>
+     ⬆️ Up
+   </button>
+   <button onClick={() => handleMoveDown(index)} disabled={index === favourites.length - 1}>
+     ⬇️ Down
+   </button>
+   <button onClick={() => handleDelete(fav.id)}>
+     🗑️ Delete
+   </button>
+   ```
 
 ### UX Considerations
-1. **Confirmation dialogs**: Ask before deleting favourites
-2. **Success feedback**: Show toast/notification on successful actions
-3. **Error handling**: Clear error messages for failed operations
-4. **Loading states**: Show spinners during API calls
-5. **Empty states**: Helpful messages when lists are empty
+
+#### 1. Success Feedback: Toast Notifications
+
+Show temporary toast notifications for successful actions (delete, reorder, like).
+
+**Toast Component:**
+```typescript
+// Toast.tsx
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error';
+  duration?: number;
+}
+
+function Toast({ message, type, duration = 3000 }: ToastProps) {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(false), duration);
+    return () => clearTimeout(timer);
+  }, [duration]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className={`toast toast-${type}`}>
+      {type === 'success' && '✓ '}
+      {type === 'error' && '✗ '}
+      {message}
+    </div>
+  );
+}
+```
+
+**CSS:**
+```css
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 2000;
+  animation: slideIn 0.3s ease-in-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-success {
+  background-color: #4caf50;
+  color: white;
+}
+
+.toast-error {
+  background-color: #f44336;
+  color: white;
+}
+```
+
+**Usage in component:**
+```typescript
+function ManageFavouritesScreen() {
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error';
+  } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+  };
+
+  const handleDeleteFavourite = async (quoteId: number) => {
+    const previousFavourites = [...favourites];
+    setFavourites(favourites.filter(f => f.id !== quoteId));
+
+    try {
+      await api.unlikeQuote(quoteId);
+      showToast('Favourite deleted', 'success');
+    } catch (error) {
+      setFavourites(previousFavourites);
+      showToast('Failed to delete favourite', 'error');
+    }
+  };
+
+  return (
+    <>
+      {/* Main content */}
+      {toast && <Toast message={toast.message} type={toast.type} />}
+    </>
+  );
+}
+```
+
+**Toast messages:**
+- Success: "✓ Favourite deleted"
+- Success: "✓ Favourite reordered"
+- Success: "✓ Added to favourites"
+- Success: "✓ Removed from favourites"
+- Error: "✗ Failed to delete favourite"
+- Error: "✗ Failed to reorder favourite"
+- Error: "✗ Failed to update like"
+
+#### 2. Error Handling
+
+Clear error messages for failed operations (shown in toast notifications).
+
+#### 3. Loading States
+
+Show spinners during API calls (optional, for slower networks).
+
+#### 4. Empty States
+
+Helpful messages when lists are empty:
+- "No favourites yet. Like quotes to add them here."
+- "No viewed quotes yet."
 
 ## API Endpoints Summary
 
