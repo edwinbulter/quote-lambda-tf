@@ -435,7 +435,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             // POST /admin/users/{username}/groups/{groupName} - Add user to group
             if (path.matches("/api/v1/admin/users/[^/]+/groups/[^/]+") && "POST".equals(httpMethod)) {
                 String[] pathParts = path.split("/");
-                String targetUsername = pathParts[pathParts.length - 3];
+                String targetUsername = java.net.URLDecoder.decode(pathParts[pathParts.length - 3], "UTF-8");
                 String groupName = pathParts[pathParts.length - 1];
                 
                 adminService.addUserToGroup(targetUsername, groupName, requestingUsername);
@@ -448,7 +448,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             // DELETE /admin/users/{username}/groups/{groupName} - Remove user from group
             if (path.matches("/api/v1/admin/users/[^/]+/groups/[^/]+") && "DELETE".equals(httpMethod)) {
                 String[] pathParts = path.split("/");
-                String targetUsername = pathParts[pathParts.length - 3];
+                String targetUsername = java.net.URLDecoder.decode(pathParts[pathParts.length - 3], "UTF-8");
                 String groupName = pathParts[pathParts.length - 1];
                 
                 adminService.removeUserFromGroup(targetUsername, groupName, requestingUsername);
@@ -461,7 +461,9 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             // DELETE /admin/users/{username} - Delete user
             if (path.matches("/api/v1/admin/users/[^/]+$") && "DELETE".equals(httpMethod)) {
                 String[] pathParts = path.split("/");
-                String targetUsername = pathParts[pathParts.length - 1];
+                String targetUsername = java.net.URLDecoder.decode(pathParts[pathParts.length - 1], "UTF-8");
+                
+                logger.info("Delete user request: targetUsername={}, requestingUsername={}", targetUsername, requestingUsername);
                 
                 // Delete user from Cognito
                 adminService.deleteUser(targetUsername, requestingUsername);

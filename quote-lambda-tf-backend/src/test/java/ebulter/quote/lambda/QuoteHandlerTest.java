@@ -463,6 +463,25 @@ public class QuoteHandlerTest {
         }
 
         @Test
+        public void handleRequest_AddUserToGroup_WithURLEncodedUsername_ShouldDecodeAndSucceed() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            // The URL-encoded username "user%40example.com" should be decoded to "user@example.com"
+            Mockito.doNothing().when(adminServiceMock).addUserToGroup(Mockito.eq("user@example.com"), Mockito.eq("USER"), Mockito.eq("adminuser"));
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user%40example.com/groups/USER", "POST");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            Mockito.verify(adminServiceMock).addUserToGroup("user@example.com", "USER", "adminuser");
+        }
+
+        @Test
         public void handleRequest_AddUserToGroup_WithoutAdminRole_ShouldReturnForbidden() {
             // Arrange
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
@@ -494,6 +513,25 @@ public class QuoteHandlerTest {
             // Assert
             Assertions.assertEquals(204, response.getStatusCode());
             Mockito.verify(adminServiceMock).removeUserFromGroup("user1", "USER", "adminuser");
+        }
+
+        @Test
+        public void handleRequest_RemoveUserFromGroup_WithURLEncodedUsername_ShouldDecodeAndSucceed() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            // The URL-encoded username "user%40example.com" should be decoded to "user@example.com"
+            Mockito.doNothing().when(adminServiceMock).removeUserFromGroup(Mockito.eq("user@example.com"), Mockito.eq("USER"), Mockito.eq("adminuser"));
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user%40example.com/groups/USER", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            Mockito.verify(adminServiceMock).removeUserFromGroup("user@example.com", "USER", "adminuser");
         }
 
         @Test
@@ -599,6 +637,43 @@ public class QuoteHandlerTest {
             // Assert
             Assertions.assertEquals(403, response.getStatusCode());
             Mockito.verify(adminServiceMock, Mockito.never()).deleteUser(Mockito.anyString(), Mockito.anyString());
+        }
+
+        @Test
+        public void handleRequest_DeleteUser_WithURLEncodedUsername_ShouldDecodeAndSucceed() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            // The URL-encoded username "user%40example.com" should be decoded to "user@example.com"
+            Mockito.doNothing().when(adminServiceMock).deleteUser(Mockito.eq("user@example.com"), Mockito.eq("adminuser"));
+            Mockito.doNothing().when(userLikeRepositoryMock).deleteAllLikesForUser("user@example.com");
+            Mockito.doNothing().when(userViewRepositoryMock).deleteAllViewsForUser("user@example.com");
+
+            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(quoteService, adminServiceMock);
+            // Manually set repositories using reflection since constructor sets them to null
+            try {
+                java.lang.reflect.Field userLikeField = QuoteHandler.class.getDeclaredField("userLikeRepository");
+                userLikeField.setAccessible(true);
+                userLikeField.set(handler, userLikeRepositoryMock);
+                
+                java.lang.reflect.Field userViewField = QuoteHandler.class.getDeclaredField("userViewRepository");
+                userViewField.setAccessible(true);
+                userViewField.set(handler, userViewRepositoryMock);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/users/user%40example.com", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            Mockito.verify(adminServiceMock).deleteUser("user@example.com", "adminuser");
+            Mockito.verify(userLikeRepositoryMock).deleteAllLikesForUser("user@example.com");
+            Mockito.verify(userViewRepositoryMock).deleteAllViewsForUser("user@example.com");
         }
 
         @Test
