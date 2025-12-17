@@ -50,7 +50,8 @@ resource "aws_iam_policy" "lambda_policy" {
           "cognito-idp:AdminListGroupsForUser",
           "cognito-idp:AdminAddUserToGroup",
           "cognito-idp:AdminRemoveUserFromGroup",
-          "cognito-idp:AdminGetUser"
+          "cognito-idp:AdminGetUser",
+          "cognito-idp:AdminDeleteUser"
         ]
         Resource = aws_cognito_user_pool.quote_app.arn
       },
