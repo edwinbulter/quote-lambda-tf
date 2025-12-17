@@ -34,9 +34,13 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
 
     private final QuoteService quoteService;
     private final AdminService adminService;
+    private final UserLikeRepository userLikeRepository;
+    private final UserViewRepository userViewRepository;
 
     public QuoteHandler() {
-        this.quoteService = new QuoteService(new QuoteRepository(), new UserLikeRepository(), new UserViewRepository());
+        this.userLikeRepository = new UserLikeRepository();
+        this.userViewRepository = new UserViewRepository();
+        this.quoteService = new QuoteService(new QuoteRepository(), userLikeRepository, userViewRepository);
         String userPoolId = System.getenv("USER_POOL_ID");
         if (userPoolId == null || userPoolId.isEmpty()) {
             logger.warn("USER_POOL_ID environment variable not set. Admin features will not work.");
@@ -49,11 +53,15 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     public QuoteHandler(QuoteService quoteService) {
         this.quoteService = quoteService;
         this.adminService = null;
+        this.userLikeRepository = null;
+        this.userViewRepository = null;
     }
 
     public QuoteHandler(QuoteService quoteService, AdminService adminService) {
         this.quoteService = quoteService;
         this.adminService = adminService;
+        this.userLikeRepository = null;
+        this.userViewRepository = null;
     }
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
@@ -444,6 +452,27 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                 String groupName = pathParts[pathParts.length - 1];
                 
                 adminService.removeUserFromGroup(targetUsername, groupName, requestingUsername);
+                
+                APIGatewayProxyResponseEvent response = createBaseResponse();
+                response.setStatusCode(HttpStatus.SC_NO_CONTENT);
+                return response;
+            }
+            
+            // DELETE /admin/users/{username} - Delete user
+            if (path.matches("/api/v1/admin/users/[^/]+$") && "DELETE".equals(httpMethod)) {
+                String[] pathParts = path.split("/");
+                String targetUsername = pathParts[pathParts.length - 1];
+                
+                // Delete user from Cognito
+                adminService.deleteUser(targetUsername, requestingUsername);
+                
+                // Delete all user data from DynamoDB
+                if (userLikeRepository != null && userViewRepository != null) {
+                    logger.info("Deleting all data for user {} from DynamoDB", targetUsername);
+                    userLikeRepository.deleteAllLikesForUser(targetUsername);
+                    userViewRepository.deleteAllViewsForUser(targetUsername);
+                    logger.info("Successfully deleted all data for user {}", targetUsername);
+                }
                 
                 APIGatewayProxyResponseEvent response = createBaseResponse();
                 response.setStatusCode(HttpStatus.SC_NO_CONTENT);

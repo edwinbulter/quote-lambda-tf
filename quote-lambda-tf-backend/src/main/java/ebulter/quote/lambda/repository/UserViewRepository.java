@@ -82,4 +82,23 @@ public class UserViewRepository {
         GetItemResponse response = dynamoDb.getItem(request);
         return response.hasItem();
     }
+
+    /**
+     * Delete all views for a specific user
+     */
+    public void deleteAllViewsForUser(String username) {
+        List<UserView> views = getViewsByUser(username);
+        for (UserView view : views) {
+            Map<String, AttributeValue> key = new HashMap<>();
+            key.put("username", AttributeValue.builder().s(username).build());
+            key.put("quoteId", AttributeValue.builder().n(String.valueOf(view.getQuoteId())).build());
+
+            DeleteItemRequest deleteRequest = DeleteItemRequest.builder()
+                    .tableName(TABLE_NAME)
+                    .key(key)
+                    .build();
+
+            dynamoDb.deleteItem(deleteRequest);
+        }
+    }
 }

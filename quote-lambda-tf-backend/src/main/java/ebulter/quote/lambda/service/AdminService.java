@@ -144,6 +144,41 @@ public class AdminService {
         }
     }
 
+    public void deleteUser(String username, String requestingUsername) {
+        logger.info("Deleting user {} (requested by {})", username, requestingUsername);
+        
+        // Prevent self-deletion
+        if (username.equals(requestingUsername)) {
+            logger.warn("User {} attempted to delete themselves", username);
+            logJsonAudit("WARN", "user_deletion", requestingUsername, username, null, "delete", "failure", 
+                    "Cannot delete yourself", "SELF_DELETION_FORBIDDEN");
+            throw new IllegalArgumentException("Cannot delete yourself");
+        }
+        
+        try {
+            // Delete user from Cognito
+            AdminDeleteUserRequest deleteUserRequest = AdminDeleteUserRequest.builder()
+                    .userPoolId(userPoolId)
+                    .username(username)
+                    .build();
+            
+            cognitoClient.adminDeleteUser(deleteUserRequest);
+            logger.info("Successfully deleted user {} from Cognito", username);
+            
+            // Note: DynamoDB cleanup is handled by the QuoteHandler
+            // This service only handles Cognito deletion
+            logJsonAudit("INFO", "user_deletion", requestingUsername, username, null, "delete", "success", null, null);
+        } catch (UserNotFoundException e) {
+            logger.error("User not found: {}", username);
+            logJsonAudit("ERROR", "user_deletion", requestingUsername, username, null, "delete", "failure", "User not found", "USER_NOT_FOUND");
+            throw new IllegalArgumentException("User not found: " + username);
+        } catch (Exception e) {
+            logger.error("Failed to delete user", e);
+            logJsonAudit("ERROR", "user_deletion", requestingUsername, username, null, "delete", "failure", e.getMessage(), "DELETE_USER_FAILED");
+            throw new RuntimeException("Failed to delete user: " + e.getMessage(), e);
+        }
+    }
+
     private List<String> getUserGroups(String username) {
         try {
             AdminListGroupsForUserRequest request = AdminListGroupsForUserRequest.builder()

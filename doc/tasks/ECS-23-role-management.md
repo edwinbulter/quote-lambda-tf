@@ -5,10 +5,12 @@
 - [User Stories](#user-stories)
   - [US-1: View All Users](#us-1-view-all-users)
   - [US-2: Manage User Roles](#us-2-manage-user-roles)
+  - [US-3: Delete Users](#us-3-delete-users)
 - [Requirements](#requirements)
   - [Navigation Structure](#navigation-structure)
   - [User Management Screen](#user-management-screen)
   - [Role Assignment](#role-assignment)
+  - [User Deletion](#user-deletion)
 - [Implementation Steps](#implementation-steps)
   - [Phase 1: Backend Updates](#phase-1-backend-updates)
   - [Phase 2: Frontend - User Management Screen](#phase-2-frontend---user-management-screen)
@@ -38,6 +40,11 @@ Implement a role management interface accessible only to ADMIN users, allowing t
 **As an** administrator  
 **I want to** add or remove users from USER and ADMIN groups  
 **So that** I can control access permissions for different users
+
+### US-3: Delete Users
+**As an** administrator  
+**I want to** delete users from the system  
+**So that** I can remove inactive or unauthorized users and clean up their data
 
 ## Requirements
 
@@ -72,12 +79,23 @@ Sidepanel
    - Search by username or email
    - Filter by role (show only ADMINs, show only USERs, show all)
 
-4. **Constraints**
+4. **Delete User Functionality**
+   - Delete button for each user (red/warning color)
+   - Confirmation dialog before deletion
+   - Cannot delete yourself (prevent self-deletion)
+   - Deletes user from Cognito User Pool
+   - Removes all user data from DynamoDB tables:
+     - `user_likes_table` - All likes by this user
+     - `user_views_table` - All view history for this user
+   - Shows success/error message after deletion
+   - User list refreshes after successful deletion
+
+5. **Constraints**
    - Cannot remove yourself from ADMIN group (prevent lockout)
    - Show warning when removing last ADMIN (optional)
-   - Cannot delete users (only manage roles)
+   - Cannot delete yourself (prevent self-deletion)
 
-5. **Navigation**
+6. **Navigation**
    - Back button to return to Management screen
    - Screen uses full space of quoteview and favourites component area
 
@@ -98,6 +116,30 @@ Sidepanel
 - Can manage other users' roles
 - Can view user management screen
 - Can be assigned/removed by other ADMINs (except self)
+
+### User Deletion
+
+#### Deletion Process
+1. **Confirmation Dialog**
+   - Display user information (username, email)
+   - Warning message about permanent deletion
+   - Confirmation buttons (Cancel / Delete)
+
+2. **Data Cleanup**
+   - Remove user from Cognito User Pool
+   - Delete all records in `user_likes_table` for this user
+   - Delete all records in `user_views_table` for this user
+   - Cascade delete any related data
+
+3. **Constraints**
+   - Cannot delete yourself
+   - Cannot delete the last ADMIN user (optional, for v2)
+   - Deletion is permanent and cannot be undone
+
+#### Error Handling
+- If Cognito deletion fails, show error and don't delete DynamoDB data
+- If DynamoDB deletion fails, show warning but continue
+- Provide clear error messages to the user
 
 ## Implementation Steps
 
@@ -141,6 +183,14 @@ Add new endpoints:
 - Returns 400 if trying to remove self from ADMIN group
 - Returns 404 if user or group not found
 
+**DELETE /admin/users/{username}** - Delete user
+- Requires ADMIN role
+- Path parameter: `username`
+- Returns 204 No Content on success
+- Returns 400 if trying to delete self
+- Returns 404 if user not found
+- Deletes user from Cognito and all related DynamoDB records
+
 #### 1.2 Create Admin Service
 
 **File:** `quote-lambda-tf-backend/src/main/java/ebulter/quote/lambda/service/AdminService.java`
@@ -168,6 +218,15 @@ public class AdminService {
         }
         // Use AdminRemoveUserFromGroup
     }
+
+    public void deleteUser(String username, String requestingUsername) {
+        // Prevent deleting self
+        if (username.equals(requestingUsername)) {
+            throw new IllegalArgumentException("Cannot delete yourself");
+        }
+        // Delete user from Cognito
+        // Delete all user records from DynamoDB tables
+    }
 }
 ```
 
@@ -187,11 +246,11 @@ private void requireAdminRole(APIGatewayProxyRequestEvent request) {
 }
 ```
 
-#### 1.4 Add IAM Permissions for Cognito
+#### 1.4 Add IAM Permissions for Cognito and DynamoDB
 
 **File:** `quote-lambda-tf-backend/infrastructure/iam.tf`
 
-Add Cognito permissions to Lambda execution role:
+Add Cognito and DynamoDB permissions to Lambda execution role:
 ```hcl
 statement {
   effect = "Allow"
@@ -200,10 +259,25 @@ statement {
     "cognito-idp:AdminListGroupsForUser",
     "cognito-idp:AdminAddUserToGroup",
     "cognito-idp:AdminRemoveUserFromGroup",
-    "cognito-idp:AdminGetUser"
+    "cognito-idp:AdminGetUser",
+    "cognito-idp:AdminDeleteUser"
   ]
   resources = [
     aws_cognito_user_pool.quote_user_pool.arn
+  ]
+}
+
+statement {
+  effect = "Allow"
+  actions = [
+    "dynamodb:Query",
+    "dynamodb:DeleteItem"
+  ]
+  resources = [
+    aws_dynamodb_table.user_likes_table.arn,
+    "${aws_dynamodb_table.user_likes_table.arn}/index/*",
+    aws_dynamodb_table.user_views.arn,
+    "${aws_dynamodb_table.user_views.arn}/index/*"
   ]
 }
 ```
@@ -286,6 +360,37 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
     }
   };
 
+  const handleDeleteUser = (username: string) => {
+    // Show confirmation dialog
+    const userToDelete = users.find(u => u.username === username);
+    if (!userToDelete) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete user "${username}" (${userToDelete.email})? This action cannot be undone.\n\nAll user data including likes and view history will be permanently deleted.`
+    );
+
+    if (!confirmed) return;
+
+    deleteUserWithCleanup(username);
+  };
+
+  const deleteUserWithCleanup = async (username: string) => {
+    const previousUsers = [...users];
+    
+    // Optimistic update - remove user from list
+    const updatedUsers = users.filter(u => u.username !== username);
+    setUsers(updatedUsers);
+
+    try {
+      await adminApi.deleteUser(username);
+      showToast(`User "${username}" and all their data have been deleted`, 'success');
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      setUsers(previousUsers);
+      showToast('Failed to delete user', 'error');
+    }
+  };
+
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
   };
@@ -312,6 +417,7 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
                 <th>Email</th>
                 <th>USER Role</th>
                 <th>ADMIN Role</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -352,6 +458,16 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
                           {isAdmin ? '✓ ADMIN' : 'Add ADMIN'}
                         </span>
                       </label>
+                    </td>
+                    <td className="actions-cell">
+                      <button
+                        className="delete-button"
+                        onClick={() => handleDeleteUser(userInfo.username)}
+                        disabled={isSelf}
+                        title={isSelf ? 'Cannot delete yourself' : 'Delete user'}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 );
@@ -452,10 +568,25 @@ async function removeUserFromGroup(username: string, groupName: string): Promise
     }
 }
 
+async function deleteUser(username: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}`, {
+        method: "DELETE",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to delete user: ${response.status} ${response.statusText}`);
+    }
+}
+
 export default {
     listUsers,
     addUserToGroup,
     removeUserFromGroup,
+    deleteUser,
 };
 ```
 
@@ -623,6 +754,32 @@ Add conditional rendering for user management:
     font-size: 14px;
 }
 
+.actions-cell {
+    text-align: center;
+}
+
+.delete-button {
+    padding: 6px 12px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.delete-button:hover:not(:disabled) {
+    background-color: #c82333;
+}
+
+.delete-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 @media (max-width: 768px) {
     .user-management-screen {
         left: 0;
@@ -659,21 +816,29 @@ Add conditional rendering for user management:
 - Test toast notifications
 - Test navigation flow
 - Test with different user roles (ADMIN vs non-ADMIN)
+- Test delete button is disabled for self
+- Test delete confirmation dialog appears
+- Test user is removed from list after successful deletion
+- Test error handling when deletion fails
 
 #### 6.3 Integration Testing
 - Test full flow: ADMIN adds user to USER group → user can like quotes
 - Test full flow: ADMIN adds user to ADMIN group → user can access user management
 - Test full flow: ADMIN removes user from USER group → user cannot like quotes
 - Test edge case: Try to remove self from ADMIN (should fail with error message)
+- Test full flow: ADMIN deletes user → user is removed from Cognito and all DynamoDB records are deleted
+- Test edge case: Try to delete self (should fail with error message)
+- Test edge case: Deleted user's likes and view history are completely removed from DynamoDB
 
 ## Technical Considerations
 
 ### Backend
-1. **Cognito Integration**: Use AWS Cognito Admin APIs to manage user groups
+1. **Cognito Integration**: Use AWS Cognito Admin APIs to manage user groups and deletion
    - `ListUsers` - Get all users in user pool
    - `AdminListGroupsForUser` - Get groups for specific user
    - `AdminAddUserToGroup` - Add user to group
    - `AdminRemoveUserFromGroup` - Remove user from group
+   - `AdminDeleteUser` - Delete user from Cognito User Pool
 
 2. **Authorization**: Verify ADMIN role on all admin endpoints
    - Extract groups from JWT token
@@ -683,7 +848,17 @@ Add conditional rendering for user management:
    - Check if requesting user is the same as target user
    - Return 400 Bad Request with clear error message
 
-4. **Pagination**: Consider pagination for large user lists (100+ users)
+4. **User deletion**: Backend must handle cascading deletion
+   - Prevent self-deletion (return 400 Bad Request)
+   - Delete user from Cognito User Pool using `AdminDeleteUser`
+   - Query and delete all records from `user_likes_table` where `username` matches
+   - Query and delete all records from `user_views_table` where `username` matches
+   - Use DynamoDB Query with GSI to find records efficiently
+   - Batch delete operations if needed for performance
+   - Log deletion with audit trail (who deleted, when, which user)
+   - Return 204 No Content on success
+
+5. **Pagination**: Consider pagination for large user lists (100+ users)
    - Cognito ListUsers supports pagination
    - Can implement in v2 if needed
 
@@ -700,10 +875,18 @@ Add conditional rendering for user management:
    - Visual indicator (disabled state)
    - Backend also enforces this rule
 
-4. **Error handling**: Clear error messages for common scenarios
+4. **User deletion**: Delete button with confirmation
+   - Disabled for current user (cannot delete self)
+   - Confirmation dialog before deletion
+   - Optimistic update with rollback on error
+   - Removes user from list after successful deletion
+
+5. **Error handling**: Clear error messages for common scenarios
    - Network errors
    - Authorization errors
    - Self-removal attempts
+   - Self-deletion attempts
+   - Deletion failures
 
 ### Security
 1. **Authorization at multiple layers**:
@@ -802,6 +985,10 @@ Add conditional rendering for user management:
 - [ ] ADMIN can add users to ADMIN group
 - [ ] ADMIN can remove users from ADMIN group
 - [ ] Cannot remove self from ADMIN group (checkbox disabled)
+- [ ] ADMIN can delete users (delete button visible)
+- [ ] Cannot delete self (delete button disabled for current user)
+- [ ] Confirmation dialog appears before deletion
+- [ ] Deleted user is removed from list after successful deletion
 - [ ] Optimistic updates with rollback on error
 - [ ] Toast notifications for success/error
 - [ ] Back button returns to Management screen
@@ -818,24 +1005,43 @@ Add conditional rendering for user management:
 - [ ] Unauthenticated users get 401 Unauthorized
 - [ ] Self-removal from ADMIN group is prevented
 
+### User Deletion
+- [ ] Delete button appears for each user
+- [ ] Delete button is disabled for current user
+- [ ] Confirmation dialog shows username and email
+- [ ] Confirmation dialog warns about permanent deletion
+- [ ] User is removed from Cognito User Pool
+- [ ] All user likes are deleted from DynamoDB
+- [ ] All user view history is deleted from DynamoDB
+- [ ] Success message shown after deletion
+- [ ] User list refreshes after deletion
+- [ ] Error message shown if deletion fails
+- [ ] Cannot delete last ADMIN user (optional for v2)
+
 ### General
 - [ ] All API calls include proper authentication
 - [ ] Error handling for all failure scenarios
 - [ ] Loading states during API calls
 - [ ] Empty state when no users exist
 - [ ] Responsive design works on mobile and desktop
+- [ ] Audit logging for all admin operations including deletions
 
 ## Estimated Effort
-- Backend: 6-8 hours
+- Backend: 8-10 hours
   - Cognito integration: 3-4 hours
   - Admin endpoints: 2-3 hours
   - Authorization logic: 1 hour
-- Frontend: 6-8 hours
+  - User deletion with DynamoDB cleanup: 2-3 hours
+- Frontend: 7-9 hours
   - User management screen: 3-4 hours
   - API integration: 2 hours
   - App integration: 1-2 hours
-- Testing: 4-6 hours
-- **Total: 16-22 hours** (2-3 days)
+  - Delete functionality and confirmation: 1-2 hours
+- Testing: 5-7 hours
+  - Backend deletion tests: 2-3 hours
+  - Frontend deletion tests: 2-3 hours
+  - Integration tests: 1 hour
+- **Total: 20-26 hours** (2.5-3 days)
 
 ## Dependencies
 - Existing authentication system (Cognito)
@@ -846,10 +1052,12 @@ Add conditional rendering for user management:
 - **User search and filtering**: Search by username/email, filter by role
 - **Bulk operations**: Add/remove multiple users to/from groups at once
 - **User creation**: Allow ADMINs to create new users directly
-- **User deletion**: Allow ADMINs to delete users (with confirmation)
-- **Audit log viewer**: Show history of role changes
-- **Email notifications**: Notify users when their roles change
+- **Prevent last ADMIN deletion**: Prevent deletion of the last ADMIN user
+- **Audit log viewer**: Show history of role changes and deletions
+- **Email notifications**: Notify users when their roles change or account is deleted
 - **Group management**: Create custom groups beyond USER and ADMIN
 - **Permission granularity**: Fine-grained permissions beyond group membership
 - **User details view**: Show more user information (last login, creation date, etc.)
 - **Export user list**: Download user list as CSV/Excel
+- **Soft delete**: Archive users instead of hard delete (for audit trail)
+- **Data export before deletion**: Allow exporting user data before deletion

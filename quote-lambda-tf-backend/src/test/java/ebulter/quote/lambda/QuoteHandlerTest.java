@@ -547,6 +547,135 @@ public class QuoteHandlerTest {
         }
     }
 
+    @Nested
+    class DeleteUserTests {
+        @Test
+        public void handleRequest_DeleteUser_WithAdminRole_ShouldSucceed() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            Mockito.doNothing().when(adminServiceMock).deleteUser(Mockito.eq("user1"), Mockito.eq("adminuser"));
+            Mockito.doNothing().when(userLikeRepositoryMock).deleteAllLikesForUser("user1");
+            Mockito.doNothing().when(userViewRepositoryMock).deleteAllViewsForUser("user1");
+
+            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(quoteService, adminServiceMock);
+            // Manually set repositories using reflection since constructor sets them to null
+            try {
+                java.lang.reflect.Field userLikeField = QuoteHandler.class.getDeclaredField("userLikeRepository");
+                userLikeField.setAccessible(true);
+                userLikeField.set(handler, userLikeRepositoryMock);
+                
+                java.lang.reflect.Field userViewField = QuoteHandler.class.getDeclaredField("userViewRepository");
+                userViewField.setAccessible(true);
+                userViewField.set(handler, userViewRepositoryMock);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/users/user1", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            Mockito.verify(adminServiceMock).deleteUser("user1", "adminuser");
+            Mockito.verify(userLikeRepositoryMock).deleteAllLikesForUser("user1");
+            Mockito.verify(userViewRepositoryMock).deleteAllViewsForUser("user1");
+        }
+
+        @Test
+        public void handleRequest_DeleteUser_WithoutAdminRole_ShouldReturnForbidden() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users/user1", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+            Mockito.verify(adminServiceMock, Mockito.never()).deleteUser(Mockito.anyString(), Mockito.anyString());
+        }
+
+        @Test
+        public void handleRequest_DeleteSelf_WithAdminRole_ShouldReturnError() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            Mockito.doThrow(new IllegalArgumentException("Cannot delete yourself"))
+                .when(adminServiceMock).deleteUser(Mockito.eq("adminuser"), Mockito.eq("adminuser"));
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/users/adminuser", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(400, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("Cannot delete yourself"));
+        }
+
+        @Test
+        public void handleRequest_DeleteUser_CleansUpAllUserData() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            Mockito.doNothing().when(adminServiceMock).deleteUser(Mockito.eq("user1"), Mockito.eq("adminuser"));
+            Mockito.doNothing().when(userLikeRepositoryMock).deleteAllLikesForUser("user1");
+            Mockito.doNothing().when(userViewRepositoryMock).deleteAllViewsForUser("user1");
+
+            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(quoteService, adminServiceMock);
+            // Manually set repositories using reflection since constructor sets them to null
+            try {
+                java.lang.reflect.Field userLikeField = QuoteHandler.class.getDeclaredField("userLikeRepository");
+                userLikeField.setAccessible(true);
+                userLikeField.set(handler, userLikeRepositoryMock);
+                
+                java.lang.reflect.Field userViewField = QuoteHandler.class.getDeclaredField("userViewRepository");
+                userViewField.setAccessible(true);
+                userViewField.set(handler, userViewRepositoryMock);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/users/user1", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            // Verify both repositories were called to delete user data
+            Mockito.verify(userLikeRepositoryMock, Mockito.times(1)).deleteAllLikesForUser("user1");
+            Mockito.verify(userViewRepositoryMock, Mockito.times(1)).deleteAllViewsForUser("user1");
+        }
+
+        @Test
+        public void handleRequest_DeleteNonExistentUser_ShouldReturnError() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            Mockito.doThrow(new IllegalArgumentException("User not found: nonexistent"))
+                .when(adminServiceMock).deleteUser(Mockito.eq("nonexistent"), Mockito.eq("adminuser"));
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/users/nonexistent", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(400, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("User not found"));
+        }
+    }
+
     @Test
     public void handleRequest_InvalidRequest() {
         // Arrange
