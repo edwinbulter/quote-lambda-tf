@@ -199,7 +199,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                 return createErrorResponse("Admin service not configured");
             }
             
-            return handleAdminRequest(event, username);
+            return handleAdminRequest(event, username, path);
         } else {
             return createErrorResponse("Invalid request");
         }
@@ -411,8 +411,8 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         }
     }
 
-    private APIGatewayProxyResponseEvent handleAdminRequest(APIGatewayProxyRequestEvent event, String requestingUsername) {
-        String path = event.getPath();
+    private APIGatewayProxyResponseEvent handleAdminRequest(APIGatewayProxyRequestEvent event, String requestingUsername, String normalizedPath) {
+        String path = normalizedPath;
         String httpMethod = event.getHttpMethod();
         
         logger.info("Handling admin request: path={}, method={}, user={}", path, httpMethod, requestingUsername);
