@@ -6,7 +6,7 @@ resource "aws_apigatewayv2_api" "quote_api" {
   
   cors_configuration {
     allow_origins     = ["*"]
-    allow_methods     = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    allow_methods     = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers     = ["content-type", "authorization"]
     expose_headers    = ["content-type", "authorization"]
     allow_credentials = false

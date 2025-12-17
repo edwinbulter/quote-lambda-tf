@@ -14,7 +14,7 @@
 ### - Domain: quote-lambda-tf-backend-dev.auth.eu-central-1.amazoncognito.com
 
 @baseUrl = https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/
-@authToken = eyJraWQiOiIxMW95RFRGSzQ1QVVzWjFSc3ViYWJXSlwvUGFHZ0M2bHdkNmF1c0RubWtEVT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIzMzljMTgwNS02NDNjLTQ5YjUtYTYwMy1mZWJhNTZjNjM0ZDYiLCJjb2duaXRvOmdyb3VwcyI6WyJVU0VSIl0sImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS1jZW50cmFsLTEuYW1hem9uYXdzLmNvbVwvZXUtY2VudHJhbC0xX1hyS3hKV3k1dSIsImNsaWVudF9pZCI6Ijdsa29oaDZ0OTZpZ2ttOXExNnJkY2hhbnNoIiwib3JpZ2luX2p0aSI6Ijc1ZTlkMTc0LWI2YjctNGYzMS1iZTEyLTMwOTM2MDlkZWVhNCIsImV2ZW50X2lkIjoiZTAzMmZjZGItNTE3MC00NDc5LWJmMDUtMmRlY2Y3YmYwN2RiIiwidG9rZW5fdXNlIjoiYWNjZXNzIiwic2NvcGUiOiJhd3MuY29nbml0by5zaWduaW4udXNlci5hZG1pbiIsImF1dGhfdGltZSI6MTc2NTg4Mzk4NiwiZXhwIjoxNzY1ODg3NTg2LCJpYXQiOjE3NjU4ODM5ODYsImp0aSI6ImQ1MjE1NWY0LWQwMmUtNGUwNi1iZTkzLTRjMDU2NjAyNzJlMiIsInVzZXJuYW1lIjoidXNlci0xIn0.nK1sKErr4e3RCMmpqyxlsecjzHTjfoEql-K5vYH8bjjGVlGq4lQwjh6X67KY6PT6qsoHTSSMmxwiSJUG22-JWR5eip_WFjKvK86scs-oUlDi1xrn6ql2YayZtf8540UV2zLhVn0SPjDoCUjvrTrKs3B29R51dl2kUJoNcoR6bYS_xLkU70Uu1_cbrH3U7wtXjVGfnyp5Q-rZ1Gp6b5WQ-Xl-GmyzGm3u9sktGrcLLjbkbvSbDDzOP1SbnC7dgiMjjhpledlwFWHXdUsBctIbZEihJjEyQqVDJGlaHqME19Xal3k7hucrFIXSMUjZHscH7sEQUC9jDm9JePPyrs5oQQ
+@authToken = eyJraWQiOiIxMW95RFRGSzQ1QVVzWjFSc3ViYWJXSlwvUGFHZ0M2bHdkNmF1c0RubWtEVT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIzMzljMTgwNS02NDNjLTQ5YjUtYTYwMy1mZWJhNTZjNjM0ZDYiLCJjb2duaXRvOmdyb3VwcyI6WyJVU0VSIl0sImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS1jZW50cmFsLTEuYW1hem9uYXdzLmNvbVwvZXUtY2VudHJhbC0xX1hyS3hKV3k1dSIsImNsaWVudF9pZCI6Ijdsa29oaDZ0OTZpZ2ttOXExNnJkY2hhbnNoIiwib3JpZ2luX2p0aSI6IjdlODI4MGM3LWMxZTgtNGI2Ni1hOTA4LTBlMWMyNzU4NWIyMiIsImV2ZW50X2lkIjoiNmE5MDljY2EtYmY4My00NGEzLWE5YWQtNWQyOWY4MmEzNzcxIiwidG9rZW5fdXNlIjoiYWNjZXNzIiwic2NvcGUiOiJhd3MuY29nbml0by5zaWduaW4udXNlci5hZG1pbiIsImF1dGhfdGltZSI6MTc2NTk2NDQwMCwiZXhwIjoxNzY1OTY4MDAwLCJpYXQiOjE3NjU5NjQ0MDAsImp0aSI6IjQ0NjdhZTdhLWYzYjYtNDkwNS05Mzk2LTIwYTNkY2E0MTQzNiIsInVzZXJuYW1lIjoidXNlci0xIn0.KiLwE_l-IWnNpDVKnUjC7xBpEI_CUmfoTBFD15NzNzy8dxEyZ8ukVCLG0Gv_pPAPp4d7jizeJOKvVrD4cx1_EY_znhdVifBdo4Ws-cj-6A8OVZdGTwf-QEeDu2QC3wg8Qe7BkjvPV7O0Yg0tbnG57VZy8rx0LBKkqyCdfWFsFh3ghFWhtUeaENktqGsG6GMyD83fG0-sNICb3oEP2u_BOMBWhbRt4XU8maeDPQ9EGrTCvI6YoBD0zh8g6wrNX0giCUE6u3QamkCzCAE7qvoFeHOZCM7tG0VKCLaIm4-J3lzafYGJT0G8GGW3uszZW2jKJe-dzxpcs1Zhpb01mXuoew
 @cognitoClientId = 7lkohh6t96igkm9q16rdchansh
 @cognitoRegion = eu-central-1
 
@@ -82,13 +82,13 @@ Authorization: Bearer {{authToken}}
 
 ### 8. Like a Quote (requires authentication)
 # Replace the quote ID (3) with an actual quote ID from your database
-POST {{baseUrl}}/quote/3/like
+POST {{baseUrl}}/quote/79/like
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 ### 9. Unlike a Quote (requires authentication)
 # Replace the quote ID (3) with the same quote you liked
-DELETE {{baseUrl}}/quote/3/unlike
+DELETE {{baseUrl}}/quote/79/unlike
 Authorization: Bearer {{authToken}}
 
 ### 10. Get All Quotes Liked by Current User (requires authentication)
@@ -178,7 +178,7 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 ### Step 3: Like another quote (should get order 3)
-POST {{baseUrl}}/quote/3/like
+POST {{baseUrl}}/quote/19/like
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
@@ -190,12 +190,12 @@ Authorization: Bearer {{authToken}}
 # This should:
 # - Set quote 3's order to 1
 # - Increment quotes 1 and 2 to orders 2 and 3
-PUT {{baseUrl}}/quote/3/reorder
+PUT {{baseUrl}}/quote/79/reorder
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "order": 1
+  "order": 3
 }
 
 ### Step 6: Get liked quotes again (should now be in order 3, 1, 2)
@@ -240,7 +240,7 @@ Content-Type: application/json
 }
 
 ### 13. Try to reorder with invalid order (negative - should return 400)
-PUT {{baseUrl}}/quote/1/reorder
+PUT {{baseUrl}}/quote/79/reorder
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
@@ -249,7 +249,7 @@ Content-Type: application/json
 }
 
 ### 14. Try to reorder a quote that user hasn't liked (should be ignored)
-PUT {{baseUrl}}/quote/999/reorder
+PUT {{baseUrl}}/quote/61/reorder
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 

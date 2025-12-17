@@ -7,6 +7,9 @@ import FavouritesComponent, { FavouritesComponentHandle } from "./components/Fav
 import { Quote } from "./types/Quote"; // Adjust the path based on your project
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/Login';
+import { ManagementScreen } from './components/ManagementScreen';
+import { ManageFavouritesScreen } from './components/ManageFavouritesScreen';
+import { ViewedQuotesScreen } from './components/ViewedQuotesScreen';
 
 const App: React.FC = () => {
     const { isAuthenticated, isLoading, signOut, user, hasRole, userGroups, needsUsernameSetup } = useAuth();
@@ -17,6 +20,8 @@ const App: React.FC = () => {
     const [liking, setLiking] = useState<boolean>(false); // Liking state
     const [signingIn, setSigningIn] = useState<boolean>(false);
     const [showProfile, setShowProfile] = useState<boolean>(false);
+    const [showManagement, setShowManagement] = useState<boolean>(false);
+    const [managementView, setManagementView] = useState<'main' | 'favourites' | 'viewed'>('main');
     const [userEmail, setUserEmail] = useState<string>('');
     const [displayUsername, setDisplayUsername] = useState<string>('');
     const indexRef = useRef<number>(0); // Reference to the current quote index
@@ -227,10 +232,40 @@ const App: React.FC = () => {
         setShowProfile(false);
     };
 
+    const openManagement = (): void => {
+        setShowManagement(true);
+        setManagementView('main');
+    };
+
+    const closeManagement = (): void => {
+        setShowManagement(false);
+        setManagementView('main');
+        if (favouritesRef.current) {
+            favouritesRef.current.reloadFavouriteQuotes();
+        }
+    };
+
     return (
         <div className="app">
-            <div className={`quoteView ${(signingIn || showProfile || needsUsernameSetup) ? 'fullHeight fullWidth' : ''}`}>
-                {showProfile && isAuthenticated && user ? (
+            <div className={`quoteView ${(signingIn || showProfile || needsUsernameSetup || showManagement) ? 'fullHeight fullWidth' : ''}`}>
+                {showManagement ? (
+                    managementView === 'main' ? (
+                        <ManagementScreen
+                            onBack={closeManagement}
+                            onNavigateToFavourites={() => setManagementView('favourites')}
+                            onNavigateToViewedQuotes={() => setManagementView('viewed')}
+                            hasUserRole={hasRole('USER')}
+                        />
+                    ) : managementView === 'favourites' ? (
+                        <ManageFavouritesScreen
+                            onBack={() => setManagementView('main')}
+                        />
+                    ) : (
+                        <ViewedQuotesScreen
+                            onBack={() => setManagementView('main')}
+                        />
+                    )
+                ) : showProfile && isAuthenticated && user ? (
                     <div className="profile">
                         <h2>User Profile</h2>
                         <div className="profile-info">
@@ -251,7 +286,7 @@ const App: React.FC = () => {
                     <Login />
                 ) : signingIn && !isAuthenticated ? (
                     <Login onCancel={() => setSigningIn(false)} />
-                ) : (
+                ) : showManagement ? null : (
                     <>
                         <p>
                             "{loading ? "Loading..." : quote?.quoteText || ""}"
@@ -272,12 +307,12 @@ const App: React.FC = () => {
                         {(displayUsername || user.username).charAt(0).toUpperCase()}
                     </div>
                 )}
-                <button className="newQuoteButton" disabled={loading || signingIn || showProfile || needsUsernameSetup} onClick={newQuote}>
+                <button className="newQuoteButton" disabled={loading || signingIn || showProfile || needsUsernameSetup || showManagement} onClick={newQuote}>
                     {loading ? "Loading..." : "New Quote"}
                 </button>
                 <button 
                     className="likeButton" 
-                    disabled={!isAuthenticated || !hasRole('USER') || liking || !!quote?.liked || signingIn || showProfile || needsUsernameSetup} 
+                    disabled={!isAuthenticated || !hasRole('USER') || liking || !!quote?.liked || signingIn || showProfile || needsUsernameSetup || showManagement} 
                     onClick={like}
                     title={!isAuthenticated ? "Sign in to like quotes" : !hasRole('USER') ? "USER role required to like quotes" : ""}
                 >
@@ -285,31 +320,40 @@ const App: React.FC = () => {
                 </button>
                 <button 
                     className="previousButton" 
-                    disabled={indexRef.current === 0 || signingIn || showProfile || needsUsernameSetup} 
+                    disabled={indexRef.current === 0 || signingIn || showProfile || needsUsernameSetup || showManagement} 
                     onClick={previous}
                 >
                     Previous
                 </button>
                 <button
                     className="nextButton"
-                    disabled={indexRef.current >= (isAuthenticated ? serverViewHistory : receivedQuotes).length - 1 || signingIn || showProfile || needsUsernameSetup}
+                    disabled={indexRef.current >= (isAuthenticated ? serverViewHistory : receivedQuotes).length - 1 || signingIn || showProfile || needsUsernameSetup || showManagement}
                     onClick={next}
                 >
                     Next
                 </button>
-                <button className="firstButton" disabled={signingIn || showProfile || needsUsernameSetup} onClick={jumpToFirst}>
+                <button className="firstButton" disabled={signingIn || showProfile || needsUsernameSetup || showManagement} onClick={jumpToFirst}>
                     First
                 </button>
-                <button className="lastButton" disabled={signingIn || showProfile || needsUsernameSetup} onClick={jumpToLast}>
+                <button className="lastButton" disabled={signingIn || showProfile || needsUsernameSetup || showManagement} onClick={jumpToLast}>
                     Last
                 </button>
+                {isAuthenticated && (
+                    <button 
+                        className="manageButton" 
+                        disabled={signingIn || showProfile || needsUsernameSetup || showManagement}
+                        onClick={openManagement}
+                    >
+                        Manage
+                    </button>
+                )}
                 {!isAuthenticated ? (
                     <button className="signinButton" disabled={isLoading || signingIn || showProfile} onClick={isAuthenticated ? signOut : signIn}>
                         {isLoading ? "Loading..." : (isAuthenticated ? "Sign Out" : "Sign In")}
                     </button>
                 ) : ""}
             </div>
-            {!signingIn && !showProfile && !needsUsernameSetup && (
+            {!signingIn && !showProfile && !needsUsernameSetup && !showManagement && (
                 <FavouritesComponent ref={favouritesRef}/>
             )}
         </div>
