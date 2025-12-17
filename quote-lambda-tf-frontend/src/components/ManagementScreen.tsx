@@ -5,6 +5,7 @@ interface ManagementScreenProps {
     onNavigateToFavourites: () => void;
     onNavigateToViewedQuotes: () => void;
     onNavigateToUserManagement: () => void;
+    onNavigateToQuoteManagement: () => void;
     hasUserRole: boolean;
     hasAdminRole: boolean;
 }
@@ -14,6 +15,7 @@ export function ManagementScreen({
     onNavigateToFavourites,
     onNavigateToViewedQuotes,
     onNavigateToUserManagement,
+    onNavigateToQuoteManagement,
     hasUserRole,
     hasAdminRole,
 }: ManagementScreenProps) {
@@ -50,12 +52,20 @@ export function ManagementScreen({
                 >
                     User Management
                 </button>
+                <button
+                    className="management-menu-item"
+                    onClick={onNavigateToQuoteManagement}
+                    disabled={!hasAdminRole}
+                    title={!hasAdminRole ? 'ADMIN role required' : ''}
+                >
+                    Manage Quotes
+                </button>
             </div>
             {!hasUserRole && (
                 <p className="role-warning">USER role required to access favourites and viewed quotes.</p>
             )}
             {!hasAdminRole && (
-                <p className="role-warning">ADMIN role required to access user management.</p>
+                <p className="role-warning">ADMIN role required to access user and quote management.</p>
             )}
         </div>
     );

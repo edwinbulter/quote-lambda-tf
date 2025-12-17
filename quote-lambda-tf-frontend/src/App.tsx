@@ -11,6 +11,7 @@ import { ManagementScreen } from './components/ManagementScreen';
 import { ManageFavouritesScreen } from './components/ManageFavouritesScreen';
 import { ViewedQuotesScreen } from './components/ViewedQuotesScreen';
 import { UserManagementScreen } from './components/UserManagementScreen';
+import { QuoteManagementScreen } from './components/QuoteManagementScreen';
 
 const App: React.FC = () => {
     const { isAuthenticated, isLoading, signOut, user, hasRole, userGroups, needsUsernameSetup } = useAuth();
@@ -22,7 +23,7 @@ const App: React.FC = () => {
     const [signingIn, setSigningIn] = useState<boolean>(false);
     const [showProfile, setShowProfile] = useState<boolean>(false);
     const [showManagement, setShowManagement] = useState<boolean>(false);
-    const [managementView, setManagementView] = useState<'main' | 'favourites' | 'viewed' | 'users'>('main');
+    const [managementView, setManagementView] = useState<'main' | 'favourites' | 'viewed' | 'users' | 'quotes'>('main');
     const [userEmail, setUserEmail] = useState<string>('');
     const [displayUsername, setDisplayUsername] = useState<string>('');
     const indexRef = useRef<number>(0); // Reference to the current quote index
@@ -256,6 +257,7 @@ const App: React.FC = () => {
                             onNavigateToFavourites={() => setManagementView('favourites')}
                             onNavigateToViewedQuotes={() => setManagementView('viewed')}
                             onNavigateToUserManagement={() => setManagementView('users')}
+                            onNavigateToQuoteManagement={() => setManagementView('quotes')}
                             hasUserRole={hasRole('USER')}
                             hasAdminRole={hasRole('ADMIN')}
                         />
@@ -267,8 +269,12 @@ const App: React.FC = () => {
                         <ViewedQuotesScreen
                             onBack={() => setManagementView('main')}
                         />
-                    ) : (
+                    ) : managementView === 'users' ? (
                         <UserManagementScreen
+                            onBack={() => setManagementView('main')}
+                        />
+                    ) : (
+                        <QuoteManagementScreen
                             onBack={() => setManagementView('main')}
                         />
                     )

@@ -26,6 +26,27 @@ export interface UserInfo {
     userLastModifiedDate?: string;
 }
 
+export interface QuoteWithLikeCount {
+    id: number;
+    quoteText: string;
+    author: string;
+    likeCount: number;
+}
+
+export interface QuotePageResponse {
+    quotes: QuoteWithLikeCount[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+}
+
+export interface QuoteAddResponse {
+    quotesAdded: number;
+    totalQuotes: number;
+    message: string;
+}
+
 async function listUsers(): Promise<UserInfo[]> {
     const authHeaders = await getAuthHeaders();
     const response = await fetch(`${BASE_URL}/admin/users`, {
@@ -86,9 +107,62 @@ async function deleteUser(username: string): Promise<void> {
     }
 }
 
+async function getQuotes(
+    page: number = 1,
+    pageSize: number = 50,
+    quoteText?: string,
+    author?: string,
+    sortBy?: string,
+    sortOrder?: string
+): Promise<QuotePageResponse> {
+    const authHeaders = await getAuthHeaders();
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('pageSize', pageSize.toString());
+    if (quoteText) params.append('quoteText', quoteText);
+    if (author) params.append('author', author);
+    if (sortBy) params.append('sortBy', sortBy);
+    if (sortOrder) params.append('sortOrder', sortOrder);
+
+    const response = await fetch(`${BASE_URL}/admin/quotes?${params.toString()}`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Get quotes failed:', response.status, errorText);
+        throw new Error(`Failed to fetch quotes: ${response.status} - ${errorText}`);
+    }
+    
+    return await response.json();
+}
+
+async function fetchAndAddNewQuotes(): Promise<QuoteAddResponse> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/admin/quotes/fetch`, {
+        method: "POST",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Fetch quotes failed:', response.status, errorText);
+        throw new Error(`Failed to add quotes: ${response.status} - ${errorText}`);
+    }
+    
+    return await response.json();
+}
+
 export default {
     listUsers,
     addUserToGroup,
     removeUserFromGroup,
     deleteUser,
+    getQuotes,
+    fetchAndAddNewQuotes,
 };
