@@ -2,6 +2,34 @@
 
 This document outlines the process for creating releases in this monorepo using a trunk-based development approach with release branches.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Release Process](#release-process)
+  - [1. Prepare for Release](#1-prepare-for-release)
+  - [2. Create Release Branch](#2-create-release-branch)
+  - [3. Update Version Numbers](#3-update-version-numbers)
+  - [4. Commit Version Changes](#4-commit-version-changes)
+  - [5. Create Release Tag](#5-create-release-tag)
+  - [6. Push Changes](#6-push-changes)
+  - [7. Create GitHub Release](#7-create-github-release)
+  - [8. Merge Back to Main](#8-merge-back-to-main)
+  - [9. Bump Version for Next Development Cycle](#9-bump-version-for-next-development-cycle)
+- [Versioning Rules](#versioning-rules)
+- [Best Practices](#best-practices)
+- [Example: Patch Release](#example-patch-release)
+- [Hotfix Process](#hotfix-process)
+  - [When to Create a Hotfix](#when-to-create-a-hotfix)
+  - [Hotfix Steps](#hotfix-steps)
+  - [Important Notes](#important-notes)
+- [Version Files](#version-files)
+- [Release Notes](#release-notes)
+  - [Location](#location)
+  - [Format](#format)
+  - [Best Practices](#best-practices-1)
+  - [Example](#example)
+  - [Automating Release Notes](#automating-release-notes)
+
 ## Overview
 
 - **Trunk Branch**: `main` (always deployable)
@@ -165,6 +193,58 @@ git push origin main
 3. Keep release branches short-lived
 4. Always test before tagging
 5. Write clear release notes
+6. **Keep release branches up to date with main** - Rebase regularly to ensure release branch changes stay on top of main
+7. **Rebase before merging** - Always rebase the release branch onto main before merging the PR to ensure a clean history
+
+### Keeping Release Branches in Sync with Main
+
+During the release process, if `main` receives new commits while your release branch is active, you should rebase the release branch to keep it up to date:
+
+```bash
+# Fetch latest changes from main
+git fetch origin main
+
+# Rebase release branch onto main
+git checkout release/1.0.0
+git rebase origin/main
+
+# If there are conflicts, resolve them and continue
+git rebase --continue
+
+# Force push the rebased branch (only safe for release branches)
+git push origin release/1.0.0 --force-with-lease
+```
+
+**Why rebase instead of merge?**
+- Keeps a clean, linear history
+- Release branch changes always appear on top of main
+- Easier to understand the release timeline
+- Prevents unnecessary merge commits
+
+### Before Merging Release Branch to Main
+
+Before creating the PR to merge the release branch back to main, rebase it one final time:
+
+```bash
+# Ensure you have the latest main
+git fetch origin main
+
+# Rebase release branch onto main
+git checkout release/1.0.0
+git rebase origin/main
+
+# Push the rebased branch
+git push origin release/1.0.0 --force-with-lease
+
+# Now create/update the PR to merge into main
+# The PR will show a clean rebase with no merge conflicts
+```
+
+This ensures:
+- Clean merge without conflicts
+- Linear commit history
+- Release changes clearly on top of main
+- Easy to review and understand the release
 
 ## Example: Patch Release
 
@@ -194,6 +274,126 @@ git add .
 git commit -m "chore: bump version to 1.0.2-SNAPSHOT for next development cycle"
 git push origin main
 ```
+
+## Hotfix Process
+
+A hotfix is a critical bug fix for a production release that cannot wait for the next regular release cycle. Hotfixes branch from a release tag and create a new patch version.
+
+### When to Create a Hotfix
+
+- Critical production bug that affects users
+- Security vulnerability in production
+- Data loss or corruption issue
+- Cannot wait for the next scheduled release
+
+### Hotfix Steps
+
+#### 1. Create Hotfix Branch from Tag
+
+```bash
+# Fetch latest tags
+git fetch --tags --force
+
+# Create hotfix branch from the production tag
+git checkout -b hotfix/1.0.1 v1.0.0
+```
+
+#### 2. Fix the Issue
+
+Make the necessary code changes to fix the bug:
+
+```bash
+# Make your bug fixes
+# Test thoroughly
+cd quote-lambda-tf-backend && mvn verify && cd ..
+cd quote-lambda-tf-frontend && npm test && cd ..
+```
+
+#### 3. Update Version Numbers
+
+Update to the next patch version:
+
+```bash
+# Frontend
+cd quote-lambda-tf-frontend
+npm version patch --no-git-tag-version
+cd ..
+
+# Backend
+cd quote-lambda-tf-backend
+mvn versions:set -DnewVersion=1.0.1
+mvn versions:commit
+cd ..
+```
+
+#### 4. Commit and Tag
+
+```bash
+git add .
+git commit -m "chore: prepare hotfix 1.0.1 - fix critical bug"
+git tag -a v1.0.1 -m "Hotfix 1.0.1 - fix critical bug"
+```
+
+#### 5. Push Changes
+
+```bash
+git push origin hotfix/1.0.1
+git push origin v1.0.1
+```
+
+#### 6. Create GitHub Release
+
+1. Go to: https://github.com/yourusername/quote-lambda-tf/releases/new
+2. Select tag: `v1.0.1`
+3. Release title: `Hotfix 1.0.1`
+4. Add release notes explaining the critical fix
+5. Mark as "Latest release"
+6. Publish release
+
+#### 7. Merge Back to Main
+
+After deploying the hotfix, merge it back to `main`:
+
+```bash
+git checkout main
+git pull origin main
+git merge hotfix/1.0.1
+git push origin main
+```
+
+#### 8. Delete Hotfix Branch
+
+```bash
+git branch -d hotfix/1.0.1
+git push origin --delete hotfix/1.0.1
+```
+
+#### 9. Bump Version for Next Development Cycle
+
+Update the version on `main` to the next development version:
+
+```bash
+cd quote-lambda-tf-backend
+mvn versions:set -DnewVersion=1.1.0-SNAPSHOT
+mvn versions:commit
+cd ..
+
+cd quote-lambda-tf-frontend
+npm version 1.1.0-SNAPSHOT --no-git-tag-version
+cd ..
+
+git add .
+git commit -m "chore: bump version to 1.1.0-SNAPSHOT for next development cycle"
+git push origin main
+```
+
+### Important Notes
+
+- **Hotfixes are rare**: Only use for critical production issues
+- **Test thoroughly**: Hotfixes go directly to production, so testing is critical
+- **Keep them small**: Only include the fix, no feature additions
+- **Document the issue**: Clearly explain what was fixed and why it was critical
+- **Merge to main**: Always merge hotfixes back to `main` to keep it in sync with production
 
 ## Version Files
 
