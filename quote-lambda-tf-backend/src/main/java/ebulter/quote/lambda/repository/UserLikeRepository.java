@@ -138,4 +138,14 @@ public class UserLikeRepository {
                 .max()
                 .orElse(0);
     }
+
+    /**
+     * Delete all likes for a specific user
+     */
+    public void deleteAllLikesForUser(String username) {
+        List<UserLike> likes = getLikesByUser(username);
+        for (UserLike like : likes) {
+            deleteUserLike(username, like.getQuoteId());
+        }
+    }
 }

@@ -48,6 +48,11 @@ If you don't want to register and test the restricted features, you can use thes
 - user-2 with password Hello-user-2
 - user-3 with password Hello-user-3
 
+And to see what you can do as an admin:
+- admin-1 with password Hello-admin-1
+
+Please don't remove the above users, as I have to recreate them again 😳😩😭
+
 ## 📋 Overview
 
 This application allows users to:

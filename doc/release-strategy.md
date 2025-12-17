@@ -5,6 +5,7 @@ This document outlines the process for creating releases in this monorepo using 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Deployment Environments](#deployment-environments)
 - [Release Process](#release-process)
   - [1. Prepare for Release](#1-prepare-for-release)
   - [2. Create Release Branch](#2-create-release-branch)
@@ -12,9 +13,11 @@ This document outlines the process for creating releases in this monorepo using 
   - [4. Commit Version Changes](#4-commit-version-changes)
   - [5. Create Release Tag](#5-create-release-tag)
   - [6. Push Changes](#6-push-changes)
-  - [7. Create GitHub Release](#7-create-github-release)
-  - [8. Merge Back to Main](#8-merge-back-to-main)
-  - [9. Bump Version for Next Development Cycle](#9-bump-version-for-next-development-cycle)
+  - [7. Deploy to Development](#7-deploy-to-development)
+  - [8. Create GitHub Release](#8-create-github-release)
+  - [9. Deploy to Production](#9-deploy-to-production)
+  - [10. Merge Back to Main](#10-merge-back-to-main)
+  - [11. Bump Version for Next Development Cycle](#11-bump-version-for-next-development-cycle)
 - [Versioning Rules](#versioning-rules)
 - [Best Practices](#best-practices)
 - [Example: Patch Release](#example-patch-release)
@@ -36,6 +39,42 @@ This document outlines the process for creating releases in this monorepo using 
 - **Release Branches**: `release/x.y.z` (temporary, deleted after release)
 - **Tags**: `vx.y.z` (immutable release points)
 - **Versioning**: [Semantic Versioning 2.0.0](https://semver.org/)
+
+## Deployment Environments
+
+This project uses a **staged deployment approach** with two environments:
+
+### Development Environment
+- **Purpose**: Testing ground for new releases before production
+- **URL**: https://d1fzgis91zws1k.cloudfront.net (dev)
+- **When to deploy**: After creating release tag, before production
+- **Validation**: Test all features, run smoke tests, verify no regressions
+- **Rollback**: Easy to rollback if issues found
+
+### Production Environment
+- **Purpose**: Live environment for end users
+- **URL**: Production URL (to be configured)
+- **When to deploy**: After successful testing in development
+- **Validation**: Final verification before going live
+- **Rollback**: More complex, requires careful planning
+
+### Deployment Flow
+
+```
+Release Tag Created (v1.0.0)
+         ↓
+Deploy to Development
+         ↓
+Test & Validate
+         ↓
+If issues found → Fix → Create new tag (v1.0.1)
+         ↓
+If OK → Deploy to Production
+         ↓
+Merge to Main
+         ↓
+Bump Version for Next Cycle
+```
 
 ## Release Process
 
@@ -98,7 +137,31 @@ git push origin release/1.0.0
 git push origin v1.0.0
 ```
 
-### 7. Create GitHub Release
+### 7. Deploy to Development
+
+Deploy the release tag to the development environment for testing:
+
+```bash
+# The GitHub Actions workflow will automatically deploy the tag to development
+# Monitor the deployment in GitHub Actions
+# Verify the deployment at: https://d1fzgis91zws1k.cloudfront.net
+```
+
+**Testing Checklist:**
+- [ ] All features work as expected
+- [ ] No console errors or warnings
+- [ ] Database migrations completed successfully
+- [ ] API endpoints respond correctly
+- [ ] Authentication/authorization works
+- [ ] No performance regressions
+- [ ] Mobile responsiveness verified
+
+**If issues are found:**
+1. Create a new patch release (e.g., v1.0.1)
+2. Do NOT deploy to production
+3. Repeat from step 1 with the new version
+
+### 8. Create GitHub Release
 
 1. Go to: https://github.com/yourusername/quote-lambda-tf/releases/new
 2. Select tag: `v1.0.0`
@@ -107,7 +170,24 @@ git push origin v1.0.0
 5. Mark as "Latest release"
 6. Publish release
 
-### 8. Merge Back to Main
+### 9. Deploy to Production
+
+After successful testing in development, deploy to production:
+
+```bash
+# The GitHub Actions workflow can be triggered manually for production deployment
+# Or configure automatic deployment after development validation
+# Verify the deployment at: Production URL
+```
+
+**Pre-Production Checklist:**
+- [ ] Development testing completed successfully
+- [ ] All team members notified of deployment
+- [ ] Rollback plan documented
+- [ ] Monitoring alerts configured
+- [ ] Support team briefed on changes
+
+### 10. Merge Back to Main
 
 After creating the release, merge the release branch back to `main` to keep it synchronized with production.
 
@@ -146,7 +226,7 @@ This step ensures that `main` reflects the exact state of production:
 - **Hotfix base**: Future hotfixes branch from the correct production version
 - **Complete history**: All release changes are preserved in `main`
 
-### 9. Bump Version for Next Development Cycle
+### 11. Bump Version for Next Development Cycle
 
 Immediately after merging, bump the version to prepare for the next release cycle:
 
