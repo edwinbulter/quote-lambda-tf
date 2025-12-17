@@ -184,7 +184,7 @@ cd quote-lambda-tf-backend/infrastructure/
 terraform init
 
 # Select the production workspace
-terraform workspace select prod
+terraform workspace select default
 
 # Review the planned changes
 terraform plan -var-file="prod.tfvars"
@@ -203,7 +203,7 @@ cd quote-lambda-tf-frontend/infrastructure/
 terraform init
 
 # Select the production workspace
-terraform workspace select prod
+terraform workspace select default
 
 # Review the planned changes
 terraform plan -var-file="prod.tfvars"
