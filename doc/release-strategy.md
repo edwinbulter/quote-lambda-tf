@@ -172,18 +172,57 @@ Deploy the release tag to the development environment for testing:
 
 ### 9. Deploy to Production
 
-After successful testing in development, deploy to production:
+After successful testing in development, deploy to production using Terraform:
+
+#### Backend Infrastructure Deployment
 
 ```bash
-# The GitHub Actions workflow can be triggered manually for production deployment
-# Or configure automatic deployment after development validation
-# Verify the deployment at: Production URL
+# Navigate to backend infrastructure directory
+cd quote-lambda-tf-backend/infrastructure/
+
+# Initialize Terraform (if not already initialized)
+terraform init
+
+# Select the production workspace
+terraform workspace select prod
+
+# Review the planned changes
+terraform plan -var-file="prod.tfvars"
+
+# Apply the changes (requires confirmation)
+terraform apply -var-file="prod.tfvars"
 ```
+
+#### Frontend Infrastructure Deployment
+
+```bash
+# Navigate to frontend infrastructure directory
+cd quote-lambda-tf-frontend/infrastructure/
+
+# Initialize Terraform (if not already initialized)
+terraform init
+
+# Select the production workspace
+terraform workspace select prod
+
+# Review the planned changes
+terraform plan -var-file="prod.tfvars"
+
+# Apply the changes (requires confirmation)
+terraform apply -var-file="prod.tfvars"
+```
+
+**Important Notes:**
+- Always verify you're in the correct workspace: `terraform workspace show`
+- Review the plan output carefully before applying
+- Use `-var-file="prod.tfvars"` to ensure production configuration
+- Both backend and frontend infrastructure must be deployed for a complete release
 
 **Pre-Production Checklist:**
 - [ ] Development testing completed successfully
 - [ ] All team members notified of deployment
 - [ ] Rollback plan documented
+- [ ] Terraform plan reviewed and approved
 - [ ] Monitoring alerts configured
 - [ ] Support team briefed on changes
 
