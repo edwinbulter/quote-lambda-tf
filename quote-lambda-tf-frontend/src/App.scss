@@ -172,9 +172,15 @@
   left: 20px;
 }
 
-.signinButton {
+.manageButton {
   @extend .basicButton;
   top: 500px;
+  left: 20px;
+}
+
+.signinButton {
+  @extend .basicButton;
+  top: 560px;
   left: 20px;
 }
 

@@ -112,11 +112,43 @@ async function getAuthenticatedQuote(): Promise<Quote> {
     return await response.json();
 }
 
+async function unlikeQuote(quoteId: number): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/${quoteId}/unlike`, {
+        method: "DELETE",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to unlike quote: ${response.status} ${response.statusText}`);
+    }
+}
+
+async function reorderLikedQuote(quoteId: number, order: number): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/${quoteId}/reorder`, {
+        method: "PUT",
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders,
+        },
+        body: JSON.stringify({ order }),
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to reorder quote: ${response.status} ${response.statusText}`);
+    }
+}
+
 export default {
     getQuote,
     getUniqueQuote,
     getAuthenticatedQuote,
     likeQuote,
+    unlikeQuote,
     getLikedQuotes,
     getViewHistory,
+    reorderLikedQuote,
 };

@@ -37,7 +37,11 @@ The code for the Quote Web App can be found at:
 
 - **Random Quote Retrieval**: Get random quotes with optional exclusion filters
 - **Quote Persistence**: Automatic caching of quotes in DynamoDB
-- **Like System**: Track and retrieve liked quotes sorted by popularity
+- **User Authentication**: AWS Cognito integration with email/password and Google OAuth
+- **Like System**: Track and retrieve liked quotes with custom ordering
+- **Favourite Management**: Reorder liked quotes with automatic sequential ordering
+- **View History**: Track user's viewed quotes with automatic exclusion from future requests
+- **Role-Based Access Control**: USER and ADMIN roles for authorization
 - **Fast Cold Starts**: Lambda SnapStart enabled (~200ms cold start vs 3-6s)
 - **Automated Deployments**: GitHub Actions CI/CD pipeline with OIDC authentication
 - **Infrastructure as Code**: Complete Terraform configuration for reproducible deployments
@@ -73,18 +77,70 @@ The code for the Quote Web App can be found at:
 
 ## API Endpoints
 
+### Public Endpoints (No Authentication Required)
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/quote` | Get a random quote |
+| `GET` | `/quote` | Get a random quote (unauthenticated users don't record views) |
 | `POST` | `/quote` | Get a random quote excluding specific IDs (body: array of IDs) |
-| `PATCH` | `/quote/{id}/like` | Like a specific quote |
-| `GET` | `/quote/liked` | Get all liked quotes sorted by likes |
+| `GET` | `/quote/liked` | Get all liked quotes (public view, sorted by order) |
 
-**API Base URL**: `https://22n07ybi7e.execute-api.eu-central-1.amazonaws.com`
+### Authenticated Endpoints (Requires USER Role)
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| `GET` | `/quote` | Get a random quote and record view (excludes previously viewed quotes) | Bearer Token |
+| `POST` | `/quote/{id}/like` | Like a quote (adds to end of favourites list) | Bearer Token |
+| `DELETE` | `/quote/{id}/unlike` | Unlike a quote (remove from favourites) | Bearer Token |
+| `GET` | `/quote/liked` | Get user's liked quotes sorted by custom order | Bearer Token |
+| `PUT` | `/quote/{id}/reorder` | Reorder a liked quote to new position | Bearer Token |
+| `GET` | `/quote/history` | Get user's view history in chronological order | Bearer Token |
+
+**API Base URL**: `https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com`
+
+### Authentication & Authorization
+
+- **Authentication**: AWS Cognito with JWT tokens (Bearer token in Authorization header)
+- **Authorization**: Role-based access control (USER, ADMIN roles)
+- **Supported Auth Methods**:
+  - Email/Password sign-up and sign-in
+  - Google OAuth integration
+  - Automatic role assignment on user creation
+
+### Request/Response Examples
+
+**Like a Quote**:
+```bash
+curl -X POST https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/quote/79/like \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "Content-Type: application/json"
+```
+
+**Reorder a Liked Quote**:
+```bash
+curl -X PUT https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/quote/79/reorder \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"order": 2}'
+```
+
+**Get Liked Quotes** (sorted by order):
+```bash
+curl -X GET https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/quote/liked \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+**Get View History**:
+```bash
+curl -X GET https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/quote/history \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
 
 ## Documentation
 
 Detailed documentation is available in the [`doc/`](./doc) folder:
+
+### Core Documentation
 
 - **[infrastructure.md](./doc/infrastructure.md)** - Complete guide to the Terraform infrastructure setup, including:
   - AWS architecture overview
@@ -105,7 +161,27 @@ Detailed documentation is available in the [`doc/`](./doc) folder:
   - How SnapStart works
   - Cost analysis and monitoring
 
-- **[test-api.http](./doc/test-api.http)** - HTTP request examples for testing the API endpoints
+### Authentication & Features Documentation
+
+- **[authentication-authorization-setup.md](../doc/authentication-authorization-setup.md)** - Complete authentication setup guide:
+  - Cognito User Pool configuration
+  - Email/Password authentication flow
+  - Google OAuth integration
+  - Role-based access control (RBAC)
+  - JWT token handling
+
+- **[backend-auth-setup.md](./doc/backend-auth-setup.md)** - Backend authentication implementation:
+  - JWT token validation
+  - Role extraction from Cognito tokens
+  - Authorization checks in Lambda handlers
+  - Error handling and security best practices
+
+- **[test-api.http](./doc/test-api.http)** - HTTP request examples for testing the API endpoints:
+  - Authentication flow examples
+  - Like/Unlike operations
+  - Reorder favourites workflow
+  - View history retrieval
+  - Error case testing
 
 ## Quick Start
 
@@ -143,29 +219,63 @@ aws lambda update-function-code \
 ## Project Structure
 
 ```
-quote-lambda-java/
-├── src/main/java/           # Java source code
-│   └── ebulter/quote/lambda/
-│       └── QuoteHandler.java
-├── infrastructure/          # Terraform configuration
-│   ├── backend.tf          # S3 remote state
-│   ├── lambda.tf           # Lambda function with SnapStart
-│   ├── dynamodb.tf         # DynamoDB table
-│   ├── api_gateway.tf      # API Gateway setup
+quote-lambda-tf-backend/
+├── src/
+│   ├── main/java/ebulter/quote/lambda/
+│   │   ├── QuoteHandler.java           # Main Lambda handler
+│   │   ├── service/
+│   │   │   └── QuoteService.java       # Business logic
+│   │   ├── repository/
+│   │   │   ├── QuoteRepository.java    # Quote data access
+│   │   │   ├── UserLikeRepository.java # Like/favourite management
+│   │   │   └── UserViewRepository.java # View history tracking
+│   │   ├── model/
+│   │   │   ├── Quote.java             # Quote entity
+│   │   │   ├── UserLike.java          # User like with order
+│   │   │   └── UserView.java          # User view tracking
+│   │   ├── client/
+│   │   │   └── ZenClient.java         # ZenQuotes API client
+│   │   └── util/
+│   │       └── QuoteUtil.java         # Utility functions
+│   └── test/java/                     # Unit tests
+│       └── QuoteHandlerTest.java      # Handler tests (nested test classes)
+├── infrastructure/                    # Terraform configuration
+│   ├── backend.tf                     # S3 remote state
+│   ├── lambda.tf                      # Lambda function with SnapStart
+│   ├── dynamodb_quotes.tf             # Quotes table
+│   ├── dynamodb_user_likes.tf         # User likes table with order field
+│   ├── dynamodb_user_views.tf         # User views table
+│   ├── api_gateway.tf                 # API Gateway setup
+│   ├── cognito.tf                     # Cognito User Pool
+│   ├── iam.tf                         # IAM roles and policies
 │   └── ...
 ├── .github/
-│   ├── workflows/          # GitHub Actions workflows
-│   └── setup-aws-oidc.sh   # OIDC setup script
-├── doc/                    # Documentation
-└── pom.xml                 # Maven configuration
+│   ├── workflows/                     # GitHub Actions workflows
+│   │   ├── deploy-lambda.yml
+│   │   └── playwright.yml
+│   └── setup-aws-oidc.sh              # OIDC setup script
+├── doc/                               # Documentation
+│   ├── infrastructure.md
+│   ├── github-workflows.md
+│   ├── snapstart-setup.md
+│   ├── backend-auth-setup.md
+│   ├── json-logging.md
+│   └── test-api.http
+└── pom.xml                            # Maven configuration
 ```
 
 ## Goals
 
 This project serves as a learning platform for:
 - Building serverless REST APIs with Java and AWS Lambda
+- Implementing user authentication with AWS Cognito
+- Implementing role-based access control (RBAC) in Lambda handlers
+- Validating JWT tokens and extracting claims
+- Designing data models with custom ordering (favourites management)
 - Implementing infrastructure as code with Terraform
 - Setting up CI/CD pipelines with GitHub Actions
 - Optimizing Lambda cold starts with SnapStart
 - Managing AWS resources with least-privilege IAM roles
 - Integrating external APIs and caching data in DynamoDB
+- Building user-centric features (view history, custom ordering)
+- Writing comprehensive unit tests with nested test classes

@@ -130,6 +130,38 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             
             List<Quote> viewedQuotes = quoteService.getViewedQuotesByUser(username);
             return createResponse(viewedQuotes);
+        } else if (path.matches(".*/quote/\\d+/reorder") && "PUT".equals(httpMethod)) {
+            // Check authorization
+            if (!hasUserRole(event)) {
+                return createForbiddenResponse("USER role required to reorder favourites");
+            }
+            
+            // Extract username from token
+            String username = extractUsername(event);
+            if (username == null) {
+                return createErrorResponse("Could not extract username from token");
+            }
+            
+            // Extract ID from path like "/quote/75/reorder"
+            String[] pathParts = path.split("/");
+            int quoteId = Integer.parseInt(pathParts[pathParts.length - 2]);
+            
+            // Parse request body to get new order
+            String jsonBody = event.getBody();
+            Map<String, Object> requestBody = gson.fromJson(jsonBody, new TypeToken<Map<String, Object>>() {}.getType());
+            Double orderDouble = (Double) requestBody.get("order");
+            
+            if (orderDouble == null || orderDouble <= 0) {
+                return createErrorResponse("Order must be a positive integer");
+            }
+            
+            int newOrder = orderDouble.intValue();
+            quoteService.reorderLikedQuote(username, quoteId, newOrder);
+            
+            // Return success response
+            APIGatewayProxyResponseEvent response = createBaseResponse();
+            response.setStatusCode(HttpStatus.SC_NO_CONTENT);
+            return response;
         } else {
             return createErrorResponse("Invalid request");
         }

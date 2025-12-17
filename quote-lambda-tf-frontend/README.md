@@ -7,8 +7,8 @@ This web app uses the [quote-lambda-tf-backend](../quote-lambda-tf-backend/READM
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [API Integration](#api-integration)
 - [Live Demo](#live-demo)
+- [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Development](#development)
   - [Available Scripts](#available-scripts)
@@ -35,41 +35,93 @@ This web app uses the [quote-lambda-tf-backend](../quote-lambda-tf-backend/READM
 
 ![quote-web-screenshot](public/quote-web-screenshot.png)
 
-Implemented features:
-- Favourite Quotes Loading
-    - When the screen starts, the liked quotes are fetched and loaded in the Favourite Quotes box
-    - The header of the favourite quotes box also functions as a refresh button, which comes in handy if the backend doesn't implement the feed functionality like quote-django backend
-- New Quote Button:
-    - Requests a new Random quote and sends the ids of all previously received quotes in the request to avoid receiving the same quote again
-    - The button is disabled while the new quote is loading (and displays loading...)
-- Like Button:
-    - Sends a request to like the current quote
-    - The button is only enabled if the user is signed in and has the USER role.
-    - The button is disabled and displays liking... while the request is being sent
-    - The button is disabled and displays Like when the user has already liked the quote
-- Walking through the quote history:
-    - All quotes received can be watched again, or liked unless the user has already liked it
-    - The history can be browsed with the next buttons:
-        - Previous Button:
-            - Shows the previous quote, when there is one
-            - Is disabled if there is no previous quote
-        - Next Button
-            - Shows the next quote, when there is one
-            - Is disabled if there is no next quote
-        - First
-            - jumps to the first received quote
-        - Last
-            - jumps to the last received quote
+### Core Features
+
+- **Random Quote Retrieval**
+    - Requests a new random quote and sends the IDs of all previously received quotes to avoid duplicates
+    - New Quote button is disabled while loading (displays "Loading...")
+    - Unauthenticated users get random quotes without view tracking
+
+- **Quote Navigation**
+    - Walk through all received quotes with navigation buttons:
+        - **Previous Button**: Shows previous quote (disabled if at start)
+        - **Next Button**: Shows next quote (disabled if at end)
+        - **First Button**: Jump to first received quote
+        - **Last Button**: Jump to last received quote
+
+### Authentication & Authorization
+
+- **Sign In / Sign Out**
+    - AWS Cognito integration with email/password authentication
+    - Google OAuth sign-in support
+    - Automatic role assignment (USER role for regular users)
+    - Sign In button shows "Sign Out" when authenticated
+
+- **User Profile**
+    - View authenticated user's email and username
+    - Profile accessible via user avatar button
+    - Secure sign-out functionality
+
+### Favourite Quotes Management
+
+- **Like Button**
+    - Like current quote (only enabled for authenticated users with USER role)
+    - Disabled while liking is in progress (displays "Liking...")
+    - Disabled when quote is already liked
+    - Liked quotes automatically added to end of favourites list
+
+- **Favourites Component**
+    - Displays all liked quotes in custom order
+    - Shows count of liked quotes
+    - Refresh button to reload favourites
+    - Visible in sidebar when not in management mode
+
+- **Manage Favourites Screen** (NEW)
+    - Access via "Manage" button (only visible when authenticated)
+    - **Main Menu**: Choose between managing favourites or viewing history
+    - **Manage Favourites View**:
+        - Drag-and-drop reordering of liked quotes
+        - Delete favourites with optimistic UI updates
+        - Automatic order synchronization with backend
+        - Real-time error handling with rollback
+    - **View History View**:
+        - Browse all viewed quotes in chronological order
+        - See which quotes you've already viewed
+        - Helps avoid duplicate recommendations
+
+### View History Tracking
+
+- **Automatic View Recording** (Authenticated users only)
+    - Every quote fetched by authenticated users is recorded as viewed
+    - Viewed quotes are automatically excluded from future recommendations
+    - Prevents seeing the same quote twice in a session
+
+- **View History Access**
+    - Access via Management Screen
+    - Shows all previously viewed quotes in order
+    - Helps track your browsing history
 
 ## Tech Stack
 
-- **Frontend Framework**: React 18 with TypeScript
+### Frontend
+- **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
 - **Styling**: CSS Modules & SCSS
-- **Testing**: Playwright (E2E)
+- **Authentication**: AWS Amplify Auth
+- **HTTP Client**: Fetch API
+- **State Management**: React Hooks & Context API
+
+### Testing & DevOps
+- **E2E Testing**: Playwright
 - **Infrastructure as Code**: Terraform
 - **Hosting**: AWS (S3 + CloudFront CDN)
 - **CI/CD**: GitHub Actions
+
+### Key Dependencies
+- **aws-amplify** - AWS authentication and API integration
+- **react** - UI framework
+- **typescript** - Type safety
+- **vite** - Build tool and dev server
 
 ## Live Demo
 
@@ -80,6 +132,44 @@ Access the live application at:
 
 **Development Environment:**
 > https://d1fzgis91zws1k.cloudfront.net/
+
+## Project Structure
+
+```
+quote-lambda-tf-frontend/
+├── src/
+│   ├── components/
+│   │   ├── Login.tsx                    # Authentication component
+│   │   ├── FavouritesComponent.tsx      # Favourites sidebar
+│   │   ├── ManagementScreen.tsx         # Management main menu
+│   │   ├── ManageFavouritesScreen.tsx   # Reorder/delete favourites
+│   │   └── ViewedQuotesScreen.tsx       # View history
+│   ├── contexts/
+│   │   └── AuthContext.tsx              # Authentication state management
+│   ├── api/
+│   │   └── quoteApi.ts                  # API client functions
+│   ├── types/
+│   │   └── Quote.ts                     # TypeScript interfaces
+│   ├── App.tsx                          # Main application component
+│   ├── App.scss                         # Application styles
+│   └── main.tsx                         # Entry point
+├── playwright-tests/
+│   ├── open-screen.spec.ts              # Initial load tests
+│   ├── click-new-quote.spec.ts          # Quote fetching tests
+│   └── click-like.spec.ts               # Like functionality tests
+├── infrastructure/                      # Terraform configuration
+│   ├── bootstrap/                       # Initial setup
+│   └── *.tf                             # Infrastructure files
+├── public/
+│   └── quote-web-screenshot.png         # Screenshot
+├── doc/
+│   ├── infrastructure.md
+│   └── github-workflows.md
+├── package.json                         # Dependencies
+├── vite.config.ts                       # Vite configuration
+├── playwright.config.ts                 # Playwright configuration
+└── tsconfig.json                        # TypeScript configuration
+```
 
 ## Getting Started
 

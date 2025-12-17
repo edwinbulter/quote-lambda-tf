@@ -4,6 +4,7 @@ public class UserLike {
     private String username;    // Cognito username
     private int quoteId;        // Reference to Quote.id
     private long likedAt;       // Unix timestamp (milliseconds)
+    private Integer order;      // Sort order for user's favourites (1, 2, 3, ...)
 
     public UserLike() {
     }
@@ -12,6 +13,13 @@ public class UserLike {
         this.username = username;
         this.quoteId = quoteId;
         this.likedAt = likedAt;
+    }
+
+    public UserLike(String username, int quoteId, long likedAt, Integer order) {
+        this.username = username;
+        this.quoteId = quoteId;
+        this.likedAt = likedAt;
+        this.order = order;
     }
 
     // Getters and setters
@@ -37,6 +45,14 @@ public class UserLike {
 
     public void setLikedAt(long likedAt) {
         this.likedAt = likedAt;
+    }
+
+    public Integer getOrder() {
+        return order;
+    }
+
+    public void setOrder(Integer order) {
+        this.order = order;
     }
 
     @Override
