@@ -172,7 +172,7 @@ Deploy the release tag to the development environment for testing:
 
 ### 9. Deploy to Production
 
-After successful testing in development, deploy to production using Terraform:
+After successful testing in development, deploy to production using Terraform CLI:
 
 #### Backend Infrastructure Deployment
 
@@ -186,11 +186,14 @@ terraform init
 # Select the production workspace
 terraform workspace select default
 
-# Review the planned changes
+# Review the planned changes (ALWAYS review before applying)
 terraform plan -var-file="prod.tfvars"
 
 # Apply the changes (requires confirmation)
 terraform apply -var-file="prod.tfvars"
+
+# Verify deployment
+terraform output
 ```
 
 #### Frontend Infrastructure Deployment
@@ -205,26 +208,32 @@ terraform init
 # Select the production workspace
 terraform workspace select default
 
-# Review the planned changes
+# Review the planned changes (ALWAYS review before applying)
 terraform plan -var-file="prod.tfvars"
 
 # Apply the changes (requires confirmation)
 terraform apply -var-file="prod.tfvars"
+
+# Verify deployment
+terraform output
 ```
 
 **Important Notes:**
 - Always verify you're in the correct workspace: `terraform workspace show`
-- Review the plan output carefully before applying
+- **ALWAYS review the plan output carefully before applying** - look for destructive changes
 - Use `-var-file="prod.tfvars"` to ensure production configuration
 - Both backend and frontend infrastructure must be deployed for a complete release
+- Terraform will prompt for confirmation before applying changes
+- Keep your local `.tfvars` files secure and never commit them to version control
 
 **Pre-Production Checklist:**
 - [ ] Development testing completed successfully
 - [ ] All team members notified of deployment
 - [ ] Rollback plan documented
-- [ ] Terraform plan reviewed and approved
+- [ ] Terraform plan reviewed and approved (no unexpected deletions)
 - [ ] Monitoring alerts configured
 - [ ] Support team briefed on changes
+- [ ] Local `.tfvars` files are up to date
 
 ### 10. Merge Back to Main
 
