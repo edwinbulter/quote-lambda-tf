@@ -766,4 +766,383 @@ public class QuoteHandlerTest {
         // Assert
         Assertions.assertEquals(400, response.getStatusCode());
     }
+
+    @Nested
+    class QuoteManagementEndpointTests {
+        
+        @Test
+        public void handleRequest_GetQuotes_WithDefaultPagination_ShouldReturnQuotes() {
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(100);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"totalCount\":100"));
+            Assertions.assertTrue(response.getBody().contains("\"page\":1"));
+            Assertions.assertTrue(response.getBody().contains("\"pageSize\":50"));
+            Assertions.assertTrue(response.getBody().contains("\"totalPages\":2"));
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithCustomPageSize_ShouldReturnCorrectPage() {
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(100);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("page", "2");
+            queryParams.put("pageSize", "25");
+            event.setQueryStringParameters(queryParams);
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"page\":2"));
+            Assertions.assertTrue(response.getBody().contains("\"pageSize\":25"));
+            Assertions.assertTrue(response.getBody().contains("\"totalPages\":4"));
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithQuoteTextSearch_ShouldReturnFilteredQuotes() {
+            // Arrange
+            List<Quote> quotes = new ArrayList<>();
+            quotes.add(new Quote(1, "The only way to do great work", "Steve Jobs"));
+            quotes.add(new Quote(2, "Innovation distinguishes", "Steve Jobs"));
+            quotes.add(new Quote(3, "Stay hungry stay foolish", "Steve Jobs"));
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("quoteText", "great work");
+            event.setQueryStringParameters(queryParams);
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"totalCount\":1"));
+            Assertions.assertTrue(response.getBody().contains("The only way to do great work"));
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithAuthorSearch_ShouldReturnFilteredQuotes() {
+            // Arrange
+            List<Quote> quotes = new ArrayList<>();
+            quotes.add(new Quote(1, "Quote 1", "Steve Jobs"));
+            quotes.add(new Quote(2, "Quote 2", "Albert Einstein"));
+            quotes.add(new Quote(3, "Quote 3", "Steve Jobs"));
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("author", "Einstein");
+            event.setQueryStringParameters(queryParams);
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"totalCount\":1"));
+            Assertions.assertTrue(response.getBody().contains("Albert Einstein"));
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithCombinedSearch_ShouldReturnFilteredQuotes() {
+            // Arrange
+            List<Quote> quotes = new ArrayList<>();
+            quotes.add(new Quote(1, "Great innovation", "Steve Jobs"));
+            quotes.add(new Quote(2, "Great work", "Albert Einstein"));
+            quotes.add(new Quote(3, "Innovation distinguishes", "Steve Jobs"));
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("quoteText", "innovation");
+            queryParams.put("author", "Steve");
+            event.setQueryStringParameters(queryParams);
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"totalCount\":2"));
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithSorting_ShouldReturnSortedQuotes() {
+            // Arrange
+            List<Quote> quotes = new ArrayList<>();
+            quotes.add(new Quote(3, "Quote C", "Author C"));
+            quotes.add(new Quote(1, "Quote A", "Author A"));
+            quotes.add(new Quote(2, "Quote B", "Author B"));
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("sortBy", "quoteText");
+            queryParams.put("sortOrder", "asc");
+            event.setQueryStringParameters(queryParams);
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            String body = response.getBody();
+            int indexA = body.indexOf("Quote A");
+            int indexB = body.indexOf("Quote B");
+            int indexC = body.indexOf("Quote C");
+            Assertions.assertTrue(indexA < indexB && indexB < indexC, "Quotes should be sorted alphabetically");
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithDescendingSorting_ShouldReturnReverseSortedQuotes() {
+            // Arrange
+            List<Quote> quotes = new ArrayList<>();
+            quotes.add(new Quote(1, "Quote A", "Author A"));
+            quotes.add(new Quote(2, "Quote B", "Author B"));
+            quotes.add(new Quote(3, "Quote C", "Author C"));
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("sortBy", "id");
+            queryParams.put("sortOrder", "desc");
+            event.setQueryStringParameters(queryParams);
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            String body = response.getBody();
+            int index1 = body.indexOf("\"id\":1");
+            int index2 = body.indexOf("\"id\":2");
+            int index3 = body.indexOf("\"id\":3");
+            Assertions.assertTrue(index3 < index2 && index2 < index1, "Quotes should be sorted in descending order");
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithLikeCounts_ShouldIncludeLikeCounts() {
+            // Arrange
+            List<Quote> quotes = getQuoteTestData(3);
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            when(userLikeRepositoryMock.getLikeCountForQuote(1)).thenReturn(5);
+            when(userLikeRepositoryMock.getLikeCountForQuote(2)).thenReturn(3);
+            when(userLikeRepositoryMock.getLikeCountForQuote(3)).thenReturn(0);
+
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"likeCount\":5"));
+            Assertions.assertTrue(response.getBody().contains("\"likeCount\":3"));
+            Assertions.assertTrue(response.getBody().contains("\"likeCount\":0"));
+        }
+
+        @Test
+        public void handleRequest_GetQuotes_WithoutAdminRole_ShouldReturnForbidden() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/quotes", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_FetchQuotes_ShouldAddNewQuotes() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementServiceMock = 
+                Mockito.mock(ebulter.quote.lambda.service.QuoteManagementService.class);
+            
+            ebulter.quote.lambda.model.QuoteAddResponse mockResponse = 
+                new ebulter.quote.lambda.model.QuoteAddResponse(5, 15, "Successfully added 5 new quotes");
+            when(quoteManagementServiceMock.fetchAndAddNewQuotes(Mockito.anyString())).thenReturn(mockResponse);
+
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementServiceMock
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes/fetch", "POST");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"quotesAdded\":5"));
+            Assertions.assertTrue(response.getBody().contains("\"totalQuotes\":15"));
+            Assertions.assertTrue(response.getBody().contains("Successfully added 5 new quotes"));
+        }
+
+        @Test
+        public void handleRequest_FetchQuotes_WithoutAdminRole_ShouldReturnForbidden() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementServiceMock = 
+                Mockito.mock(ebulter.quote.lambda.service.QuoteManagementService.class);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementServiceMock
+            );
+            
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/quotes/fetch", "POST");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_FetchQuotes_WhenNoNewQuotes_ShouldReturnZeroAdded() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementServiceMock = 
+                Mockito.mock(ebulter.quote.lambda.service.QuoteManagementService.class);
+            
+            ebulter.quote.lambda.model.QuoteAddResponse mockResponse = 
+                new ebulter.quote.lambda.model.QuoteAddResponse(0, 10, "No new quotes to add - all fetched quotes already exist");
+            when(quoteManagementServiceMock.fetchAndAddNewQuotes(Mockito.anyString())).thenReturn(mockResponse);
+
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementServiceMock
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes/fetch", "POST");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"quotesAdded\":0"));
+            Assertions.assertTrue(response.getBody().contains("\"totalQuotes\":10"));
+        }
+    }
 }
