@@ -59,6 +59,10 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
         try {
             String path = event.getPath();
+            // Normalize path by removing duplicate slashes
+            while (path.contains("//")) {
+                path = path.replace("//", "/");
+            }
             String httpMethod = event.getHttpMethod();
 
             logger.info("path={}, httpMethod={}", path, httpMethod);
