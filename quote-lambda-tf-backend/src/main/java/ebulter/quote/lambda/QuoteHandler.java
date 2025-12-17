@@ -9,11 +9,14 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import ebulter.quote.lambda.model.Quote;
+import ebulter.quote.lambda.model.UserInfo;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
 import ebulter.quote.lambda.repository.UserViewRepository;
+import ebulter.quote.lambda.service.AdminService;
 import ebulter.quote.lambda.service.QuoteService;
 import ebulter.quote.lambda.util.QuoteUtil;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,15 +30,30 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     private static final Gson gson = new Gson();
     private static final Type quoteType = new TypeToken<Quote>() {}.getType();
     private static final Type quoteListType = new TypeToken<List<Quote>>() {}.getType();
+    private static final Type userInfoListType = new TypeToken<List<UserInfo>>() {}.getType();
 
     private final QuoteService quoteService;
+    private final AdminService adminService;
 
     public QuoteHandler() {
         this.quoteService = new QuoteService(new QuoteRepository(), new UserLikeRepository(), new UserViewRepository());
+        String userPoolId = System.getenv("USER_POOL_ID");
+        if (userPoolId == null || userPoolId.isEmpty()) {
+            logger.warn("USER_POOL_ID environment variable not set. Admin features will not work.");
+            this.adminService = null;
+        } else {
+            this.adminService = new AdminService(CognitoIdentityProviderClient.create(), userPoolId);
+        }
     }
 
     public QuoteHandler(QuoteService quoteService) {
         this.quoteService = quoteService;
+        this.adminService = null;
+    }
+
+    public QuoteHandler(QuoteService quoteService, AdminService adminService) {
+        this.quoteService = quoteService;
+        this.adminService = adminService;
     }
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
@@ -162,6 +180,22 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             APIGatewayProxyResponseEvent response = createBaseResponse();
             response.setStatusCode(HttpStatus.SC_NO_CONTENT);
             return response;
+        } else if (path.startsWith("/api/v1/admin/users")) {
+            // Admin endpoints - require ADMIN role
+            if (!hasAdminRole(event)) {
+                return createForbiddenResponse("ADMIN role required");
+            }
+            
+            String username = extractUsername(event);
+            if (username == null) {
+                return createErrorResponse("Could not extract username from token");
+            }
+            
+            if (adminService == null) {
+                return createErrorResponse("Admin service not configured");
+            }
+            
+            return handleAdminRequest(event, username);
         } else {
             return createErrorResponse("Invalid request");
         }
@@ -334,6 +368,100 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         } catch (Exception e) {
             logger.warn("Could not log user info: " + e.getMessage());
         }
+    }
+
+    private boolean hasAdminRole(APIGatewayProxyRequestEvent event) {
+        try {
+            Map<String, String> headers = event.getHeaders();
+            if (headers == null) {
+                logger.warn("Authorization failed: headers are null");
+                return false;
+            }
+            
+            String authHeader = headers.get("authorization");
+            if (authHeader == null) {
+                authHeader = headers.get("Authorization");
+            }
+            
+            if (authHeader == null || authHeader.isEmpty()) {
+                logger.warn("Authorization failed: no Authorization header");
+                return false;
+            }
+            
+            String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
+            DecodedJWT jwt = JWT.decode(token);
+            
+            List<String> groups = jwt.getClaim("cognito:groups").asList(String.class);
+            logger.info("Checking ADMIN role. cognito:groups: " + groups);
+            
+            if (groups != null && groups.contains("ADMIN")) {
+                logger.info("ADMIN authorization: granted");
+                return true;
+            }
+            
+            logger.warn("Authorization failed: ADMIN group not found");
+            return false;
+        } catch (Exception e) {
+            logger.error("Error checking admin role", e);
+            return false;
+        }
+    }
+
+    private APIGatewayProxyResponseEvent handleAdminRequest(APIGatewayProxyRequestEvent event, String requestingUsername) {
+        String path = event.getPath();
+        String httpMethod = event.getHttpMethod();
+        
+        logger.info("Handling admin request: path={}, method={}, user={}", path, httpMethod, requestingUsername);
+        
+        try {
+            // GET /admin/users - List all users
+            if (path.equals("/api/v1/admin/users") && "GET".equals(httpMethod)) {
+                List<UserInfo> users = adminService.listAllUsers();
+                return createUserInfoListResponse(users);
+            }
+            
+            // POST /admin/users/{username}/groups/{groupName} - Add user to group
+            if (path.matches("/api/v1/admin/users/[^/]+/groups/[^/]+") && "POST".equals(httpMethod)) {
+                String[] pathParts = path.split("/");
+                String targetUsername = pathParts[pathParts.length - 3];
+                String groupName = pathParts[pathParts.length - 1];
+                
+                adminService.addUserToGroup(targetUsername, groupName, requestingUsername);
+                
+                APIGatewayProxyResponseEvent response = createBaseResponse();
+                response.setStatusCode(HttpStatus.SC_NO_CONTENT);
+                return response;
+            }
+            
+            // DELETE /admin/users/{username}/groups/{groupName} - Remove user from group
+            if (path.matches("/api/v1/admin/users/[^/]+/groups/[^/]+") && "DELETE".equals(httpMethod)) {
+                String[] pathParts = path.split("/");
+                String targetUsername = pathParts[pathParts.length - 3];
+                String groupName = pathParts[pathParts.length - 1];
+                
+                adminService.removeUserFromGroup(targetUsername, groupName, requestingUsername);
+                
+                APIGatewayProxyResponseEvent response = createBaseResponse();
+                response.setStatusCode(HttpStatus.SC_NO_CONTENT);
+                return response;
+            }
+            
+            return createErrorResponse("Invalid admin request");
+        } catch (IllegalArgumentException e) {
+            logger.warn("Bad request in admin endpoint: {}", e.getMessage());
+            return createErrorResponse(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error handling admin request", e);
+            return createErrorResponse("Internal server error: " + e.getMessage());
+        }
+    }
+
+    private static APIGatewayProxyResponseEvent createUserInfoListResponse(List<UserInfo> userInfoList) {
+        APIGatewayProxyResponseEvent response = createBaseResponse();
+        response.setStatusCode(HttpStatus.SC_OK);
+        String responseBody = gson.toJson(userInfoList, userInfoListType);
+        response.setBody(responseBody);
+        return response;
     }
 
 }

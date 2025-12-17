@@ -16,10 +16,10 @@ resource "aws_iam_role" "lambda_execution_role" {
   })
 }
 
-# IAM policy for Lambda to access DynamoDB
-resource "aws_iam_policy" "lambda_dynamodb_policy" {
-  name        = local.environment == "prod" ? "${var.project_name}-dynamodb-policy" : "${var.project_name}-dynamodb-policy-${local.environment}"
-  description = "IAM policy for Lambda to access DynamoDB"
+# IAM policy for Lambda to access DynamoDB and Cognito
+resource "aws_iam_policy" "lambda_policy" {
+  name        = local.environment == "prod" ? "${var.project_name}-lambda-policy" : "${var.project_name}-lambda-policy-${local.environment}"
+  description = "IAM policy for Lambda to access DynamoDB and Cognito"
   
   policy = jsonencode({
     Version = "2012-10-17"
@@ -46,6 +46,17 @@ resource "aws_iam_policy" "lambda_dynamodb_policy" {
       {
         Effect = "Allow"
         Action = [
+          "cognito-idp:ListUsers",
+          "cognito-idp:AdminListGroupsForUser",
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:AdminGetUser"
+        ]
+        Resource = aws_cognito_user_pool.quote_app.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
@@ -57,9 +68,9 @@ resource "aws_iam_policy" "lambda_dynamodb_policy" {
 }
 
 # Attach the policy to the IAM role
-resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attachment" {
+resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
   role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = aws_iam_policy.lambda_dynamodb_policy.arn
+  policy_arn = aws_iam_policy.lambda_policy.arn
 }
 
 # Lambda function
@@ -72,14 +83,15 @@ resource "aws_lambda_function" "quote_lambda" {
   timeout       = var.lambda_timeout
   publish       = true
   
-  filename         = "${path.module}/../target/${var.project_name}-1.1.0-SNAPSHOT.jar"
-  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.1.0-SNAPSHOT.jar")
+  filename         = "${path.module}/../target/${var.project_name}-1.2.0-SNAPSHOT.jar"
+  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.2.0-SNAPSHOT.jar")
   
   environment {
     variables = {
       DYNAMODB_TABLE            = aws_dynamodb_table.quotes_table.name
       DYNAMODB_USER_LIKES_TABLE = aws_dynamodb_table.user_likes_table.name
       DYNAMODB_USER_VIEWS_TABLE = aws_dynamodb_table.user_views.name
+      USER_POOL_ID              = aws_cognito_user_pool.quote_app.id
     }
   }
 
@@ -89,7 +101,7 @@ resource "aws_lambda_function" "quote_lambda" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_dynamodb_attachment
+    aws_iam_role_policy_attachment.lambda_policy_attachment
   ]
 }
 

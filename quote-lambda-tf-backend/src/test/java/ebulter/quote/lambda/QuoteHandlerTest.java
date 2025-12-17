@@ -389,6 +389,164 @@ public class QuoteHandlerTest {
         }
     }
 
+    @Nested
+    class AdminEndpointTests {
+        
+        private static APIGatewayProxyRequestEvent createEventWithAdminRole(String path, String method) {
+            String header = base64UrlEncode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+            String payload = base64UrlEncode("{\"sub\":\"admin-user-id\",\"email\":\"admin@example.com\",\"username\":\"adminuser\",\"cognito:groups\":[\"ADMIN\",\"USER\"]}");
+            String signature = "mock-signature";
+            String mockToken = "Bearer " + header + "." + payload + "." + signature;
+
+            Map<String, String> headers = new HashMap<>();
+            headers.put("authorization", mockToken);
+
+            return new APIGatewayProxyRequestEvent()
+                .withHttpMethod(method)
+                .withPath(path)
+                .withHeaders(headers);
+        }
+
+        @Test
+        public void handleRequest_ListUsers_WithAdminRole_ShouldReturnUserList() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            List<ebulter.quote.lambda.model.UserInfo> mockUsers = new ArrayList<>();
+            mockUsers.add(new ebulter.quote.lambda.model.UserInfo("user1", "user1@example.com", List.of("USER"), true, "CONFIRMED", null, null));
+            mockUsers.add(new ebulter.quote.lambda.model.UserInfo("user2", "user2@example.com", List.of("USER", "ADMIN"), true, "CONFIRMED", null, null));
+            when(adminServiceMock.listAllUsers()).thenReturn(mockUsers);
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode(), "Response body: " + response.getBody());
+            Assertions.assertTrue(response.getBody().contains("user1@example.com"));
+            Assertions.assertTrue(response.getBody().contains("user2@example.com"));
+        }
+
+        @Test
+        public void handleRequest_ListUsers_WithoutAdminRole_ShouldReturnForbidden() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+        }
+
+        @Test
+        public void handleRequest_AddUserToGroup_WithAdminRole_ShouldSucceed() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            Mockito.doNothing().when(adminServiceMock).addUserToGroup(Mockito.eq("user1"), Mockito.eq("USER"), Mockito.eq("adminuser"));
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user1/groups/USER", "POST");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            Mockito.verify(adminServiceMock).addUserToGroup("user1", "USER", "adminuser");
+        }
+
+        @Test
+        public void handleRequest_AddUserToGroup_WithoutAdminRole_ShouldReturnForbidden() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users/user1/groups/USER", "POST");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+            Mockito.verify(adminServiceMock, Mockito.never()).addUserToGroup(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        }
+
+        @Test
+        public void handleRequest_RemoveUserFromGroup_WithAdminRole_ShouldSucceed() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            Mockito.doNothing().when(adminServiceMock).removeUserFromGroup(Mockito.eq("user1"), Mockito.eq("USER"), Mockito.eq("adminuser"));
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user1/groups/USER", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(204, response.getStatusCode());
+            Mockito.verify(adminServiceMock).removeUserFromGroup("user1", "USER", "adminuser");
+        }
+
+        @Test
+        public void handleRequest_RemoveUserFromGroup_WithoutAdminRole_ShouldReturnForbidden() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users/user1/groups/USER", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+            Mockito.verify(adminServiceMock, Mockito.never()).removeUserFromGroup(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        }
+
+        @Test
+        public void handleRequest_RemoveSelfFromAdminGroup_ShouldReturnError() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            Mockito.doThrow(new IllegalArgumentException("Cannot remove yourself from ADMIN group"))
+                .when(adminServiceMock).removeUserFromGroup(Mockito.eq("adminuser"), Mockito.eq("ADMIN"), Mockito.eq("adminuser"));
+
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), adminServiceMock);
+            APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/adminuser/groups/ADMIN", "DELETE");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(400, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("Cannot remove yourself from ADMIN group"));
+        }
+
+        @Test
+        public void handleRequest_AdminEndpoint_WithNullAdminService_ShouldReturnError() {
+            // Arrange
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), null);
+            APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(400, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("Admin service not configured"));
+        }
+    }
+
     @Test
     public void handleRequest_InvalidRequest() {
         // Arrange
