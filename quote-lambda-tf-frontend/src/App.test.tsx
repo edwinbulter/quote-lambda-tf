@@ -37,17 +37,17 @@ vi.mock('./components/Login.tsx', () => ({
 const mockAuthContextValue = {
     isAuthenticated: false,
     isLoading: false,
-    user: null,
+    user: null as any,
     signIn: vi.fn(),
     signOut: vi.fn(),
     hasRole: vi.fn(() => false),
-    userGroups: [],
+    userGroups: [] as string[],
     needsUsernameSetup: false,
 };
 
 // Helper function to render App with mocked AuthContext
-const renderApp = (authValue = mockAuthContextValue) => {
-    vi.spyOn(AuthContext, 'useAuth').mockReturnValue(authValue as any);
+const renderApp = (authValue: any = mockAuthContextValue) => {
+    vi.spyOn(AuthContext, 'useAuth').mockReturnValue(authValue);
     return render(<App />);
 };
 
