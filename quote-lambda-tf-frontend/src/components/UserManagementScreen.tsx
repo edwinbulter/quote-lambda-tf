@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import './UserManagementScreen.css';
 import adminApi, { UserInfo } from '../api/adminApi';
 import { Toast } from './Toast';
-import { useAuth } from '../contexts/AuthContext';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface UserManagementScreenProps {
     onBack: () => void;
@@ -12,11 +12,27 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
     const [users, setUsers] = useState<UserInfo[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-    const { user } = useAuth();
+    const [currentUsername, setCurrentUsername] = useState<string | null>(null);
 
     useEffect(() => {
+        loadCurrentUsername();
         loadUsers();
     }, []);
+
+    const loadCurrentUsername = async () => {
+        try {
+            const session = await fetchAuthSession();
+            const token = session.tokens?.accessToken;
+            if (token) {
+                // Extract username from token payload - same way backend does it
+                const username = token.payload.username as string;
+                setCurrentUsername(username);
+                console.log('Current username from token:', username);
+            }
+        } catch (error) {
+            console.error('Failed to get current username:', error);
+        }
+    };
 
     const loadUsers = async () => {
         try {
@@ -32,7 +48,7 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
     };
 
     const handleToggleRole = async (username: string, groupName: string, currentlyInGroup: boolean) => {
-        if (groupName === 'ADMIN' && username === user?.username && currentlyInGroup) {
+        if (groupName === 'ADMIN' && username === currentUsername && currentlyInGroup) {
             showToast('Cannot remove yourself from ADMIN group', 'error');
             return;
         }
@@ -65,6 +81,36 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
         }
     };
 
+    const handleDeleteUser = (username: string) => {
+        const userToDelete = users.find(u => u.username === username);
+        if (!userToDelete) return;
+
+        const confirmed = window.confirm(
+            `Are you sure you want to delete user "${username}" (${userToDelete.email})?\n\nThis action cannot be undone.\n\nAll user data including likes and view history will be permanently deleted.`
+        );
+
+        if (!confirmed) return;
+
+        deleteUserWithCleanup(username);
+    };
+
+    const deleteUserWithCleanup = async (username: string) => {
+        const previousUsers = [...users];
+        
+        // Optimistic update - remove user from list
+        const updatedUsers = users.filter(u => u.username !== username);
+        setUsers(updatedUsers);
+
+        try {
+            await adminApi.deleteUser(username);
+            showToast(`User "${username}" and all their data have been deleted`, 'success');
+        } catch (error) {
+            console.error('Failed to delete user:', error);
+            setUsers(previousUsers);
+            showToast('Failed to delete user', 'error');
+        }
+    };
+
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
     };
@@ -91,13 +137,14 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
                                 <th>Email</th>
                                 <th>USER Role</th>
                                 <th>ADMIN Role</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {users.map((userInfo) => {
                                 const isUser = userInfo.groups.includes('USER');
                                 const isAdmin = userInfo.groups.includes('ADMIN');
-                                const isSelf = userInfo.username === user?.username;
+                                const isSelf = userInfo.username === currentUsername;
 
                                 return (
                                     <tr key={userInfo.username}>
@@ -131,6 +178,16 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
                                                     {isAdmin ? '✓ ADMIN' : 'Add ADMIN'}
                                                 </span>
                                             </label>
+                                        </td>
+                                        <td className="actions-cell">
+                                            <button
+                                                className="delete-button"
+                                                onClick={() => handleDeleteUser(userInfo.username)}
+                                                disabled={isSelf}
+                                                title={isSelf ? 'Cannot delete yourself' : 'Delete user'}
+                                            >
+                                                Delete
+                                            </button>
                                         </td>
                                     </tr>
                                 );

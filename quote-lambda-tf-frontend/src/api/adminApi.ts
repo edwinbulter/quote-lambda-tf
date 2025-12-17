@@ -70,8 +70,25 @@ async function removeUserFromGroup(username: string, groupName: string): Promise
     }
 }
 
+async function deleteUser(username: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}`, {
+        method: "DELETE",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Delete user failed:', response.status, errorText);
+        throw new Error(`Failed to delete user: ${response.status} - ${errorText}`);
+    }
+}
+
 export default {
     listUsers,
     addUserToGroup,
     removeUserFromGroup,
+    deleteUser,
 };
