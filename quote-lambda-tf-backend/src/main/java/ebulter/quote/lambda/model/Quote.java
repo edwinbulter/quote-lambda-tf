@@ -4,14 +4,20 @@ public class Quote {
     private int id;
     private String quoteText;
     private String author;
+    private int likeCount;
 
     public Quote() {
     }
 
     public Quote(int id, String quoteText, String author) {
+        this(id, quoteText, author, 0);
+    }
+
+    public Quote(int id, String quoteText, String author, int likeCount) {
         this.id = id;
         this.quoteText = quoteText;
         this.author = author;
+        this.likeCount = likeCount;
     }
 
     public int getId() {
@@ -36,6 +42,14 @@ public class Quote {
 
     public void setAuthor(String author) {
         this.author = author;
+    }
+
+    public int getLikeCount() {
+        return likeCount;
+    }
+
+    public void setLikeCount(int likeCount) {
+        this.likeCount = likeCount;
     }
 
     @Override

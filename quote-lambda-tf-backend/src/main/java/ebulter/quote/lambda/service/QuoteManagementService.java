@@ -150,21 +150,13 @@ public class QuoteManagementService {
      * Get comparator based on sort field and order
      */
     private Comparator<Quote> getComparator(String sortBy, String sortOrder) {
-        Comparator<Quote> comparator;
-        
-        switch (sortBy != null ? sortBy.toLowerCase() : "id") {
-            case "quotetext":
-                comparator = Comparator.comparing(q -> q.getQuoteText().toLowerCase());
-                break;
-            case "author":
-                comparator = Comparator.comparing(q -> q.getAuthor().toLowerCase());
-                break;
-            case "id":
-            default:
-                comparator = Comparator.comparingInt(Quote::getId);
-                break;
-        }
-        
+        Comparator<Quote> comparator = switch (sortBy != null ? sortBy.toLowerCase() : "id") {
+            case "quotetext" -> Comparator.comparing(q -> q.getQuoteText().toLowerCase());
+            case "author" -> Comparator.comparing(q -> q.getAuthor().toLowerCase());
+            case "likeCount" -> Comparator.comparing(q -> q.getLikeCount());
+            default -> Comparator.comparingInt(Quote::getId);
+        };
+
         // Reverse if descending
         if ("desc".equalsIgnoreCase(sortOrder)) {
             comparator = comparator.reversed();
