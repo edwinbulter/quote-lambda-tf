@@ -122,12 +122,13 @@ public class UserLikeRepository {
 
                 QueryRequest queryRequest = QueryRequest.builder()
                         .tableName(TABLE_NAME)
+                        .indexName("QuoteIdIndex")
                         .keyConditionExpression("quoteId = :quoteId")
                         .expressionAttributeValues(expressionValues)
-                        .select("COUNT")
+                        .select(Select.COUNT)
                         .build();
 
-                int count = dynamoDb.query(queryRequest).count();
+                int count = (int) dynamoDb.query(queryRequest).count();
                 likeCounts.put(quoteId, count);
             }
         }
