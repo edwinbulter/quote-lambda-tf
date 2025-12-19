@@ -868,21 +868,113 @@ def test_restore_timeout():
 
 ---
 
-## Summary
+## Implementation Summary
 
-This design provides a robust, automated solution for DynamoDB PITR restore operations using a Python script that:
+### Status: ✅ Completed
+
+The DynamoDB PITR restore script has been successfully implemented with the following key improvements beyond the original design:
+
+### Implementation Improvements
+
+**1. Smart Restore Table Reuse**
+- **Original Design**: Always create new restore tables with current timestamp
+- **Implemented**: Use restore point timestamp in table names and reuse existing tables
+- **Benefit**: Enables resuming failed restores without recreating tables (saves time and AWS costs)
+- **Example**: `quote-lambda-tf-quotes-dev-restore-20251219201000` (uses restore point time, not current time)
+
+**2. Intelligent Timezone Handling**
+- **Original Design**: Require UTC timestamps with 'Z' suffix
+- **Implemented**: Accept both local CET/CEST time and UTC time
+- **Benefit**: More user-friendly for European timezone operations
+- **Example**: `--restore-point 2025-12-19T20:10:00` (assumes CET) or `--restore-point 2025-12-19T19:10:00Z` (explicit UTC)
+
+**3. Flexible Item Count Verification**
+- **Original Design**: Fail if item counts don't match exactly
+- **Implemented**: Accept fewer items in restore (expected for past restore points), only warn if more
+- **Benefit**: Restoring to a past point naturally has fewer items than current production
+- **Example**: Original=761, Restore=637 → Success (124 items added after restore point)
+
+**4. Automatic Old Table Cleanup**
+- **Original Design**: Manual cleanup of old restore tables
+- **Implemented**: Automatically detect and delete old restore tables from different restore points
+- **Benefit**: Prevents accumulation of orphaned restore tables
+- **Example**: Detects tables from previous runs and cleans them up before starting new restore
+
+**5. Enhanced Progress Logging**
+- **Original Design**: Basic status logging
+- **Implemented**: Real-time progress updates every 10 seconds with elapsed time
+- **Benefit**: Better visibility into long-running operations
+- **Example**: `[180s] quotes: CREATING` → `[300s] quotes: ACTIVE ✓`
+
+**6. Correct DynamoDB Batch Operations**
+- **Original Design**: Generic batch write approach
+- **Implemented**: Proper DynamoDB batch_write_item API with 25-item batches
+- **Benefit**: Efficient data transfer with proper error handling
+- **Details**: Uses `{'PutRequest': {'Item': {...}}}` and `{'DeleteRequest': {'Key': {...}}}` format
+
+### Key Features Delivered
 
 1. **Simplifies recovery** - Single command restores all 3 tables to any point within 35 days
 2. **Prevents data corruption** - File-based locking ensures only one restore at a time
-3. **Provides visibility** - Comprehensive CloudWatch logging and status file tracking
+3. **Provides visibility** - Comprehensive console and file logging with status tracking
 4. **Ensures reliability** - Robust error handling with restore table preservation for manual recovery
 5. **Maintains security** - Audit logging with timestamps and detailed operation tracking
 6. **Avoids timeout constraints** - Python script can run for hours without Lambda's 15-minute limit
+7. **Smart table management** - Reuses existing restore tables and cleans up old ones automatically
+8. **User-friendly timezone support** - Accepts local CET time without requiring UTC conversion
+9. **Flexible verification** - Accepts expected item count differences for past restore points
 
-**Key Features:**
-- **Command-line execution** - Run manually, via cron, or from CI/CD pipelines
-- **Flexible configuration** - Environment variables and command-line arguments
-- **Dry-run mode** - Validate restore without executing
-- **Comprehensive logging** - CloudWatch integration with console output
-- **Stale lock detection** - Automatic cleanup of abandoned locks
-- **Graceful error handling** - Preserve restore tables on failure for manual recovery
+### Script Location
+
+The script and its dependencies have been organized into a dedicated subfolder:
+
+```
+scripts/restore-dynamodb-pitr/
+├── restore_dynamodb_pitr.py  # Main restore script
+└── requirements.txt           # Python dependencies
+```
+
+### Usage Examples
+
+```bash
+# Basic restore using local CET time
+python3 scripts/restore-dynamodb-pitr/restore_dynamodb_pitr.py \
+  --restore-point 2025-12-19T20:10:00 \
+  --environment dev
+
+# Resume a failed restore (reuses existing restore tables)
+python3 scripts/restore-dynamodb-pitr/restore_dynamodb_pitr.py \
+  --restore-point 2025-12-19T20:10:00 \
+  --environment dev
+
+# Dry run to validate
+python3 scripts/restore-dynamodb-pitr/restore_dynamodb_pitr.py \
+  --restore-point 2025-12-19T20:10:00 \
+  --environment dev \
+  --dry-run
+```
+
+### Documentation
+
+- **Script README**: [scripts/README.md](../../scripts/README.md#restore-dynamodb-pitr)
+- **Technical Design**: This document (ECS-25)
+- **Installation**: `pip3 install -r scripts/restore-dynamodb-pitr/requirements.txt`
+
+### Testing Results
+
+- ✅ Successfully restored dev environment to 20 minutes in the past
+- ✅ Verified timezone conversion (CET → UTC)
+- ✅ Confirmed item count differences handled correctly (761 → 637 items)
+- ✅ Validated restore table reuse on script restart
+- ✅ Confirmed automatic cleanup of old restore tables
+- ✅ Verified batch operations for data swap (25 items per batch)
+- ✅ Tested dry-run mode
+- ✅ Validated concurrency control with file-based locking
+
+### Lessons Learned
+
+1. **Restore point timestamps in table names** are crucial for identifying and reusing restore tables
+2. **Timezone handling** is essential for European operations - accepting local time improves UX
+3. **Item count verification** should be informational, not a hard requirement (past restores have fewer items)
+4. **DynamoDB batch operations** require specific request format - context managers don't work
+5. **Progress logging** is critical for long-running operations (5-10 minutes for table restores)

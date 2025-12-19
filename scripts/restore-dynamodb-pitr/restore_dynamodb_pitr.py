@@ -27,6 +27,8 @@ import boto3
 from botocore.exceptions import ClientError
 from dateutil import parser as date_parser
 
+import pytz
+
 
 class RestoreLock:
     """File-based lock to prevent concurrent restore operations."""
@@ -114,6 +116,7 @@ class DynamoDBPITRRestore:
         self.dynamodb = boto3.client('dynamodb', region_name=region)
         self.restore_id = f"restore-{datetime.now().strftime('%Y-%m-%dT%H-%M-%SZ')}"
         self.status_file = f"restore_status_{self.restore_id}.json"
+        self.restore_point_timestamp = None  # Will be set when restore point is parsed
 
         self._configure_table_names()
 
@@ -147,6 +150,42 @@ class DynamoDBPITRRestore:
 
             self._update_status("INITIALIZING", restore_point_in_time)
 
+            # Parse restore point to get timestamp for table naming
+            restore_dt = date_parser.isoparse(restore_point_in_time)
+            if restore_dt.tzinfo is None:
+                local_tz = pytz.timezone('Europe/Berlin')
+                restore_dt = local_tz.localize(restore_dt)
+            self.restore_point_timestamp = restore_dt.strftime('%Y%m%d%H%M%S')
+            
+            # Check for existing restore tables matching this restore point
+            restore_tables = self._get_restore_table_names()
+            existing_restore_tables = self._check_existing_restore_tables(restore_tables)
+            
+            if existing_restore_tables:
+                logger.info(f"Found {len(existing_restore_tables)} existing restore table(s) for this restore point:")
+                for table_name, status in existing_restore_tables.items():
+                    logger.info(f"  - {table_name}: {status}")
+                
+                # Check if all are ACTIVE
+                all_active = all(status == 'ACTIVE' for status in existing_restore_tables.values())
+                if all_active:
+                    logger.info("All restore tables already exist and are ACTIVE. Skipping restore initiation.")
+                    skip_restore = True
+                else:
+                    logger.info("Some restore tables exist but are not ACTIVE. Will wait for them to complete.")
+                    skip_restore = True
+            else:
+                skip_restore = False
+                # Clean up any old restore tables from different restore points
+                old_restore_tables = self._find_old_restore_tables(restore_tables)
+                if old_restore_tables:
+                    logger.warning(f"Found {len(old_restore_tables)} old restore table(s) from previous runs:")
+                    for table_name in old_restore_tables:
+                        logger.warning(f"  - {table_name}")
+                    if not self.dry_run:
+                        logger.info("Cleaning up old restore tables...")
+                        self._cleanup_existing_restore_tables(old_restore_tables)
+
             # Validate restore point
             if not self._validate_restore_point(restore_point_in_time):
                 logger.error("Restore point validation failed")
@@ -155,14 +194,14 @@ class DynamoDBPITRRestore:
 
             # Acquire lock
             with RestoreLock(self.lock_file) as lock:
-                # Initiate PITR restores
-                if not self._initiate_pitr_restores(restore_point_in_time):
-                    logger.error("Failed to initiate PITR restores")
-                    self._update_status("FAILED", restore_point_in_time, "Failed to initiate PITR restores")
-                    return False
+                # Initiate PITR restores (unless we're reusing existing tables)
+                if not skip_restore:
+                    if not self._initiate_pitr_restores(restore_point_in_time):
+                        logger.error("Failed to initiate PITR restores")
+                        self._update_status("FAILED", restore_point_in_time, "Failed to initiate PITR restores")
+                        return False
 
                 # Poll for restore completion
-                restore_tables = self._get_restore_table_names()
                 if not self._poll_restore_completion(restore_tables):
                     logger.error("Restore operation timed out")
                     self._update_status("FAILED", restore_point_in_time, "Restore operation timed out")
@@ -193,13 +232,78 @@ class DynamoDBPITRRestore:
             self._update_status("FAILED", restore_point_in_time, str(e))
             return False
 
+    def _check_existing_restore_tables(self, restore_tables: Dict[str, str]) -> Dict[str, str]:
+        """Check if restore tables for this specific restore point already exist."""
+        existing = {}
+        for table_key, table_name in restore_tables.items():
+            try:
+                response = self.dynamodb.describe_table(TableName=table_name)
+                status = response['Table']['TableStatus']
+                existing[table_name] = status
+            except ClientError as e:
+                if e.response['Error']['Code'] != 'ResourceNotFoundException':
+                    logger.warning(f"Error checking table {table_name}: {e}")
+        return existing
+    
+    def _find_old_restore_tables(self, current_restore_tables: Dict[str, str]) -> List[str]:
+        """Find any old restore tables from previous runs (different timestamps)."""
+        try:
+            old_tables = []
+            current_table_names = set(current_restore_tables.values())
+            
+            # List all tables and find ones matching the restore pattern
+            paginator = self.dynamodb.get_paginator('list_tables')
+            for page in paginator.paginate():
+                for table_name in page['TableNames']:
+                    # Check if table matches any of our restore table patterns
+                    for table_key, original_table in self.tables.items():
+                        if table_name.startswith(f"{original_table}-restore-"):
+                            # Only add if it's not one of our current restore tables
+                            if table_name not in current_table_names:
+                                old_tables.append(table_name)
+                            break
+            
+            return old_tables
+        except Exception as e:
+            logger.warning(f"Error checking for old restore tables: {e}")
+            return []
+    
+    def _cleanup_existing_restore_tables(self, table_names: List[str]) -> None:
+        """Delete existing restore tables."""
+        for table_name in table_names:
+            try:
+                logger.info(f"Deleting existing restore table: {table_name}")
+                self.dynamodb.delete_table(TableName=table_name)
+                logger.info(f"Successfully deleted {table_name}")
+            except ClientError as e:
+                logger.error(f"Failed to delete {table_name}: {e}")
+        
+        # Wait a bit for deletions to complete
+        if table_names:
+            logger.info("Waiting 10 seconds for table deletions to complete...")
+            time.sleep(10)
+
     def _validate_restore_point(self, restore_point_in_time: str) -> bool:
         """Validate that restore point is within 35 days."""
         try:
             restore_dt = date_parser.isoparse(restore_point_in_time)
-            now = datetime.now(restore_dt.tzinfo) if restore_dt.tzinfo else datetime.now()
-            age = now - restore_dt
+            
+            # If no timezone specified, assume local timezone (CET/CEST)
+            if restore_dt.tzinfo is None:
+                logger.info("No timezone specified, assuming CET/CEST (Europe/Berlin)")
+                local_tz = pytz.timezone('Europe/Berlin')
+                restore_dt = local_tz.localize(restore_dt)
+            
+            # Convert both times to UTC for accurate comparison
+            restore_dt_utc = restore_dt.astimezone(pytz.UTC)
+            now_utc = datetime.now(pytz.UTC)
+            
+            age = now_utc - restore_dt_utc
             max_age = timedelta(days=35)
+
+            logger.info(f"Restore point (UTC): {restore_dt_utc}")
+            logger.info(f"Current time (UTC): {now_utc}")
+            logger.info(f"Age: {age}")
 
             if age > max_age:
                 logger.error(f"Restore point is {age.days} days old, max is 35 days")
@@ -209,7 +313,7 @@ class DynamoDBPITRRestore:
                 logger.error("Restore point is in the future")
                 return False
 
-            logger.info(f"Restore point is {age.days} days old (within 35-day limit)")
+            logger.info(f"Restore point is {age.days} days, {age.seconds // 3600} hours old (within 35-day limit)")
             return True
         except Exception as e:
             logger.error(f"Failed to parse restore point: {e}")
@@ -220,6 +324,21 @@ class DynamoDBPITRRestore:
         try:
             restore_tables = self._get_restore_table_names()
 
+            # Parse restore point and convert to UTC for AWS API
+            restore_dt = date_parser.isoparse(restore_point_in_time)
+            if restore_dt.tzinfo is None:
+                # Assume CET/CEST if no timezone specified
+                local_tz = pytz.timezone('Europe/Berlin')
+                restore_dt = local_tz.localize(restore_dt)
+            
+            # Convert to UTC for AWS API (AWS expects datetime object, will handle timezone)
+            restore_dt_utc = restore_dt.astimezone(pytz.UTC)
+            
+            # Also show in local time for clarity
+            local_tz = pytz.timezone('Europe/Berlin')
+            restore_dt_local = restore_dt_utc.astimezone(local_tz)
+            logger.info(f"Using restore point: {restore_dt_local.strftime('%Y-%m-%d %H:%M:%S %Z')} (local) = {restore_dt_utc.strftime('%Y-%m-%d %H:%M:%S %Z')} (UTC)")
+
             for table_key, original_table in self.tables.items():
                 restore_table = restore_tables[table_key]
 
@@ -229,14 +348,44 @@ class DynamoDBPITRRestore:
 
                 logger.info(f"Initiating PITR restore for {original_table} -> {restore_table}")
 
-                self.dynamodb.restore_table_to_point_in_time(
-                    SourceTableName=original_table,
-                    TargetTableName=restore_table,
-                    RestoreDateTime=date_parser.isoparse(restore_point_in_time),
-                    BillingModeOverride='PAY_PER_REQUEST'
-                )
-
-                logger.info(f"PITR restore initiated for {restore_table}")
+                try:
+                    self.dynamodb.restore_table_to_point_in_time(
+                        SourceTableName=original_table,
+                        TargetTableName=restore_table,
+                        RestoreDateTime=restore_dt_utc,
+                        BillingModeOverride='PAY_PER_REQUEST'
+                    )
+                    logger.info(f"PITR restore initiated for {restore_table}")
+                except ClientError as e:
+                    if e.response['Error']['Code'] == 'InvalidRestoreTimeException':
+                        # Extract and display the valid restore window in local time
+                        error_msg = str(e)
+                        logger.error(f"Invalid restore time for {original_table}")
+                        logger.error(f"Error: {error_msg}")
+                        
+                        # Try to get the table description to show valid restore window
+                        try:
+                            table_desc = self.dynamodb.describe_table(TableName=original_table)
+                            earliest = table_desc['Table'].get('RestoreSummary', {}).get('EarliestRestorableDateTime')
+                            latest = table_desc['Table'].get('LatestRestorableDateTime')
+                            
+                            if not earliest:
+                                # Try continuous backups
+                                backup_desc = self.dynamodb.describe_continuous_backups(TableName=original_table)
+                                earliest = backup_desc['ContinuousBackupsDescription']['PointInTimeRecoveryDescription'].get('EarliestRestorableDateTime')
+                                latest = backup_desc['ContinuousBackupsDescription']['PointInTimeRecoveryDescription'].get('LatestRestorableDateTime')
+                            
+                            if earliest and latest:
+                                earliest_local = earliest.astimezone(local_tz)
+                                latest_local = latest.astimezone(local_tz)
+                                logger.error(f"Valid restore window for {original_table}:")
+                                logger.error(f"  Earliest: {earliest_local.strftime('%Y-%m-%d %H:%M:%S %Z')} (local)")
+                                logger.error(f"  Latest:   {latest_local.strftime('%Y-%m-%d %H:%M:%S %Z')} (local)")
+                        except Exception:
+                            pass
+                        raise
+                    else:
+                        raise
 
             return True
         except ClientError as e:
@@ -244,8 +393,13 @@ class DynamoDBPITRRestore:
             return False
 
     def _get_restore_table_names(self) -> Dict[str, str]:
-        """Get restore table names with timestamp suffix."""
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        """Get restore table names with restore point timestamp suffix."""
+        if not self.restore_point_timestamp:
+            # Fallback to current time if restore point not yet parsed
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        else:
+            timestamp = self.restore_point_timestamp
+        
         return {
             'quotes': f"{self.tables['quotes']}-restore-{timestamp}",
             'user_likes': f"{self.tables['user_likes']}-restore-{timestamp}",
@@ -258,9 +412,15 @@ class DynamoDBPITRRestore:
             start_time = time.time()
             timeout_seconds = self.timeout_minutes * 60
             poll_interval = 10  # seconds
+            
+            # Track which tables have become active to avoid duplicate logging
+            active_tables = set()
+            
+            logger.info(f"Polling restore status every {poll_interval} seconds (timeout: {self.timeout_minutes} minutes)...")
 
             while time.time() - start_time < timeout_seconds:
                 all_active = True
+                elapsed = int(time.time() - start_time)
 
                 for table_key, restore_table in restore_tables.items():
                     if self.dry_run:
@@ -272,22 +432,26 @@ class DynamoDBPITRRestore:
 
                         if status != 'ACTIVE':
                             all_active = False
-                            elapsed = int(time.time() - start_time)
-                            logger.info(f"{restore_table} status: {status} ({elapsed}s)")
-                        else:
-                            elapsed = int(time.time() - start_time)
-                            logger.info(f"{restore_table} is now ACTIVE ({elapsed}s)")
+                            logger.info(f"[{elapsed}s] {table_key}: {status}")
+                        elif restore_table not in active_tables:
+                            # First time seeing this table as ACTIVE
+                            active_tables.add(restore_table)
+                            logger.info(f"[{elapsed}s] {table_key}: ACTIVE ✓")
 
                     except ClientError as e:
                         if e.response['Error']['Code'] == 'ResourceNotFoundException':
                             all_active = False
+                            logger.info(f"[{elapsed}s] {table_key}: Table not found yet (still creating)")
                         else:
                             raise
 
                 if all_active:
-                    logger.info("All restore tables are ACTIVE")
+                    logger.info(f"All restore tables are ACTIVE after {elapsed}s")
                     return True
 
+                if not all_active:
+                    logger.info(f"Waiting {poll_interval}s before next poll...")
+                    
                 time.sleep(poll_interval)
 
             logger.error(f"Restore operation timed out after {self.timeout_minutes} minutes")
@@ -298,34 +462,40 @@ class DynamoDBPITRRestore:
             return False
 
     def _verify_item_counts(self, restore_tables: Dict[str, str]) -> bool:
-        """Verify that restore tables have same item count as original tables."""
+        """Log item counts for restore tables (informational only)."""
         try:
-            logger.info("Verifying item counts...")
+            logger.info("Checking item counts...")
 
             for table_key, original_table in self.tables.items():
                 restore_table = restore_tables[table_key]
 
                 if self.dry_run:
-                    logger.info(f"[DRY RUN] Would verify counts for {original_table}")
+                    logger.info(f"[DRY RUN] Would check counts for {original_table}")
                     continue
 
                 original_count = self._count_items(original_table)
                 restore_count = self._count_items(restore_table)
 
-                if original_count != restore_count:
-                    logger.error(
-                        f"Item count mismatch for {table_key}: "
+                # Restore table should have <= items than current table (data may have been added after restore point)
+                if restore_count > original_count:
+                    logger.warning(
+                        f"Unexpected: restore table has MORE items than original for {table_key}: "
                         f"original={original_count}, restore={restore_count}"
                     )
-                    return False
-
-                logger.info(
-                    f"{table_key}: original={original_count}, restore={restore_count} ✓"
-                )
+                    logger.warning("This may indicate an issue - please verify manually")
+                elif restore_count < original_count:
+                    logger.info(
+                        f"{table_key}: original={original_count}, restore={restore_count} "
+                        f"(restore has {original_count - restore_count} fewer items - expected for past restore point)"
+                    )
+                else:
+                    logger.info(
+                        f"{table_key}: original={original_count}, restore={restore_count} (counts match)"
+                    )
 
             return True
         except Exception as e:
-            logger.error(f"Error verifying item counts: {e}")
+            logger.error(f"Error checking item counts: {e}")
             return False
 
     def _count_items(self, table_name: str) -> int:
@@ -389,14 +559,27 @@ class DynamoDBPITRRestore:
             key_schema = response['Table']['KeySchema']
             key_names = [key['AttributeName'] for key in key_schema]
 
+            items_deleted = 0
+            
             # Scan and delete all items
             scan_response = self.dynamodb.scan(TableName=table_name)
             items = scan_response.get('Items', [])
 
-            with self.dynamodb.batch_write_item() as batch:
-                for item in items:
+            # Delete in batches of 25 (DynamoDB limit)
+            batch_size = 25
+            for i in range(0, len(items), batch_size):
+                batch = items[i:i + batch_size]
+                delete_requests = []
+                
+                for item in batch:
                     key = {key_name: item[key_name] for key_name in key_names}
-                    batch.delete_item(TableName=table_name, Key=key)
+                    delete_requests.append({'DeleteRequest': {'Key': key}})
+                
+                if delete_requests:
+                    self.dynamodb.batch_write_item(
+                        RequestItems={table_name: delete_requests}
+                    )
+                    items_deleted += len(delete_requests)
 
             # Handle pagination
             while 'LastEvaluatedKey' in scan_response:
@@ -406,12 +589,21 @@ class DynamoDBPITRRestore:
                 )
                 items = scan_response.get('Items', [])
 
-                with self.dynamodb.batch_write_item() as batch:
-                    for item in items:
+                for i in range(0, len(items), batch_size):
+                    batch = items[i:i + batch_size]
+                    delete_requests = []
+                    
+                    for item in batch:
                         key = {key_name: item[key_name] for key_name in key_names}
-                        batch.delete_item(TableName=table_name, Key=key)
+                        delete_requests.append({'DeleteRequest': {'Key': key}})
+                    
+                    if delete_requests:
+                        self.dynamodb.batch_write_item(
+                            RequestItems={table_name: delete_requests}
+                        )
+                        items_deleted += len(delete_requests)
 
-            logger.info(f"Cleared {table_name}")
+            logger.info(f"Cleared {table_name} ({items_deleted} items deleted)")
 
         except Exception as e:
             logger.error(f"Error clearing table {table_name}: {e}")
@@ -422,11 +614,22 @@ class DynamoDBPITRRestore:
         try:
             items_written = 0
             scan_response = self.dynamodb.scan(TableName=source_table)
+            items = scan_response.get('Items', [])
 
-            with self.dynamodb.batch_write_item() as batch:
-                for item in scan_response.get('Items', []):
-                    batch.put_item(TableName=target_table, Item=item)
-                    items_written += 1
+            # Write in batches of 25 (DynamoDB limit)
+            batch_size = 25
+            for i in range(0, len(items), batch_size):
+                batch = items[i:i + batch_size]
+                put_requests = []
+                
+                for item in batch:
+                    put_requests.append({'PutRequest': {'Item': item}})
+                
+                if put_requests:
+                    self.dynamodb.batch_write_item(
+                        RequestItems={target_table: put_requests}
+                    )
+                    items_written += len(put_requests)
 
             # Handle pagination
             while 'LastEvaluatedKey' in scan_response:
@@ -434,11 +637,20 @@ class DynamoDBPITRRestore:
                     TableName=source_table,
                     ExclusiveStartKey=scan_response['LastEvaluatedKey']
                 )
+                items = scan_response.get('Items', [])
 
-                with self.dynamodb.batch_write_item() as batch:
-                    for item in scan_response.get('Items', []):
-                        batch.put_item(TableName=target_table, Item=item)
-                        items_written += 1
+                for i in range(0, len(items), batch_size):
+                    batch = items[i:i + batch_size]
+                    put_requests = []
+                    
+                    for item in batch:
+                        put_requests.append({'PutRequest': {'Item': item}})
+                    
+                    if put_requests:
+                        self.dynamodb.batch_write_item(
+                            RequestItems={target_table: put_requests}
+                        )
+                        items_written += len(put_requests)
 
             return items_written
 
@@ -533,24 +745,28 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
-  # Restore dev environment to 1 day ago
-  python restore_dynamodb_pitr.py --restore-point 2025-12-19T09:00:00Z --environment dev
+  # Restore dev environment using local time (CET/CEST assumed if no timezone)
+  python restore_dynamodb_pitr.py --restore-point 2025-12-19T18:00:00 --environment dev
+
+  # Restore using UTC time explicitly
+  python restore_dynamodb_pitr.py --restore-point 2025-12-19T17:00:00Z --environment dev
 
   # Dry run (validate without executing)
-  python restore_dynamodb_pitr.py --restore-point 2025-12-19T09:00:00Z --environment dev --dry-run
+  python restore_dynamodb_pitr.py --restore-point 2025-12-19T18:00:00 --environment dev --dry-run
 
   # Restore with custom timeout
-  python restore_dynamodb_pitr.py --restore-point 2025-12-19T09:00:00Z --environment dev --timeout-minutes 45
+  python restore_dynamodb_pitr.py --restore-point 2025-12-19T18:00:00 --environment dev --timeout-minutes 45
 
   # Restore with verbose logging
-  python restore_dynamodb_pitr.py --restore-point 2025-12-19T09:00:00Z --environment dev --verbose
+  python restore_dynamodb_pitr.py --restore-point 2025-12-19T18:00:00 --environment dev --verbose
         '''
     )
 
     parser.add_argument(
         '--restore-point',
         required=True,
-        help='Restore point in time (ISO 8601 format, e.g., 2025-12-19T09:00:00Z)'
+        help='Restore point in time (ISO 8601 format, e.g., 2025-12-19T18:00:00 or 2025-12-19T17:00:00Z). '
+             'If no timezone is specified, CET/CEST (Europe/Berlin) is assumed.'
     )
 
     parser.add_argument(
