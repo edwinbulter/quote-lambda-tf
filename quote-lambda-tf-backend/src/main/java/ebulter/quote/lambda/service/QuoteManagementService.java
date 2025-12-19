@@ -78,7 +78,7 @@ public class QuoteManagementService {
                     q.getId(),
                     q.getQuoteText(),
                     q.getAuthor(),
-                    userLikeRepository.getLikeCountForQuote(q.getId())
+                    userLikeRepository.getLikeCount(q.getId())
                 ))
                 .collect(Collectors.toList());
             

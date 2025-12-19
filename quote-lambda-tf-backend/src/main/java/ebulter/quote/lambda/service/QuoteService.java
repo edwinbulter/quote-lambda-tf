@@ -93,7 +93,7 @@ public class QuoteService {
         // Get all quotes that have at least one like
         List<Quote> allQuotes = quoteRepository.getAllQuotes();
         return allQuotes.stream()
-                .filter(quote -> userLikeRepository.getLikeCountForQuote(quote.getId()) > 0)
+                .filter(quote -> userLikeRepository.getLikeCount(quote.getId()) > 0)
                 .sorted((q1, q2) -> q1.getId() - q2.getId())
                 .toList();
     }
@@ -108,7 +108,7 @@ public class QuoteService {
     }
 
     public int getLikeCount(int quoteId) {
-        return userLikeRepository.getLikeCountForQuote(quoteId);
+        return userLikeRepository.getLikeCount(quoteId);
     }
 
     public boolean hasUserLikedQuote(String username, int quoteId) {

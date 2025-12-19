@@ -775,7 +775,7 @@ public class QuoteHandlerTest {
             // Arrange
             List<Quote> quotes = getQuoteTestData(100);
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(Mockito.anyInt())).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
@@ -805,7 +805,7 @@ public class QuoteHandlerTest {
             // Arrange
             List<Quote> quotes = getQuoteTestData(100);
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(Mockito.anyInt())).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
@@ -841,7 +841,7 @@ public class QuoteHandlerTest {
             quotes.add(new Quote(2, "Innovation distinguishes", "Steve Jobs"));
             quotes.add(new Quote(3, "Stay hungry stay foolish", "Steve Jobs"));
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(Mockito.anyInt())).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
@@ -875,7 +875,7 @@ public class QuoteHandlerTest {
             quotes.add(new Quote(2, "Quote 2", "Albert Einstein"));
             quotes.add(new Quote(3, "Quote 3", "Steve Jobs"));
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(Mockito.anyInt())).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
@@ -909,7 +909,7 @@ public class QuoteHandlerTest {
             quotes.add(new Quote(2, "Great work", "Albert Einstein"));
             quotes.add(new Quote(3, "Innovation distinguishes", "Steve Jobs"));
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(Mockito.anyInt())).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
@@ -943,7 +943,7 @@ public class QuoteHandlerTest {
             quotes.add(new Quote(1, "Quote A", "Author A"));
             quotes.add(new Quote(2, "Quote B", "Author B"));
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(Mockito.anyInt())).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
@@ -981,7 +981,7 @@ public class QuoteHandlerTest {
             quotes.add(new Quote(2, "Quote B", "Author B"));
             quotes.add(new Quote(3, "Quote C", "Author C"));
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(Mockito.anyInt())).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(Mockito.anyInt())).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
@@ -1016,9 +1016,9 @@ public class QuoteHandlerTest {
             // Arrange
             List<Quote> quotes = getQuoteTestData(3);
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userLikeRepositoryMock.getLikeCountForQuote(1)).thenReturn(5);
-            when(userLikeRepositoryMock.getLikeCountForQuote(2)).thenReturn(3);
-            when(userLikeRepositoryMock.getLikeCountForQuote(3)).thenReturn(0);
+            when(userLikeRepositoryMock.getLikeCount(1)).thenReturn(5);
+            when(userLikeRepositoryMock.getLikeCount(2)).thenReturn(3);
+            when(userLikeRepositoryMock.getLikeCount(3)).thenReturn(0);
 
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 

@@ -46,7 +46,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     public QuoteHandler() {
         this.userLikeRepository = new UserLikeRepository();
         this.userViewRepository = new UserViewRepository();
-        QuoteRepository quoteRepository = new QuoteRepository();
+        QuoteRepository quoteRepository = new QuoteRepository(userLikeRepository);
         this.quoteService = new QuoteService(quoteRepository, userLikeRepository, userViewRepository);
         this.quoteManagementService = new QuoteManagementService(quoteRepository, userLikeRepository);
         String userPoolId = System.getenv("USER_POOL_ID");

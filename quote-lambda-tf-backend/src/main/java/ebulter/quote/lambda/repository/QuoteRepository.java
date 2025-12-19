@@ -9,9 +9,11 @@ import java.util.stream.Collectors;
 public class QuoteRepository {
     private static final DynamoDbClient dynamoDb = DynamoDbClient.create();
     private static final String TABLE_NAME = System.getenv("DYNAMODB_TABLE");
-    private static final String USER_LIKES_TABLE = "UserLikes"; // Update with your actual table name
 
-    public QuoteRepository() {
+    private final UserLikeRepository userLikeRepository;
+
+    public QuoteRepository(UserLikeRepository userLikeRepository) {
+        this.userLikeRepository = userLikeRepository;
     }
 
     public List<Quote> getAllQuotes() {
@@ -30,7 +32,7 @@ public class QuoteRepository {
                 .collect(Collectors.toList());
 
         // Get like counts for all quotes
-        Map<Integer, Integer> likeCounts = getLikeCounts(quoteIds);
+        Map<Integer, Integer> likeCounts = userLikeRepository.getLikeCounts(quoteIds);
 
         // Map to Quote objects with like counts
         return quoteScan.items().stream()
@@ -44,39 +46,6 @@ public class QuoteRepository {
                     return quote;
                 })
                 .collect(Collectors.toList());
-    }
-
-    private Map<Integer, Integer> getLikeCounts(List<Integer> quoteIds) {
-        Map<Integer, Integer> likeCounts = new HashMap<>();
-
-        // Process in batches to avoid query size limits
-        int batchSize = 100;
-        for (int i = 0; i < quoteIds.size(); i += batchSize) {
-            List<Integer> batch = quoteIds.subList(i, Math.min(i + batchSize, quoteIds.size()));
-
-            // Create a map of quote ID to like count for this batch
-            Map<Integer, Integer> batchCounts = new HashMap<>();
-
-            // Get all likes for this batch of quote IDs
-            for (Integer quoteId : batch) {
-                Map<String, AttributeValue> expressionValues = new HashMap<>();
-                expressionValues.put(":quoteId", AttributeValue.builder().n(String.valueOf(quoteId)).build());
-
-                QueryRequest queryRequest = QueryRequest.builder()
-                        .tableName(USER_LIKES_TABLE)
-                        .keyConditionExpression("quoteId = :quoteId")
-                        .expressionAttributeValues(expressionValues)
-                        .select("COUNT")
-                        .build();
-
-                int count = dynamoDb.query(queryRequest).count();
-                batchCounts.put(quoteId, count);
-            }
-
-            likeCounts.putAll(batchCounts);
-        }
-
-        return likeCounts;
     }
 
     public void saveAll(Set<Quote> quotes) {
@@ -105,7 +74,7 @@ public class QuoteRepository {
         if (getItemResponse.hasItem()) {
             Map<String, AttributeValue> item = getItemResponse.item();
             // Get like count for this specific quote
-            int likeCount = getLikeCounts(Collections.singletonList(id)).getOrDefault(id, 0);
+            int likeCount = userLikeRepository.getLikeCount(id);
             return new Quote(
                     Integer.parseInt(item.get("id").n()),
                     item.get("quoteText").s(),
