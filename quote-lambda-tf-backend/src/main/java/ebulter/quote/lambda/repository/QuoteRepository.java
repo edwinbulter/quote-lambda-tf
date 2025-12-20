@@ -85,4 +85,23 @@ public class QuoteRepository {
             return null;
         }
     }
+
+    /**
+     * Get the highest quote ID efficiently using a scan with projection
+     */
+    public int getMaxQuoteId() {
+        ScanResponse scanResponse = dynamoDb.scan(ScanRequest.builder()
+                .tableName(TABLE_NAME)
+                .projectionExpression("id")
+                .build());
+
+        if (scanResponse.items().isEmpty()) {
+            return 0;
+        }
+
+        return scanResponse.items().stream()
+                .map(item -> Integer.parseInt(item.get("id").n()))
+                .max(Integer::compareTo)
+                .orElse(0);
+    }
 }
