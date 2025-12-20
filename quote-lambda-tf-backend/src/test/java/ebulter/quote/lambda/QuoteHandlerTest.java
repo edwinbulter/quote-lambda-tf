@@ -1207,5 +1207,62 @@ public class QuoteHandlerTest {
             Assertions.assertTrue(response.getBody().contains("\"quotesAdded\":0"));
             Assertions.assertTrue(response.getBody().contains("\"totalQuotes\":10"));
         }
+
+        @Test
+        public void handleRequest_GetTotalLikes_ShouldReturnTotalLikesCount() {
+            // Arrange
+            when(userLikeRepositoryMock.getTotalLikesCount()).thenReturn(42);
+            
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementServiceMock = 
+                Mockito.mock(ebulter.quote.lambda.service.QuoteManagementService.class);
+
+            // Use the default constructor which initializes repositories properly
+            QuoteHandler handler = new QuoteHandler();
+            
+            // Use reflection to set the mocked userLikeRepository
+            try {
+                java.lang.reflect.Field userLikeRepositoryField = QuoteHandler.class.getDeclaredField("userLikeRepository");
+                userLikeRepositoryField.setAccessible(true);
+                userLikeRepositoryField.set(handler, userLikeRepositoryMock);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to set up test handler", e);
+            }
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/likes/total", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("\"totalLikes\":42"));
+        }
+
+        @Test
+        public void handleRequest_GetTotalLikes_WithoutAdminRole_ShouldReturnForbidden() {
+            // Arrange
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementServiceMock = 
+                Mockito.mock(ebulter.quote.lambda.service.QuoteManagementService.class);
+
+            // Use the same constructor pattern as other admin tests
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementServiceMock
+            );
+            
+            APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/likes/total", "GET");
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(403, response.getStatusCode());
+            Assertions.assertTrue(response.getBody().contains("ADMIN role required"));
+        }
     }
 }

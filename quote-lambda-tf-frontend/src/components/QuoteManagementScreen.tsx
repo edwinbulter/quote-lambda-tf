@@ -48,23 +48,17 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const loadQuotes = async () => {
         try {
             // Only show loading spinner on initial load
-            if (quotes.length === 0) {
+            if (page === 1 && !searching) {
                 setLoading(true);
-            } else {
-                setSearching(true);
             }
             const response = await adminApi.getQuotes(page, pageSize, debouncedQuoteText, debouncedAuthor, sortBy, sortOrder);
             setQuotes(response.quotes);
             setTotalCount(response.totalCount);
             setTotalPages(response.totalPages);
             
-            // Calculate total likes from current page
-            if (response.quotes.length > 0) {
-                const pageTotal = response.quotes.reduce((sum, quote) => sum + quote.likeCount, 0);
-                setTotalLikes(pageTotal);
-            } else {
-                setTotalLikes(0);
-            }
+            // Get total likes from the new endpoint
+            const totalLikesResponse = await adminApi.getTotalLikes();
+            setTotalLikes(totalLikesResponse.totalLikes);
         } catch (error) {
             console.error('Failed to load quotes:', error);
             showToast('Failed to load quotes', 'error');
@@ -139,7 +133,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
             <div className="quote-count-section">
                 <div className="quote-stats">
                     <span className="quote-count">Total Quotes: {totalCount.toLocaleString()}</span>
-                    <span className="quote-count">Likes on Page: {totalLikes.toLocaleString()}</span>
+                    <span className="quote-count">Total Likes: {totalLikes.toLocaleString()}</span>
                 </div>
                 <button 
                     className="add-quotes-button" 

@@ -210,7 +210,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             APIGatewayProxyResponseEvent response = createBaseResponse();
             response.setStatusCode(HttpStatus.SC_NO_CONTENT);
             return response;
-        } else if (path.startsWith("/api/v1/admin/users") || path.startsWith("/api/v1/admin/quotes")) {
+        } else if (path.startsWith("/api/v1/admin/users") || path.startsWith("/api/v1/admin/quotes") || path.startsWith("/api/v1/admin/likes")) {
             // Admin endpoints - require ADMIN role
             if (!hasAdminRole(event)) {
                 return createForbiddenResponse("ADMIN role required");
@@ -251,6 +251,14 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         APIGatewayProxyResponseEvent response = createBaseResponse();
         response.setStatusCode(HttpStatus.SC_OK);
         String responseBody = gson.toJson(quote, quoteType);
+        response.setBody(responseBody);
+        return response;
+    }
+
+    private static APIGatewayProxyResponseEvent createResponse(Map<String, Object> data) {
+        APIGatewayProxyResponseEvent response = createBaseResponse();
+        response.setStatusCode(HttpStatus.SC_OK);
+        String responseBody = gson.toJson(data);
         response.setBody(responseBody);
         return response;
     }
@@ -545,6 +553,16 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             if (path.equals("/api/v1/admin/quotes/fetch") && "POST".equals(httpMethod)) {
                 QuoteAddResponse quoteAddResponse = quoteManagementService.fetchAndAddNewQuotes(requestingUsername);
                 return createQuoteAddResponse(quoteAddResponse);
+            }
+            
+            // GET /admin/likes/total - Get total number of likes across all quotes
+            if (path.equals("/api/v1/admin/likes/total") && "GET".equals(httpMethod)) {
+                // Use userLikeRepository to directly count all likes (much more efficient)
+                int totalLikes = userLikeRepository.getTotalLikesCount();
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("totalLikes", totalLikes);
+                return createResponse(response);
             }
             
             return createErrorResponse("Invalid admin request");

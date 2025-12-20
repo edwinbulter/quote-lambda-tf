@@ -177,4 +177,17 @@ public class UserLikeRepository {
             deleteUserLike(username, like.getQuoteId());
         }
     }
+
+    /**
+     * Get the total number of likes across all quotes
+     */
+    public int getTotalLikesCount() {
+        ScanRequest scanRequest = ScanRequest.builder()
+                .tableName(TABLE_NAME)
+                .select(Select.COUNT)
+                .build();
+
+        ScanResponse scanResponse = dynamoDb.scan(scanRequest);
+        return scanResponse.count();
+    }
 }
