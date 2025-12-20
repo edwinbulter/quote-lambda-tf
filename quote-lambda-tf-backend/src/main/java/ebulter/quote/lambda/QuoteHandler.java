@@ -12,6 +12,7 @@ import ebulter.quote.lambda.model.Quote;
 import ebulter.quote.lambda.model.QuoteAddResponse;
 import ebulter.quote.lambda.model.QuotePageResponse;
 import ebulter.quote.lambda.model.UserInfo;
+import ebulter.quote.lambda.model.UserProgress;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
 import ebulter.quote.lambda.repository.UserViewRepository;
@@ -97,6 +98,83 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             if ("OPTIONS".equals(httpMethod)) {
                 return createOptionsResponse();
             }
+
+        // Sequential navigation endpoints
+        if (path.matches(".*/quote/\\d+$") && "GET".equals(httpMethod)) {
+            // GET /quote/{id} - Get specific quote by ID
+            String username = extractUsername(event);
+            String[] pathParts = path.split("/");
+            int quoteId = Integer.parseInt(pathParts[pathParts.length - 1]);
+            
+            Quote quote = quoteService.getQuoteById(username, quoteId);
+            if (quote == null) {
+                return createErrorResponse("Quote not found");
+            }
+            
+            return createResponse(quote);
+        } else if (path.matches(".*/quote/\\d+/previous") && "GET".equals(httpMethod)) {
+            // GET /quote/{id}/previous - Get previous quote
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required for sequential navigation");
+            }
+            
+            String[] pathParts = path.split("/");
+            int currentQuoteId = Integer.parseInt(pathParts[pathParts.length - 2]);
+            
+            Quote quote = quoteService.getPreviousQuote(username, currentQuoteId);
+            if (quote == null) {
+                return createErrorResponse("No previous quote available");
+            }
+            
+            return createResponse(quote);
+        } else if (path.matches(".*/quote/\\d+/next") && "GET".equals(httpMethod)) {
+            // GET /quote/{id}/next - Get next quote
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required for sequential navigation");
+            }
+            
+            String[] pathParts = path.split("/");
+            int currentQuoteId = Integer.parseInt(pathParts[pathParts.length - 2]);
+            
+            Quote quote = quoteService.getNextQuote(username, currentQuoteId);
+            if (quote == null) {
+                return createErrorResponse("No next quote available");
+            }
+            
+            return createResponse(quote);
+        } else if (path.equals("/quote/progress") && "GET".equals(httpMethod)) {
+            // GET /quote/progress - Get user's current progress
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required");
+            }
+            
+            UserProgress progress = quoteService.getUserProgress(username);
+            if (progress == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("lastQuoteId", 0);
+                response.put("username", username);
+                return createResponse(response);
+            }
+            
+            // Convert UserProgress to Map for response
+            Map<String, Object> response = new HashMap<>();
+            response.put("lastQuoteId", progress.getLastQuoteId());
+            response.put("username", progress.getUsername());
+            response.put("updatedAt", progress.getUpdatedAt());
+            return createResponse(response);
+        } else if (path.equals("/quote/viewed") && "GET".equals(httpMethod)) {
+            // GET /quote/viewed - Get all viewed quotes (1 to lastQuoteId)
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required");
+            }
+            
+            List<Quote> viewedQuotes = quoteService.getViewedQuotes(username);
+            return createResponse(viewedQuotes);
+        }
 
         if (path.endsWith("/quote")) {
             // Extract username (may be null for unauthenticated users)

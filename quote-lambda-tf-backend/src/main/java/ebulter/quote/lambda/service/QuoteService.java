@@ -3,9 +3,11 @@ package ebulter.quote.lambda.service;
 import ebulter.quote.lambda.client.ZenClient;
 import ebulter.quote.lambda.model.Quote;
 import ebulter.quote.lambda.model.UserLike;
+import ebulter.quote.lambda.model.UserProgress;
 import ebulter.quote.lambda.model.UserView;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
+import ebulter.quote.lambda.repository.UserProgressRepository;
 import ebulter.quote.lambda.repository.UserViewRepository;
 import ebulter.quote.lambda.util.QuoteUtil;
 import org.slf4j.Logger;
@@ -24,66 +26,108 @@ public class QuoteService {
     private final QuoteRepository quoteRepository;
     private final UserLikeRepository userLikeRepository;
     private final UserViewRepository userViewRepository;
+    private UserProgressRepository userProgressRepository;
 
     public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository, UserViewRepository userViewRepository) {
         this.quoteRepository = quoteRepository;
         this.userLikeRepository = userLikeRepository;
         this.userViewRepository = userViewRepository;
+        try {
+            this.userProgressRepository = new UserProgressRepository();
+        } catch (Exception e) {
+            logger.warn("Could not initialize UserProgressRepository, sequential navigation will be disabled: {}", e.getMessage());
+            this.userProgressRepository = null;
+        }
     }
 
     public Quote getQuote(String username, final Set<Integer> idsToExclude) {
-        // If username provided, add their viewed quotes to exclusion list
+        // For authenticated users, use sequential navigation if available
         if (username != null && !username.isEmpty()) {
-            List<Integer> viewedIds = userViewRepository.getViewedQuoteIds(username);
-            idsToExclude.addAll(viewedIds);
-            logger.info("User {} has viewed {} quotes, excluding them", username, viewedIds.size());
+            if (userProgressRepository != null) {
+                return getNextSequentialQuote(username);
+            } else {
+                // Fallback to old behavior if UserProgressRepository is not available
+                return getRandomQuoteForUnauthenticatedUser(idsToExclude);
+            }
         }
         
-        logger.info("Getting max quote ID, idsToExclude.size() = {}", idsToExclude.size());
+        // For unauthenticated users, use the old random approach (but exclude provided IDs)
+        return getRandomQuoteForUnauthenticatedUser(idsToExclude);
+    }
+
+    /**
+     * Get the next sequential quote for an authenticated user
+     */
+    private Quote getNextSequentialQuote(String username) {
+        logger.info("Getting next sequential quote for user: {}", username);
+        
+        // Get user's current progress
+        UserProgress userProgress = userProgressRepository.getUserProgress(username);
+        int nextQuoteId;
+        
+        if (userProgress == null) {
+            // New user - start with quote ID 1
+            nextQuoteId = 1;
+            logger.info("New user {} starting with quote ID: {}", username, nextQuoteId);
+        } else {
+            // Existing user - get next quote
+            nextQuoteId = userProgress.getLastQuoteId() + 1;
+            logger.info("User {} progress: lastQuoteId={}, nextQuoteId={}", username, userProgress.getLastQuoteId(), nextQuoteId);
+        }
+        
+        // Check if we need to fetch more quotes from Zen
+        int maxId = quoteRepository.getMaxQuoteId();
+        if (nextQuoteId > maxId) {
+            logger.info("Next quote ID {} exceeds max ID {}, fetching more quotes", nextQuoteId, maxId);
+            fetchMoreQuotesIfNeeded();
+            maxId = quoteRepository.getMaxQuoteId();
+        }
+        
+        // Get the quote
+        Quote quote = quoteRepository.findById(nextQuoteId);
+        if (quote == null) {
+            logger.warn("Quote with ID {} not found, finding next available quote", nextQuoteId);
+            quote = findNextAvailableQuote(nextQuoteId);
+        }
+        
+        if (quote != null) {
+            // Update user progress
+            userProgressRepository.updateLastQuoteId(username, quote.getId());
+            logger.info("Updated user {} progress to lastQuoteId={}", username, quote.getId());
+        }
+        
+        return quote;
+    }
+
+    /**
+     * Get random quote for unauthenticated users (legacy behavior)
+     */
+    private Quote getRandomQuoteForUnauthenticatedUser(Set<Integer> idsToExclude) {
+        logger.info("Getting random quote for unauthenticated user, excluding {} IDs", idsToExclude.size());
+        
         int maxId = quoteRepository.getMaxQuoteId();
         logger.info("Max quote ID in database: {}", maxId);
         
         // Check if we need to fetch more quotes from Zen
         if (maxId < 5 || maxId <= idsToExclude.size()) {
-            try {
-                logger.info("start fetching quotes from Zen");
-                Set<Quote> fetchedQuotes = ZenClient.getSomeUniqueQuotes();
-                logger.info("finished fetching quotes from Zen, fetched {} quotes", fetchedQuotes.size());
-                
-                // Get current quotes to check for duplicates
-                List<Quote> currentDatabaseQuotes = quoteRepository.getAllQuotes();
-                //Note: In the following statement, the quotes are compared (and subsequently removed) solely by quoteText.
-                fetchedQuotes.removeAll(new HashSet<>(currentDatabaseQuotes));
-                AtomicInteger idGenerator = new AtomicInteger(currentDatabaseQuotes.size() + 1);
-                fetchedQuotes.forEach(quote -> quote.setId(idGenerator.getAndIncrement()));
-                logger.info("start saving {} quotes", fetchedQuotes.size());
-                quoteRepository.saveAll(fetchedQuotes);
-                logger.info("finished saving {} quotes", fetchedQuotes.size());
-                
-                // Update maxId after adding new quotes
-                maxId = quoteRepository.getMaxQuoteId();
-                logger.info("The database now has quotes up to ID {}", maxId);
-            } catch (IOException e) {
-                logger.error("Failed to read quotes from ZenQuotes: {}", e.getMessage());
-            }
+            fetchMoreQuotesIfNeeded();
+            maxId = quoteRepository.getMaxQuoteId();
         }
         
         // Try to find a valid quote by checking random IDs
         Random random = new Random();
-        int maxAttempts = Math.min(100, maxId); // Limit attempts to avoid infinite loop
+        int maxAttempts = Math.min(100, maxId);
         Set<Integer> attemptedIds = new HashSet<>();
         
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            int candidateId = random.nextInt(maxId) + 1; // Random ID from 1 to maxId
+            int candidateId = random.nextInt(maxId) + 1;
             
-            // Skip if already excluded or already attempted
             if (idsToExclude.contains(candidateId) || attemptedIds.contains(candidateId)) {
                 continue;
             }
             
             attemptedIds.add(candidateId);
             
-            // Check if this quote actually exists
             Quote quote = quoteRepository.findById(candidateId);
             if (quote != null) {
                 logger.info("Selected random quote ID: {} after {} attempts", candidateId, attempt + 1);
@@ -91,7 +135,7 @@ public class QuoteService {
             }
         }
         
-        // If we couldn't find a valid quote with random attempts, fall back to the old method
+        // Fallback to full scan
         logger.warn("Could not find valid quote with {} random attempts, falling back to full scan", maxAttempts);
         List<Quote> allQuotes = quoteRepository.getAllQuotes();
         List<Quote> filteredQuotes = allQuotes.stream()
@@ -107,6 +151,42 @@ public class QuoteService {
         Quote selectedQuote = filteredQuotes.get(randomIndex);
         logger.info("Selected quote ID: {} using fallback method", selectedQuote.getId());
         return selectedQuote;
+    }
+
+    /**
+     * Fetch more quotes from Zen if needed
+     */
+    private void fetchMoreQuotesIfNeeded() {
+        try {
+            logger.info("start fetching quotes from Zen");
+            Set<Quote> fetchedQuotes = ZenClient.getSomeUniqueQuotes();
+            logger.info("finished fetching quotes from Zen, fetched {} quotes", fetchedQuotes.size());
+            
+            List<Quote> currentDatabaseQuotes = quoteRepository.getAllQuotes();
+            fetchedQuotes.removeAll(new HashSet<>(currentDatabaseQuotes));
+            AtomicInteger idGenerator = new AtomicInteger(currentDatabaseQuotes.size() + 1);
+            fetchedQuotes.forEach(quote -> quote.setId(idGenerator.getAndIncrement()));
+            logger.info("start saving {} quotes", fetchedQuotes.size());
+            quoteRepository.saveAll(fetchedQuotes);
+            logger.info("finished saving {} quotes", fetchedQuotes.size());
+        } catch (IOException e) {
+            logger.error("Failed to read quotes from ZenQuotes: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Find the next available quote ID (handles gaps in sequence)
+     */
+    private Quote findNextAvailableQuote(int startId) {
+        int maxId = quoteRepository.getMaxQuoteId();
+        for (int id = startId; id <= maxId; id++) {
+            Quote quote = quoteRepository.findById(id);
+            if (quote != null) {
+                logger.info("Found next available quote ID: {}", id);
+                return quote;
+            }
+        }
+        return null;
     }
 
     public Quote likeQuote(String username, int quoteId) {
@@ -155,10 +235,116 @@ public class QuoteService {
     }
 
     /**
-     * Record that a user viewed a quote
+     * Get quote by ID for sequential navigation
+     */
+    public Quote getQuoteById(String username, int quoteId) {
+        logger.info("Getting quote {} for user {}", quoteId, username);
+        Quote quote = quoteRepository.findById(quoteId);
+        
+        if (quote != null && username != null && !username.isEmpty() && userProgressRepository != null) {
+            // Update user progress to this quote ID
+            userProgressRepository.updateLastQuoteId(username, quoteId);
+            logger.info("Updated user {} progress to lastQuoteId={}", username, quoteId);
+        }
+        
+        return quote;
+    }
+
+    /**
+     * Get previous quote for sequential navigation
+     */
+    public Quote getPreviousQuote(String username, int currentQuoteId) {
+        if (username == null || username.isEmpty()) {
+            return null;
+        }
+        
+        logger.info("Getting previous quote for user {} from current ID {}", username, currentQuoteId);
+        
+        // Find previous available quote
+        for (int id = currentQuoteId - 1; id >= 1; id--) {
+            Quote quote = quoteRepository.findById(id);
+            if (quote != null) {
+                // Update user progress
+                userProgressRepository.updateLastQuoteId(username, id);
+                logger.info("Updated user {} progress to previous quote ID {}", username, id);
+                return quote;
+            }
+        }
+        
+        logger.info("No previous quote available for user {}", username);
+        return null;
+    }
+
+    /**
+     * Get next quote for sequential navigation
+     */
+    public Quote getNextQuote(String username, int currentQuoteId) {
+        if (username == null || username.isEmpty()) {
+            return null;
+        }
+        
+        logger.info("Getting next quote for user {} from current ID {}", username, currentQuoteId);
+        
+        // Find next available quote
+        int maxId = quoteRepository.getMaxQuoteId();
+        for (int id = currentQuoteId + 1; id <= maxId; id++) {
+            Quote quote = quoteRepository.findById(id);
+            if (quote != null) {
+                // Update user progress
+                userProgressRepository.updateLastQuoteId(username, id);
+                logger.info("Updated user {} progress to next quote ID {}", username, id);
+                return quote;
+            }
+        }
+        
+        logger.info("No next quote available for user {}", username);
+        return null;
+    }
+
+    /**
+     * Get user's current progress (last quote ID)
+     */
+    public UserProgress getUserProgress(String username) {
+        if (username == null || username.isEmpty() || userProgressRepository == null) {
+            return null;
+        }
+        return userProgressRepository.getUserProgress(username);
+    }
+
+    /**
+     * Get all quotes from 1 to lastQuoteId for Viewed Quotes screen
+     */
+    public List<Quote> getViewedQuotes(String username) {
+        if (username == null || username.isEmpty() || userProgressRepository == null) {
+            return List.of();
+        }
+        
+        UserProgress userProgress = userProgressRepository.getUserProgress(username);
+        if (userProgress == null) {
+            return List.of();
+        }
+        
+        int lastQuoteId = userProgress.getLastQuoteId();
+        logger.info("Getting quotes 1 to {} for user {}", lastQuoteId, username);
+        
+        List<Quote> viewedQuotes = new ArrayList<>();
+        for (int id = 1; id <= lastQuoteId; id++) {
+            Quote quote = quoteRepository.findById(id);
+            if (quote != null) {
+                viewedQuotes.add(quote);
+            }
+        }
+        
+        logger.info("Found {} quotes for user {}", viewedQuotes.size(), username);
+        return viewedQuotes;
+    }
+
+    /**
+     * Record that a user viewed a quote (legacy method - now handled by progress tracking)
      */
     public void recordView(String username, int quoteId) {
         if (username != null && !username.isEmpty()) {
+            // For backward compatibility, still record individual views
             UserView userView = new UserView(username, quoteId, System.currentTimeMillis());
             userViewRepository.saveUserView(userView);
             logger.info("Recorded view for user {} on quote {}", username, quoteId);

@@ -124,7 +124,6 @@ public class QuoteHandlerTest {
             // Arrange
             List<Quote> quotes = getQuoteTestData(3);
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userViewRepositoryMock.getViewedQuoteIds(Mockito.anyString())).thenReturn(new ArrayList<>());
 
             QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote", "GET");
@@ -165,7 +164,6 @@ public class QuoteHandlerTest {
             // Arrange
             List<Quote> quotes = getQuoteTestData(20);
             when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
-            when(userViewRepositoryMock.getViewedQuoteIds(Mockito.anyString())).thenReturn(new ArrayList<>());
 
             QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/quote", "GET");
@@ -176,8 +174,6 @@ public class QuoteHandlerTest {
 
             // Assert
             Assertions.assertEquals(200, response.getStatusCode());
-            // Verify that getViewedQuoteIds was called for authenticated user
-            Mockito.verify(userViewRepositoryMock, Mockito.times(1)).getViewedQuoteIds(Mockito.anyString());
             // Verify that view was recorded
             Mockito.verify(userViewRepositoryMock, Mockito.times(1)).saveUserView(Mockito.any());
         }
