@@ -19,7 +19,7 @@ X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth
 }
 
 ###
-GET {{baseUrl}}/api/v1/admin/quotes?page=1&pageSize=50&sortBy=likeCount&sortOrder=asc
+GET {{baseUrl}}/api/v1/admin/quotes?page=1&pageSize=50&sortBy=likeCount&sortOrder=desc
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 

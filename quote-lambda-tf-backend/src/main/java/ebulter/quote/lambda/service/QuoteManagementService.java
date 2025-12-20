@@ -48,27 +48,11 @@ public class QuoteManagementService {
                 .collect(Collectors.toList());
             
             logger.info("After filtering: {} quotes", filteredQuotes.size());
-            
-            // Debug: Log first few quotes before sorting
-            if ("likecount".equalsIgnoreCase(sortBy) && !filteredQuotes.isEmpty()) {
-                logger.info("Before sorting by likeCount - First 5 quotes:");
-                filteredQuotes.stream().limit(5).forEach(q -> 
-                    logger.info("  Quote ID={}, likeCount={}, text={}", q.getId(), q.getLikeCount(), 
-                        q.getQuoteText().substring(0, Math.min(50, q.getQuoteText().length()))));
-            }
-            
+
             // Apply sorting
             Comparator<Quote> comparator = getComparator(sortBy, sortOrder);
             filteredQuotes.sort(comparator);
-            
-            // Debug: Log first few quotes after sorting
-            if ("likecount".equalsIgnoreCase(sortBy) && !filteredQuotes.isEmpty()) {
-                logger.info("After sorting by likeCount - First 5 quotes:");
-                filteredQuotes.stream().limit(5).forEach(q -> 
-                    logger.info("  Quote ID={}, likeCount={}, text={}", q.getId(), q.getLikeCount(), 
-                        q.getQuoteText().substring(0, Math.min(50, q.getQuoteText().length()))));
-            }
-            
+
             // Calculate pagination
             int totalCount = filteredQuotes.size();
             int totalPages = (int) Math.ceil((double) totalCount / pageSize);

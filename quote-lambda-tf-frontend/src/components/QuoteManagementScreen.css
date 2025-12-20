@@ -39,6 +39,12 @@
     flex-shrink: 0;
 }
 
+.quote-stats {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+}
+
 .quote-count {
     font-size: 18px;
     font-weight: 600;
