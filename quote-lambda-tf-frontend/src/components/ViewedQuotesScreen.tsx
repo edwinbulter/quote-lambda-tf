@@ -24,13 +24,13 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
     const loadViewedQuotes = async () => {
         try {
             setLoading(true);
-            const [history, likedQuotes] = await Promise.all([
-                quoteApi.getViewHistory(),
+            const [viewedQuotes, likedQuotes] = await Promise.all([
+                quoteApi.getViewedQuotes(),
                 quoteApi.getLikedQuotes(),
             ]);
 
             const likedIds = new Set(likedQuotes.map(q => q.id));
-            const viewedWithLikeStatus: ViewedQuote[] = history
+            const viewedWithLikeStatus: ViewedQuote[] = viewedQuotes
                 .map(q => ({
                     ...q,
                     isLiked: likedIds.has(q.id),

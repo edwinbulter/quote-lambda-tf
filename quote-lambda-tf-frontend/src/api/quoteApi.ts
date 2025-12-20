@@ -142,6 +142,103 @@ async function reorderLikedQuote(quoteId: number, order: number): Promise<void> 
     }
 }
 
+// New sequential navigation API functions
+
+/**
+ * Get a specific quote by ID
+ */
+async function getQuoteById(quoteId: number): Promise<Quote> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/${quoteId}`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Get previous quote for sequential navigation
+ */
+async function getPreviousQuote(currentQuoteId: number): Promise<Quote> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/${currentQuoteId}/previous`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch previous quote: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Get next quote for sequential navigation
+ */
+async function getNextQuote(currentQuoteId: number): Promise<Quote> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/${currentQuoteId}/next`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch next quote: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Get user's current progress (lastQuoteId)
+ */
+async function getUserProgress(): Promise<{ lastQuoteId: number; username: string; updatedAt: number }> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/progress`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch user progress: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Get all viewed quotes (1 to lastQuoteId)
+ */
+async function getViewedQuotes(): Promise<Quote[]> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/quote/viewed`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch viewed quotes: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
 export default {
     getQuote,
     getUniqueQuote,
@@ -151,4 +248,10 @@ export default {
     getLikedQuotes,
     getViewHistory,
     reorderLikedQuote,
+    // Sequential navigation functions
+    getQuoteById,
+    getPreviousQuote,
+    getNextQuote,
+    getUserProgress,
+    getViewedQuotes,
 };

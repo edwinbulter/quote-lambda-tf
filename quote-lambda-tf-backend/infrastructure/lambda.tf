@@ -1,7 +1,7 @@
 # IAM role for Lambda execution
 resource "aws_iam_role" "lambda_execution_role" {
   name = local.environment == "prod" ? "${var.project_name}-lambda-role" : "${var.project_name}-lambda-role-${local.environment}"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -20,7 +20,7 @@ resource "aws_iam_role" "lambda_execution_role" {
 resource "aws_iam_policy" "lambda_policy" {
   name        = local.environment == "prod" ? "${var.project_name}-lambda-policy" : "${var.project_name}-lambda-policy-${local.environment}"
   description = "IAM policy for Lambda to access DynamoDB and Cognito"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -40,7 +40,9 @@ resource "aws_iam_policy" "lambda_policy" {
           aws_dynamodb_table.user_likes_table.arn,
           "${aws_dynamodb_table.user_likes_table.arn}/index/*",
           aws_dynamodb_table.user_views.arn,
-          "${aws_dynamodb_table.user_views.arn}/index/*"
+          "${aws_dynamodb_table.user_views.arn}/index/*",
+          aws_dynamodb_table.user_progress.arn,
+          "${aws_dynamodb_table.user_progress.arn}/index/*"
         ]
       },
       {
@@ -83,16 +85,17 @@ resource "aws_lambda_function" "quote_lambda" {
   memory_size   = var.lambda_memory_size
   timeout       = var.lambda_timeout
   publish       = true
-  
-  filename         = "${path.module}/../target/${var.project_name}-1.2.0-SNAPSHOT.jar"
-  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.2.0-SNAPSHOT.jar")
-  
+
+  filename         = "${path.module}/../target/${var.project_name}-1.4.0-SNAPSHOT.jar"
+  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.4.0-SNAPSHOT.jar")
+
   environment {
     variables = {
-      DYNAMODB_TABLE            = aws_dynamodb_table.quotes_table.name
-      DYNAMODB_USER_LIKES_TABLE = aws_dynamodb_table.user_likes_table.name
-      DYNAMODB_USER_VIEWS_TABLE = aws_dynamodb_table.user_views.name
-      USER_POOL_ID              = aws_cognito_user_pool.quote_app.id
+      DYNAMODB_TABLE               = aws_dynamodb_table.quotes_table.name
+      DYNAMODB_USER_LIKES_TABLE    = aws_dynamodb_table.user_likes_table.name
+      DYNAMODB_USER_VIEWS_TABLE    = aws_dynamodb_table.user_views.name
+      DYNAMODB_USER_PROGRESS_TABLE = aws_dynamodb_table.user_progress.name
+      USER_POOL_ID                 = aws_cognito_user_pool.quote_app.id
     }
   }
 

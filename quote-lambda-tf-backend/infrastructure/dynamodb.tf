@@ -18,11 +18,11 @@ resource "aws_dynamodb_table" "quotes_table" {
   }
 
   global_secondary_index {
-    name               = "AuthorIndex"
-    hash_key           = "author"
-    projection_type    = "ALL"
-    read_capacity     = var.dynamodb_read_capacity
-    write_capacity    = var.dynamodb_write_capacity
+    name            = "AuthorIndex"
+    hash_key        = "author"
+    projection_type = "ALL"
+    read_capacity   = var.dynamodb_read_capacity
+    write_capacity  = var.dynamodb_write_capacity
   }
 
   # Enable point-in-time recovery for data protection
@@ -115,12 +115,12 @@ resource "aws_dynamodb_table" "user_likes_table" {
 
   # Global Secondary Index for querying by quote (to get all users who liked it)
   global_secondary_index {
-    name               = "QuoteIdIndex"
-    hash_key           = "quoteId"
-    range_key          = "likedAt"
-    projection_type    = "ALL"
-    read_capacity      = var.dynamodb_read_capacity
-    write_capacity     = var.dynamodb_write_capacity
+    name            = "QuoteIdIndex"
+    hash_key        = "quoteId"
+    range_key       = "likedAt"
+    projection_type = "ALL"
+    read_capacity   = var.dynamodb_read_capacity
+    write_capacity  = var.dynamodb_write_capacity
   }
 
   # Enable point-in-time recovery for data protection

@@ -100,7 +100,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             }
 
         // Sequential navigation endpoints
-        if (path.matches(".*/quote/\\d+$") && "GET".equals(httpMethod)) {
+        if (path.matches(".*/api/v1/quote/\\d+$") && "GET".equals(httpMethod)) {
             // GET /quote/{id} - Get specific quote by ID
             String username = extractUsername(event);
             String[] pathParts = path.split("/");
@@ -112,7 +112,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             }
             
             return createResponse(quote);
-        } else if (path.matches(".*/quote/\\d+/previous") && "GET".equals(httpMethod)) {
+        } else if (path.matches(".*/api/v1/quote/\\d+/previous") && "GET".equals(httpMethod)) {
             // GET /quote/{id}/previous - Get previous quote
             String username = extractUsername(event);
             if (username == null || username.isEmpty()) {
@@ -128,7 +128,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             }
             
             return createResponse(quote);
-        } else if (path.matches(".*/quote/\\d+/next") && "GET".equals(httpMethod)) {
+        } else if (path.matches(".*/api/v1/quote/\\d+/next") && "GET".equals(httpMethod)) {
             // GET /quote/{id}/next - Get next quote
             String username = extractUsername(event);
             if (username == null || username.isEmpty()) {
@@ -144,7 +144,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             }
             
             return createResponse(quote);
-        } else if (path.equals("/quote/progress") && "GET".equals(httpMethod)) {
+        } else if (path.equals("/api/v1/quote/progress") && "GET".equals(httpMethod)) {
             // GET /quote/progress - Get user's current progress
             String username = extractUsername(event);
             if (username == null || username.isEmpty()) {
@@ -165,7 +165,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             response.put("username", progress.getUsername());
             response.put("updatedAt", progress.getUpdatedAt());
             return createResponse(response);
-        } else if (path.equals("/quote/viewed") && "GET".equals(httpMethod)) {
+        } else if (path.equals("/api/v1/quote/viewed") && "GET".equals(httpMethod)) {
             // GET /quote/viewed - Get all viewed quotes (1 to lastQuoteId)
             String username = extractUsername(event);
             if (username == null || username.isEmpty()) {
@@ -176,7 +176,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             return createResponse(viewedQuotes);
         }
 
-        if (path.endsWith("/quote")) {
+        if (path.equals("/api/v1/quote") && ("GET".equals(httpMethod) || "POST".equals(httpMethod))) {
             // Extract username (may be null for unauthenticated users)
             String username = extractUsername(event);
             
@@ -197,7 +197,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             }
             
             return createResponse(quote);
-        } else if (path.endsWith("/like")) {
+        } else if (path.matches(".*/api/v1/quote/\\d+/like") && "POST".equals(httpMethod)) {
             // Check authorization for like endpoint
             if (!hasUserRole(event)) {
                 return createForbiddenResponse("USER role required to like quotes");
@@ -217,7 +217,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             int id = Integer.parseInt(pathParts[pathParts.length - 2]);
             Quote quote = quoteService.likeQuote(username, id);
             return createResponse(quote);
-        } else if (path.matches(".*/quote/\\d+/unlike")) {
+        } else if (path.matches(".*/api/v1/quote/\\d+/unlike")) {
             // Check authorization
             if (!hasUserRole(event)) {
                 return createForbiddenResponse("USER role required to unlike quotes");
@@ -238,7 +238,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             APIGatewayProxyResponseEvent response = createBaseResponse();
             response.setStatusCode(HttpStatus.SC_NO_CONTENT);
             return response;
-        } else if (path.endsWith("/liked")) {
+        } else if (path.equals("/api/v1/quote/liked")) {
             // Return quotes liked by the authenticated user
             String username = extractUsername(event);
             if (username == null || username.isEmpty()) {
@@ -247,7 +247,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             
             List<Quote> likedQuotes = quoteService.getLikedQuotesByUser(username);
             return createResponse(likedQuotes);
-        } else if (path.endsWith("/quote/history")) {
+        } else if (path.equals("/api/v1/quote/history") && "GET".equals(httpMethod)) {
             // Return user's view history (requires authentication)
             String username = extractUsername(event);
             if (username == null || username.isEmpty()) {
@@ -256,7 +256,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             
             List<Quote> viewedQuotes = quoteService.getViewedQuotesByUser(username);
             return createResponse(viewedQuotes);
-        } else if (path.matches(".*/quote/\\d+/reorder") && "PUT".equals(httpMethod)) {
+        } else if (path.matches(".*/api/v1/quote/\\d+/reorder") && "PUT".equals(httpMethod)) {
             // Check authorization
             if (!hasUserRole(event)) {
                 return createForbiddenResponse("USER role required to reorder favourites");

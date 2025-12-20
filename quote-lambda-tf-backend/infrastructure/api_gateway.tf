@@ -3,7 +3,7 @@ resource "aws_apigatewayv2_api" "quote_api" {
   name          = local.environment == "prod" ? "${var.project_name}-api" : "${var.project_name}-api-${local.environment}"
   protocol_type = "HTTP"
   description   = "HTTP API for ${var.project_name} (${local.environment})"
-  
+
   cors_configuration {
     allow_origins     = ["*"]
     allow_methods     = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
@@ -31,7 +31,7 @@ resource "aws_apigatewayv2_stage" "api_stage" {
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn
-    format          = jsonencode({
+    format = jsonencode({
       requestId               = "$context.requestId"
       sourceIp                = "$context.identity.sourceIp"
       requestTime             = "$context.requestTime"
@@ -52,7 +52,7 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   integration_type = "AWS_PROXY"
 
   connection_type    = "INTERNET"
-  description       = "Lambda integration for ${var.project_name}"
+  description        = "Lambda integration for ${var.project_name}"
   integration_method = "POST"
   integration_uri    = aws_lambda_alias.quote_lambda_live.invoke_arn
 }

@@ -32,3 +32,13 @@ output "user_likes_table_arn" {
   description = "ARN of the DynamoDB user likes table"
   value       = aws_dynamodb_table.user_likes_table.arn
 }
+
+output "user_progress_table_name" {
+  description = "Name of the DynamoDB user progress table"
+  value       = aws_dynamodb_table.user_progress.name
+}
+
+output "user_progress_table_arn" {
+  description = "ARN of the DynamoDB user progress table"
+  value       = aws_dynamodb_table.user_progress.arn
+}

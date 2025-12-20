@@ -17,7 +17,8 @@ const App: React.FC = () => {
     const { isAuthenticated, isLoading, signOut, user, hasRole, userGroups, needsUsernameSetup } = useAuth();
     const [quote, setQuote] = useState<Quote | null>(null); // Allow `null` for initial state
     const [receivedQuotes, setReceivedQuotes] = useState<Quote[]>([]); // Array of `Quote` objects (for unauthenticated users)
-    const [serverViewHistory, setServerViewHistory] = useState<Quote[]>([]); // Server-side view history (for authenticated users)
+    const [currentQuoteId, setCurrentQuoteId] = useState<number | null>(null); // Current quote ID for sequential navigation
+    const [lastQuoteId, setLastQuoteId] = useState<number>(0); // User's last viewed quote ID
     const [loading, setLoading] = useState<boolean>(true); // Loading state
     const [liking, setLiking] = useState<boolean>(false); // Liking state
     const [signingIn, setSigningIn] = useState<boolean>(false);
@@ -26,36 +27,40 @@ const App: React.FC = () => {
     const [managementView, setManagementView] = useState<'main' | 'favourites' | 'viewed' | 'users' | 'quotes'>('main');
     const [userEmail, setUserEmail] = useState<string>('');
     const [displayUsername, setDisplayUsername] = useState<string>('');
-    const indexRef = useRef<number>(0); // Reference to the current quote index
     const favouritesRef = useRef<FavouritesComponentHandle>(null);
 
     useEffect(() => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
     }, []);
 
-    // Load view history when user authenticates
+    // Load user progress when user authenticates
     useEffect(() => {
-        const loadViewHistory = async () => {
+        const loadUserProgress = async () => {
             if (isAuthenticated && user) {
                 try {
-                    console.log('Loading view history for authenticated user...');
-                    const history = await quoteApi.getViewHistory();
-                    setServerViewHistory(history);
-                    if (history.length > 0) {
+                    console.log('Loading user progress for authenticated user...');
+                    const progress = await quoteApi.getUserProgress();
+                    setLastQuoteId(progress.lastQuoteId);
+                    
+                    if (progress.lastQuoteId > 0) {
                         // Set current quote to last viewed quote
-                        setQuote(history[history.length - 1]);
-                        indexRef.current = history.length - 1;
+                        const lastQuote = await quoteApi.getQuoteById(progress.lastQuoteId);
+                        setQuote(lastQuote);
+                        setCurrentQuoteId(lastQuote.id);
                     }
-                    console.log(`Loaded ${history.length} quotes from view history`);
+                    console.log(`Loaded user progress: lastQuoteId=${progress.lastQuoteId}`);
                 } catch (error) {
-                    console.error('Failed to load view history:', error);
+                    console.error('Failed to load user progress:', error);
+                    // Fallback to getting next quote
+                    fetchNextQuote();
                 }
             } else {
-                // Clear server history when user signs out
-                setServerViewHistory([]);
+                // Clear progress when user signs out
+                setCurrentQuoteId(null);
+                setLastQuoteId(0);
             }
         };
-        loadViewHistory();
+        loadUserProgress();
     }, [isAuthenticated, user]);
 
     // Set document title based on environment
@@ -116,9 +121,15 @@ const App: React.FC = () => {
     const fetchFirstQuote = async (): Promise<void> => {
         try {
             setLoading(true);
-            const firstQuote = await quoteApi.getQuote(); // Fetch initial quote
-            setQuote(firstQuote);
-            setReceivedQuotes([firstQuote]); // Store the first quote in the received quotes array
+            if (isAuthenticated) {
+                // For authenticated users, get next sequential quote
+                await fetchNextQuote();
+            } else {
+                // For unauthenticated users, use random quote
+                const firstQuote = await quoteApi.getQuote();
+                setQuote(firstQuote);
+                setReceivedQuotes([firstQuote]);
+            }
         } catch (error) {
             console.error('Failed to fetch first quote:', error);
         } finally {
@@ -126,28 +137,30 @@ const App: React.FC = () => {
         }
     };
 
-    const newQuote = async (): Promise<void> => {
+    const fetchNextQuote = async (): Promise<void> => {
         try {
             setLoading(true);
             if (isAuthenticated) {
-                // For authenticated users, backend handles exclusion and recording
-                const uniqueQuote = await quoteApi.getAuthenticatedQuote();
-                setQuote(uniqueQuote);
-                // Add to server history
-                setServerViewHistory((prev) => [...prev, uniqueQuote]);
-                indexRef.current = serverViewHistory.length;
+                // For authenticated users, get next sequential quote
+                const nextQuote = await quoteApi.getAuthenticatedQuote();
+                setQuote(nextQuote);
+                setCurrentQuoteId(nextQuote.id);
+                setLastQuoteId(nextQuote.id);
             } else {
-                // For unauthenticated users, use local exclusion
+                // For unauthenticated users, use random quote
                 const uniqueQuote = await quoteApi.getUniqueQuote(receivedQuotes);
                 setQuote(uniqueQuote);
-                indexRef.current = receivedQuotes.length;
                 setReceivedQuotes((prevQuotes) => [...prevQuotes, uniqueQuote]);
             }
         } catch (error) {
-            console.error('Failed to fetch new quote:', error);
+            console.error('Failed to fetch next quote:', error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const newQuote = async (): Promise<void> => {
+        await fetchNextQuote();
     };
 
     const like = async (): Promise<void> => {
@@ -156,24 +169,15 @@ const App: React.FC = () => {
                 setLiking(true);
                 const updatedQuote = await quoteApi.likeQuote(quote);
                 if (updatedQuote && updatedQuote.id === quote.id) {
-                    // Update the `liked` property in both histories
-                    if (isAuthenticated) {
-                        setServerViewHistory((prevQuotes) =>
-                            prevQuotes.map((item) =>
-                                item.id === quote.id ? { ...item, liked: true } : item
-                            )
-                        );
-                    } else {
-                        setReceivedQuotes((prevQuotes) =>
-                            prevQuotes.map((item) =>
+                    // Update the `liked` property in local state
+                    if (!isAuthenticated) {
+                        setReceivedQuotes((prevQuotes: Quote[]) =>
+                            prevQuotes.map((item: Quote) =>
                                 item.id === quote.id ? { ...item, liked: true } : item
                             )
                         );
                     }
-                    setQuote({ ...quote, liked: true }); // Update the `quote` state
-                    if (favouritesRef.current) {
-                        favouritesRef.current.reloadFavouriteQuotes();
-                    }
+                    setQuote({ ...quote, liked: true });
                 } else {
                     console.log("Failed to like quote for some reason, id=" + quote.id);
                 }
@@ -185,35 +189,81 @@ const App: React.FC = () => {
         }
     };
 
-    const previous = (): void => {
-        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
-        if (indexRef.current > 0) {
-            indexRef.current = indexRef.current - 1;
-            setQuote(history[indexRef.current]);
+    const previous = async (): Promise<void> => {
+        if (isAuthenticated && currentQuoteId && currentQuoteId > 1) {
+            try {
+                setLoading(true);
+                const prevQuote = await quoteApi.getPreviousQuote(currentQuoteId);
+                setQuote(prevQuote);
+                setCurrentQuoteId(prevQuote.id);
+            } catch (error) {
+                console.error('Failed to fetch previous quote:', error);
+            } finally {
+                setLoading(false);
+            }
+        } else if (!isAuthenticated) {
+            // For unauthenticated users, use old array-based navigation
+            if (receivedQuotes.length > 0) {
+                const currentIndex = receivedQuotes.findIndex(q => q.id === quote?.id);
+                if (currentIndex > 0) {
+                    setQuote(receivedQuotes[currentIndex - 1]);
+                }
+            }
         }
     };
 
-    const next = (): void => {
-        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
-        if (indexRef.current < history.length - 1) {
-            indexRef.current = indexRef.current + 1;
-            setQuote(history[indexRef.current]);
+    const next = async (): Promise<void> => {
+        if (isAuthenticated && currentQuoteId && currentQuoteId < lastQuoteId) {
+            try {
+                setLoading(true);
+                const nextQuote = await quoteApi.getNextQuote(currentQuoteId);
+                setQuote(nextQuote);
+                setCurrentQuoteId(nextQuote.id);
+            } catch (error) {
+                console.error('Failed to fetch next quote:', error);
+            } finally {
+                setLoading(false);
+            }
+        } else if (!isAuthenticated) {
+            // For unauthenticated users, use old array-based navigation
+            const currentIndex = receivedQuotes.findIndex(q => q.id === quote?.id);
+            if (currentIndex >= 0 && currentIndex < receivedQuotes.length - 1) {
+                setQuote(receivedQuotes[currentIndex + 1]);
+            }
         }
     };
 
-    const jumpToFirst = (): void => {
-        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
-        if (history.length > 0) {
-            indexRef.current = 0;
-            setQuote(history[indexRef.current]);
+    const jumpToFirst = async (): Promise<void> => {
+        if (isAuthenticated) {
+            try {
+                setLoading(true);
+                const firstQuote = await quoteApi.getQuoteById(1);
+                setQuote(firstQuote);
+                setCurrentQuoteId(firstQuote.id);
+            } catch (error) {
+                console.error('Failed to fetch first quote:', error);
+            } finally {
+                setLoading(false);
+            }
+        } else if (receivedQuotes.length > 0) {
+            setQuote(receivedQuotes[0]);
         }
     };
 
-    const jumpToLast = (): void => {
-        const history = isAuthenticated ? serverViewHistory : receivedQuotes;
-        if (history.length > 0) {
-            indexRef.current = history.length - 1;
-            setQuote(history[indexRef.current]);
+    const jumpToLast = async (): Promise<void> => {
+        if (isAuthenticated && lastQuoteId > 0) {
+            try {
+                setLoading(true);
+                const lastQuote = await quoteApi.getQuoteById(lastQuoteId);
+                setQuote(lastQuote);
+                setCurrentQuoteId(lastQuote.id);
+            } catch (error) {
+                console.error('Failed to fetch last quote:', error);
+            } finally {
+                setLoading(false);
+            }
+        } else if (receivedQuotes.length > 0) {
+            setQuote(receivedQuotes[receivedQuotes.length - 1]);
         }
     };
 
@@ -333,14 +383,14 @@ const App: React.FC = () => {
                 </button>
                 <button 
                     className="previousButton" 
-                    disabled={indexRef.current === 0 || signingIn || showProfile || needsUsernameSetup || showManagement} 
+                    disabled={(isAuthenticated ? (currentQuoteId === null || currentQuoteId <= 1) : receivedQuotes.findIndex(q => q.id === quote?.id) <= 0) || signingIn || showProfile || needsUsernameSetup || showManagement || loading} 
                     onClick={previous}
                 >
                     Previous
                 </button>
                 <button
                     className="nextButton"
-                    disabled={indexRef.current >= (isAuthenticated ? serverViewHistory : receivedQuotes).length - 1 || signingIn || showProfile || needsUsernameSetup || showManagement}
+                    disabled={(isAuthenticated ? (currentQuoteId === null || currentQuoteId >= lastQuoteId) : receivedQuotes.findIndex(q => q.id === quote?.id) >= receivedQuotes.length - 1) || signingIn || showProfile || needsUsernameSetup || showManagement || loading}
                     onClick={next}
                 >
                     Next
