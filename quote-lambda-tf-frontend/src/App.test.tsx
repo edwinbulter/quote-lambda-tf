@@ -178,7 +178,6 @@ describe('App Component', () => {
             const likedQuote = { ...mockQuote1, liked: true };
             vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
             vi.mocked(quoteApi.likeQuote).mockResolvedValue(likedQuote);
-            vi.mocked(quoteApi.getViewHistory).mockResolvedValue([]);
 
             renderApp(authenticatedUserWithRole);
 
@@ -202,7 +201,6 @@ describe('App Component', () => {
             vi.mocked(quoteApi.likeQuote).mockImplementation(
                 () => new Promise(() => {}) // Never resolves
             );
-            vi.mocked(quoteApi.getViewHistory).mockResolvedValue([]);
 
             renderApp(authenticatedUserWithRole);
 
@@ -222,7 +220,6 @@ describe('App Component', () => {
         it('should disable the button if quote is already liked', async () => {
             const likedQuote = { ...mockQuote1, liked: true };
             vi.mocked(quoteApi.getQuote).mockResolvedValue(likedQuote);
-            vi.mocked(quoteApi.getViewHistory).mockResolvedValue([]);
 
             renderApp(authenticatedUserWithRole);
 

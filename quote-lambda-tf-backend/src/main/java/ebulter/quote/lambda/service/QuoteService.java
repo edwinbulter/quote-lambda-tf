@@ -4,11 +4,9 @@ import ebulter.quote.lambda.client.ZenClient;
 import ebulter.quote.lambda.model.Quote;
 import ebulter.quote.lambda.model.UserLike;
 import ebulter.quote.lambda.model.UserProgress;
-import ebulter.quote.lambda.model.UserView;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
 import ebulter.quote.lambda.repository.UserProgressRepository;
-import ebulter.quote.lambda.repository.UserViewRepository;
 import ebulter.quote.lambda.util.QuoteUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,13 +23,11 @@ public class QuoteService {
     private static final Logger logger = LoggerFactory.getLogger(QuoteService.class);
     private final QuoteRepository quoteRepository;
     private final UserLikeRepository userLikeRepository;
-    private final UserViewRepository userViewRepository;
     private UserProgressRepository userProgressRepository;
 
-    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository, UserViewRepository userViewRepository) {
+    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository) {
         this.quoteRepository = quoteRepository;
         this.userLikeRepository = userLikeRepository;
-        this.userViewRepository = userViewRepository;
         try {
             this.userProgressRepository = new UserProgressRepository();
         } catch (Exception e) {
@@ -344,10 +340,16 @@ public class QuoteService {
      */
     public void recordView(String username, int quoteId) {
         if (username != null && !username.isEmpty()) {
-            // For backward compatibility, still record individual views
-            UserView userView = new UserView(username, quoteId, System.currentTimeMillis());
-            userViewRepository.saveUserView(userView);
-            logger.info("Recorded view for user {} on quote {}", username, quoteId);
+            // Update user progress instead of recording individual views
+            UserProgress currentProgress = userProgressRepository.getUserProgress(username);
+            if (currentProgress == null) {
+                currentProgress = new UserProgress(username, quoteId, System.currentTimeMillis());
+            } else {
+                currentProgress.setLastQuoteId(quoteId);
+                currentProgress.setUpdatedAt(System.currentTimeMillis());
+            }
+            userProgressRepository.saveUserProgress(currentProgress);
+            logger.info("Updated user progress for user {} to lastQuoteId {}", username, quoteId);
         }
     }
 
@@ -355,11 +357,20 @@ public class QuoteService {
      * Get all quotes viewed by a user, in chronological order
      */
     public List<Quote> getViewedQuotesByUser(String username) {
-        List<UserView> userViews = userViewRepository.getViewsByUser(username);
-        return userViews.stream()
-                .map(userView -> quoteRepository.findById(userView.getQuoteId()))
-                .filter(quote -> quote != null)
-                .toList();
+        // Return quotes 1 to lastQuoteId using the new sequential system
+        UserProgress progress = userProgressRepository.getUserProgress(username);
+        if (progress == null || progress.getLastQuoteId() <= 0) {
+            return new ArrayList<>();
+        }
+        
+        List<Quote> viewedQuotes = new ArrayList<>();
+        for (int i = 1; i <= progress.getLastQuoteId(); i++) {
+            Quote quote = quoteRepository.findById(i);
+            if (quote != null) {
+                viewedQuotes.add(quote);
+            }
+        }
+        return viewedQuotes;
     }
 
     /**

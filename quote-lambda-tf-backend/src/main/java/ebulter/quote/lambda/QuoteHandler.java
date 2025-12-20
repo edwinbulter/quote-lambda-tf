@@ -15,7 +15,6 @@ import ebulter.quote.lambda.model.UserInfo;
 import ebulter.quote.lambda.model.UserProgress;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
-import ebulter.quote.lambda.repository.UserViewRepository;
 import ebulter.quote.lambda.service.AdminService;
 import ebulter.quote.lambda.service.QuoteManagementService;
 import ebulter.quote.lambda.service.QuoteService;
@@ -42,13 +41,11 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     private final AdminService adminService;
     private final QuoteManagementService quoteManagementService;
     private final UserLikeRepository userLikeRepository;
-    private final UserViewRepository userViewRepository;
 
     public QuoteHandler() {
         this.userLikeRepository = new UserLikeRepository();
-        this.userViewRepository = new UserViewRepository();
         QuoteRepository quoteRepository = new QuoteRepository(userLikeRepository);
-        this.quoteService = new QuoteService(quoteRepository, userLikeRepository, userViewRepository);
+        this.quoteService = new QuoteService(quoteRepository, userLikeRepository);
         this.quoteManagementService = new QuoteManagementService(quoteRepository, userLikeRepository);
         String userPoolId = System.getenv("USER_POOL_ID");
         if (userPoolId == null || userPoolId.isEmpty()) {
@@ -64,7 +61,6 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.adminService = null;
         this.quoteManagementService = null;
         this.userLikeRepository = null;
-        this.userViewRepository = null;
     }
 
     public QuoteHandler(QuoteService quoteService, AdminService adminService) {
@@ -72,7 +68,6 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.adminService = adminService;
         this.quoteManagementService = null;
         this.userLikeRepository = null;
-        this.userViewRepository = null;
     }
 
     public QuoteHandler(QuoteService quoteService, AdminService adminService, QuoteManagementService quoteManagementService) {
@@ -80,7 +75,6 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.adminService = adminService;
         this.quoteManagementService = quoteManagementService;
         this.userLikeRepository = null;
-        this.userViewRepository = null;
     }
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
@@ -577,10 +571,9 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                 adminService.deleteUser(targetUsername, requestingUsername);
                 
                 // Delete all user data from DynamoDB
-                if (userLikeRepository != null && userViewRepository != null) {
+                if (userLikeRepository != null) {
                     logger.info("Deleting all data for user {} from DynamoDB", targetUsername);
                     userLikeRepository.deleteAllLikesForUser(targetUsername);
-                    userViewRepository.deleteAllViewsForUser(targetUsername);
                     logger.info("Successfully deleted all data for user {}", targetUsername);
                 }
                 
