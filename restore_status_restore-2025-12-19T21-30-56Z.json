@@ -1,0 +1,12 @@
+{
+  "restore_id": "restore-2025-12-19T21-30-56Z",
+  "status": "COMPLETED",
+  "restore_point_in_time": "2025-12-19T20:10:00",
+  "started_at": "2025-12-19T21:31:43.938787",
+  "environment": "dev",
+  "tables": {
+    "quotes": "quote-lambda-tf-quotes-dev",
+    "user_likes": "quote-lambda-tf-user-likes-dev",
+    "user_views": "quote-lambda-tf-user-views-dev"
+  }
+}
