@@ -20,11 +20,9 @@ public class QuoteManagementService {
     private static final Logger logger = LoggerFactory.getLogger(QuoteManagementService.class);
     
     private final QuoteRepository quoteRepository;
-    private final UserLikeRepository userLikeRepository;
 
-    public QuoteManagementService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository) {
+    public QuoteManagementService(QuoteRepository quoteRepository) {
         this.quoteRepository = quoteRepository;
-        this.userLikeRepository = userLikeRepository;
     }
 
     /**

@@ -264,10 +264,10 @@ Content-Type: application/json
 # User Views Feature:
 # - GET /quote with authentication automatically records the view
 # - GET /quote without authentication does NOT record views (uses local storage on frontend)
-# - GET /quote/history returns all quotes viewed by authenticated user (quotes 1 to lastQuoteId)
+# - GET /quote/history returns all quotes viewed by authenticated user (chronological order)
 # - GET /quote/history requires authentication (returns 403 without token)
 # - Viewed quotes are automatically excluded when fetching new quotes (authenticated users)
-# - Progress is stored in separate DynamoDB table: quote-lambda-tf-user-progress-dev
+# - Views are stored in separate DynamoDB table: quote-lambda-tf-user-views-dev
 #
 # Expected Behavior:
 # - Each authenticated user has their own view history
@@ -294,7 +294,7 @@ Content-Type: application/json
 # - Order values are always sequential (1, 2, 3, ...) with no gaps
 #
 # DynamoDB Tables:
-# - quote-lambda-tf-user-progress-dev: Stores user progress (username, lastQuoteId, updatedAt)
+# - quote-lambda-tf-user-views-dev: Stores user views (username, quoteId, viewedAt)
 # - quote-lambda-tf-user-likes-dev: Stores user likes (username, quoteId, likedAt, order)
 # - quote-lambda-tf-quotes-dev: Stores all quotes
 #

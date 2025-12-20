@@ -35,6 +35,13 @@ public class QuoteService {
             this.userProgressRepository = null;
         }
     }
+    
+    // Constructor for testing that allows injecting UserProgressRepository
+    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository, UserProgressRepository userProgressRepository) {
+        this.quoteRepository = quoteRepository;
+        this.userLikeRepository = userLikeRepository;
+        this.userProgressRepository = userProgressRepository;
+    }
 
     public Quote getQuote(String username, final Set<Integer> idsToExclude) {
         // For authenticated users, use sequential navigation if available
@@ -335,29 +342,32 @@ public class QuoteService {
         return viewedQuotes;
     }
 
-    /**
-     * Record that a user viewed a quote (legacy method - now handled by progress tracking)
-     */
     public void recordView(String username, int quoteId) {
         if (username != null && !username.isEmpty()) {
-            // Update user progress instead of recording individual views
-            UserProgress currentProgress = userProgressRepository.getUserProgress(username);
-            if (currentProgress == null) {
-                currentProgress = new UserProgress(username, quoteId, System.currentTimeMillis());
+            if (userProgressRepository != null) {
+                // Update user progress instead of recording individual views
+                UserProgress currentProgress = userProgressRepository.getUserProgress(username);
+                if (currentProgress == null) {
+                    currentProgress = new UserProgress(username, quoteId, System.currentTimeMillis());
+                } else {
+                    currentProgress.setLastQuoteId(quoteId);
+                    currentProgress.setUpdatedAt(System.currentTimeMillis());
+                }
+                userProgressRepository.saveUserProgress(currentProgress);
+                logger.info("Updated user progress for user {} to lastQuoteId {}", username, quoteId);
             } else {
-                currentProgress.setLastQuoteId(quoteId);
-                currentProgress.setUpdatedAt(System.currentTimeMillis());
+                logger.warn("Cannot record view: UserProgressRepository is not initialized");
             }
-            userProgressRepository.saveUserProgress(currentProgress);
-            logger.info("Updated user progress for user {} to lastQuoteId {}", username, quoteId);
         }
     }
 
-    /**
-     * Get all quotes viewed by a user, in chronological order
-     */
     public List<Quote> getViewedQuotesByUser(String username) {
         // Return quotes 1 to lastQuoteId using the new sequential system
+        if (userProgressRepository == null) {
+            logger.warn("Cannot get viewed quotes: UserProgressRepository is not initialized");
+            return new ArrayList<>();
+        }
+        
         UserProgress progress = userProgressRepository.getUserProgress(username);
         if (progress == null || progress.getLastQuoteId() <= 0) {
             return new ArrayList<>();

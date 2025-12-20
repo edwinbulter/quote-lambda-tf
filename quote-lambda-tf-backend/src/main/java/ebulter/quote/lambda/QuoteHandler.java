@@ -15,6 +15,7 @@ import ebulter.quote.lambda.model.UserInfo;
 import ebulter.quote.lambda.model.UserProgress;
 import ebulter.quote.lambda.repository.QuoteRepository;
 import ebulter.quote.lambda.repository.UserLikeRepository;
+import ebulter.quote.lambda.repository.UserProgressRepository;
 import ebulter.quote.lambda.service.AdminService;
 import ebulter.quote.lambda.service.QuoteManagementService;
 import ebulter.quote.lambda.service.QuoteService;
@@ -46,7 +47,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.userLikeRepository = new UserLikeRepository();
         QuoteRepository quoteRepository = new QuoteRepository(userLikeRepository);
         this.quoteService = new QuoteService(quoteRepository, userLikeRepository);
-        this.quoteManagementService = new QuoteManagementService(quoteRepository, userLikeRepository);
+        this.quoteManagementService = new QuoteManagementService(quoteRepository);
         String userPoolId = System.getenv("USER_POOL_ID");
         if (userPoolId == null || userPoolId.isEmpty()) {
             logger.warn("USER_POOL_ID environment variable not set. Admin features will not work.");
@@ -70,11 +71,11 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.userLikeRepository = null;
     }
 
-    public QuoteHandler(QuoteService quoteService, AdminService adminService, QuoteManagementService quoteManagementService) {
+    public QuoteHandler(QuoteService quoteService, AdminService adminService, QuoteManagementService quoteManagementService, UserLikeRepository userLikeRepository) {
         this.quoteService = quoteService;
         this.adminService = adminService;
         this.quoteManagementService = quoteManagementService;
-        this.userLikeRepository = null;
+        this.userLikeRepository = userLikeRepository;
     }
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
