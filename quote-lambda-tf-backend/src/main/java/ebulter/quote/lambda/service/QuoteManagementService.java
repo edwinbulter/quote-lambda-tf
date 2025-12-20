@@ -28,16 +28,6 @@ public class QuoteManagementService {
     }
 
     /**
-     * Get all quotes without pagination or filtering
-     */
-    public List<Quote> getAllQuotes() {
-        logger.info("Getting all quotes from database");
-        List<Quote> allQuotes = quoteRepository.getAllQuotes();
-        logger.info("Retrieved {} quotes from database", allQuotes.size());
-        return allQuotes;
-    }
-
-    /**
      * Get quotes with pagination, search, and sorting
      */
     public QuotePageResponse getQuotesWithPagination(int page, int pageSize, String quoteText, String author, String sortBy, String sortOrder) {
