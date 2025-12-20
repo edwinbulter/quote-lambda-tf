@@ -1005,6 +1005,75 @@ public class QuoteHandlerTest {
         }
 
         @Test
+        public void handleRequest_GetQuotes_WithLikeCountSort_ShouldSortByLikeCountThenId() {
+            // Arrange
+            List<Quote> quotes = new ArrayList<>();
+            // Create quotes with equal like counts but different IDs
+            Quote quote1 = new Quote(5, "Quote E", "Author E");
+            Quote quote2 = new Quote(2, "Quote B", "Author B");
+            Quote quote3 = new Quote(8, "Quote H", "Author H");
+            Quote quote4 = new Quote(1, "Quote A", "Author A");
+            Quote quote5 = new Quote(3, "Quote C", "Author C");
+            
+            // Set like counts: quotes 2 and 5 have 10 likes, quotes 1 and 8 have 5 likes, quote 3 has 0 likes
+            quote1.setLikeCount(5);
+            quote2.setLikeCount(10);
+            quote3.setLikeCount(0);
+            quote4.setLikeCount(5);
+            quote5.setLikeCount(10);
+            
+            quotes.add(quote1);
+            quotes.add(quote2);
+            quotes.add(quote3);
+            quotes.add(quote4);
+            quotes.add(quote5);
+            
+            when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
+            
+            ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
+            ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
+                new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, userViewRepositoryMock), 
+                adminServiceMock,
+                quoteManagementService
+            );
+            
+            APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/quotes", "GET");
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("sortBy", "likeCount");
+            queryParams.put("sortOrder", "desc");
+            event.setQueryStringParameters(queryParams);
+            Context context = Mockito.mock(Context.class);
+
+            // Act
+            APIGatewayProxyResponseEvent response = handler.handleRequest(event, context);
+
+            // Assert
+            Assertions.assertEquals(200, response.getStatusCode());
+            String body = response.getBody();
+            
+            // Expected order for descending likeCount with secondary ID sorting:
+            // 1. Quote with ID 2 (10 likes) - should come before ID 3 (10 likes) due to lower ID
+            // 2. Quote with ID 3 (10 likes) 
+            // 3. Quote with ID 1 (5 likes) - should come before ID 5 (5 likes) due to lower ID
+            // 4. Quote with ID 5 (5 likes)
+            // 5. Quote with ID 8 (0 likes)
+            
+            int index2 = body.indexOf("\"id\":2");
+            int index3 = body.indexOf("\"id\":3");
+            int index1 = body.indexOf("\"id\":1");
+            int index5 = body.indexOf("\"id\":5");
+            int index8 = body.indexOf("\"id\":8");
+            
+            // Verify the order: 2 < 3 < 1 < 5 < 8
+            Assertions.assertTrue(index2 < index3, "Quote ID 2 (10 likes) should come before ID 3 (10 likes)");
+            Assertions.assertTrue(index3 < index1, "Quote ID 3 (10 likes) should come before ID 1 (5 likes)");
+            Assertions.assertTrue(index1 < index5, "Quote ID 1 (5 likes) should come before ID 5 (5 likes)");
+            Assertions.assertTrue(index5 < index8, "Quote ID 5 (5 likes) should come before ID 8 (0 likes)");
+        }
+
+        @Test
         public void handleRequest_GetQuotes_WithLikeCounts_ShouldIncludeLikeCounts() {
             // Arrange
             List<Quote> quotes = getQuoteTestData(3);

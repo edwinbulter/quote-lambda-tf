@@ -153,12 +153,23 @@ public class QuoteManagementService {
         Comparator<Quote> comparator = switch (sortBy != null ? sortBy.toLowerCase() : "id") {
             case "quotetext" -> Comparator.comparing(q -> q.getQuoteText().toLowerCase());
             case "author" -> Comparator.comparing(q -> q.getAuthor().toLowerCase());
-            case "likecount" -> Comparator.comparingInt(Quote::getLikeCount);
+            case "likecount" -> {
+                if ("desc".equalsIgnoreCase(sortOrder)) {
+                    // For descending like count, use reversed comparator with secondary ascending ID
+                    Comparator<Quote> likeCountComparator = Comparator.comparingInt(Quote::getLikeCount).reversed();
+                    comparator = likeCountComparator.thenComparingInt(Quote::getId);
+                } else {
+                    // For ascending like count, use normal comparator with secondary ascending ID
+                    Comparator<Quote> likeCountComparator = Comparator.comparingInt(Quote::getLikeCount);
+                    comparator = likeCountComparator.thenComparingInt(Quote::getId);
+                }
+                yield comparator;
+            }
             default -> Comparator.comparingInt(Quote::getId);
         };
 
-        // Reverse if descending
-        if ("desc".equalsIgnoreCase(sortOrder)) {
+        // Reverse if descending (but not for likecount since we handle it above)
+        if ("desc".equalsIgnoreCase(sortOrder) && !"likecount".equalsIgnoreCase(sortBy)) {
             comparator = comparator.reversed();
         }
         
