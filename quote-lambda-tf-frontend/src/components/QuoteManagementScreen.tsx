@@ -97,10 +97,16 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
 
     const handleSort = (column: 'id' | 'quoteText' | 'author' | 'likeCount') => {
         if (sortBy === column) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+            // For likeCount, only allow descending sort
+            if (column === 'likeCount') {
+                setSortOrder('desc');
+            } else {
+                setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+            }
         } else {
             setSortBy(column);
-            setSortOrder('asc');
+            // For likeCount, always use descending sort
+            setSortOrder(column === 'likeCount' ? 'desc' : 'asc');
         }
     };
 
@@ -194,7 +200,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
                                             Author {sortBy === 'author' && (sortOrder === 'asc' ? '↑' : '↓')}
                                         </th>
                                         <th onClick={() => handleSort('likeCount')} className="sortable">
-                                            Likes {sortBy === 'likeCount' && (sortOrder === 'asc' ? '↑' : '↓')}
+                                            Likes {sortBy === 'likeCount' ? '↓' : ''}
                                         </th>
                                     </tr>
                                 </thead>
