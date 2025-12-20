@@ -11,6 +11,11 @@ within the last 35 days. It handles:
 - Atomic data swap from restore tables to production tables
 - Cleanup of temporary restore tables
 - Comprehensive logging and status tracking
+
+Tables restored:
+- quotes (main quote data)
+- user_likes (user quote preferences)
+- user_progress (sequential quote tracking - replaced user_views)
 """
 
 import argparse
@@ -125,7 +130,7 @@ class DynamoDBPITRRestore:
         base_names = {
             'quotes': 'quote-lambda-tf-quotes',
             'user_likes': 'quote-lambda-tf-user-likes',
-            'user_views': 'quote-lambda-tf-user-views'
+            'user_progress': 'quote-lambda-tf-user-progress'
         }
 
         self.tables = {}
@@ -403,7 +408,7 @@ class DynamoDBPITRRestore:
         return {
             'quotes': f"{self.tables['quotes']}-restore-{timestamp}",
             'user_likes': f"{self.tables['user_likes']}-restore-{timestamp}",
-            'user_views': f"{self.tables['user_views']}-restore-{timestamp}"
+            'user_progress': f"{self.tables['user_progress']}-restore-{timestamp}"
         }
 
     def _poll_restore_completion(self, restore_tables: Dict[str, str]) -> bool:

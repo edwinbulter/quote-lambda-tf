@@ -40,7 +40,7 @@ The code for the Quote Web App can be found at:
 - **User Authentication**: AWS Cognito integration with email/password and Google OAuth
 - **Like System**: Track and retrieve liked quotes with custom ordering
 - **Favourite Management**: Reorder liked quotes with automatic sequential ordering
-- **View History**: Track user's viewed quotes with automatic exclusion from future requests
+- **Sequential Quote Navigation**: Track user's progress through quotes with sequential viewing and previous/next navigation
 - **Role-Based Access Control**: USER and ADMIN roles for authorization
 - **Fast Cold Starts**: Lambda SnapStart enabled (~200ms cold start vs 3-6s)
 - **Automated Deployments**: GitHub Actions CI/CD pipeline with OIDC authentication
@@ -94,7 +94,7 @@ The code for the Quote Web App can be found at:
 | `DELETE` | `/quote/{id}/unlike` | Unlike a quote (remove from favourites) | Bearer Token | None |
 | `GET` | `/quote/liked` | Get user's liked quotes sorted by custom order | Bearer Token | None |
 | `PUT` | `/quote/{id}/reorder` | Reorder a liked quote to new position | Bearer Token | `{"order": <integer>}` |
-| `GET` | `/quote/history` | Get user's view history in chronological order | Bearer Token | None |
+| `GET` | `/quote/history` | Get user's viewed quotes (quotes 1 to lastQuoteId) | Bearer Token | None |
 
 ### Admin Endpoints (Requires ADMIN Role)
 
@@ -331,11 +331,11 @@ quote-lambda-tf-backend/
 │   │   ├── repository/
 │   │   │   ├── QuoteRepository.java    # Quote data access
 │   │   │   ├── UserLikeRepository.java # Like/favourite management
-│   │   │   └── UserViewRepository.java # View history tracking
+│   │   │   └── UserProgressRepository.java # Sequential progress tracking
 │   │   ├── model/
 │   │   │   ├── Quote.java             # Quote entity
 │   │   │   ├── UserLike.java          # User like with order
-│   │   │   └── UserView.java          # User view tracking
+│   │   │   └── UserProgress.java      # User progress tracking with lastQuoteId
 │   │   ├── client/
 │   │   │   └── ZenClient.java         # ZenQuotes API client
 │   │   └── util/
@@ -347,7 +347,7 @@ quote-lambda-tf-backend/
 │   ├── lambda.tf                      # Lambda function with SnapStart
 │   ├── dynamodb_quotes.tf             # Quotes table
 │   ├── dynamodb_user_likes.tf         # User likes table with order field
-│   ├── dynamodb_user_views.tf         # User views table
+│   ├── dynamodb_user_progress.tf     # User progress table with sequential tracking
 │   ├── api_gateway.tf                 # API Gateway setup
 │   ├── cognito.tf                     # Cognito User Pool
 │   ├── iam.tf                         # IAM roles and policies
@@ -380,5 +380,5 @@ This project serves as a learning platform for:
 - Optimizing Lambda cold starts with SnapStart
 - Managing AWS resources with least-privilege IAM roles
 - Integrating external APIs and caching data in DynamoDB
-- Building user-centric features (view history, custom ordering)
+- Building user-centric features (sequential navigation, custom ordering)
 - Writing comprehensive unit tests with nested test classes

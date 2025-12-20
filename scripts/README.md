@@ -188,7 +188,7 @@ If you prefer not to use the script, you can manually create the `.env` files:
 
 Python script for automated DynamoDB Point-In-Time Recovery (PITR) restore operations.
 
-**Purpose:** Restore all three DynamoDB tables (quotes, user-likes, user-views) to any point within the last 35 days using a single command. Handles the complete restore workflow including table creation, data verification, data swap, and cleanup.
+**Purpose:** Restore all three DynamoDB tables (quotes, user-likes, user-progress) to any point within the last 35 days using a single command. Handles the complete restore workflow including table creation, data verification, data swap, and cleanup.
 
 #### Features
 
@@ -341,12 +341,12 @@ The script automatically handles table naming based on environment:
 **Development (`--environment dev`):**
 - `quote-lambda-tf-quotes-dev`
 - `quote-lambda-tf-user-likes-dev`
-- `quote-lambda-tf-user-views-dev`
+- `quote-lambda-tf-user-progress-dev`
 
 **Production (`--environment prod`):**
 - `quote-lambda-tf-quotes`
 - `quote-lambda-tf-user-likes`
-- `quote-lambda-tf-user-views`
+- `quote-lambda-tf-user-progress`
 
 #### Troubleshooting
 
