@@ -1,0 +1,25 @@
+@baseUrl = https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/
+@authToken = eyJraWQiOiIxMW95RFRGSzQ1QVVzWjFSc3ViYWJXSlwvUGFHZ0M2bHdkNmF1c0RubWtEVT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIyMjRkMmU5MC00YWFjLTRlMTUtYTNjMi0yMzE2Y2NjZjQ1MGYiLCJjb2duaXRvOmdyb3VwcyI6WyJVU0VSIiwiQURNSU4iXSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLmV1LWNlbnRyYWwtMS5hbWF6b25hd3MuY29tXC9ldS1jZW50cmFsLTFfWHJLeEpXeTV1IiwiY2xpZW50X2lkIjoiN2xrb2hoNnQ5Nmlna205cTE2cmRjaGFuc2giLCJvcmlnaW5fanRpIjoiMGYxZDJmMWItODcyOS00ZWFmLTliNjUtZjY2MzFmMDEwMmEzIiwiZXZlbnRfaWQiOiJlYzk1ZGY4My0wNjg0LTRlNWQtYjIxZC1lZTQ1ZTJkOTZkZTkiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6ImF3cy5jb2duaXRvLnNpZ25pbi51c2VyLmFkbWluIiwiYXV0aF90aW1lIjoxNzY2MjI1MTk4LCJleHAiOjE3NjYyMjg3OTgsImlhdCI6MTc2NjIyNTE5OCwianRpIjoiNDY1YTQ0MTEtMjE3OS00NGM0LTkwNWUtY2I1ZDQ5ZTg0ZDcxIiwidXNlcm5hbWUiOiJhZG1pbi0xIn0.VQ5hogWr_EIHGRn7b8zU4ab-5iFBHw8g7Asw72ZnQfxZrdSmInqKHSGSN5lX6hvzWzqv3BvF8a0V_sszrz739_W5qI89WQWSzH-VWxuayqLbtExpE67gO2RghHn9fi--hssy4WZZtXOrUYiJwpidXHfIZ7QRbYwuaFei4XSL8B-0FdNx6rMWJ1mJGgPpaLEsJVTZgOTdujU_0Ik4l6t8jFac7qxpqmdVExy8FmtYhtSg-Ly-u0uIyUxvG7X7ezIdc97E7v55q_7aq78DfCXkXBfVmuQuwZpF0p102sYT70I4qcuPB4pXQa3sGA_EuzJv7l93xGww6hTIDq6Fu5tP9g
+@cognitoClientId = 7lkohh6t96igkm9q16rdchansh
+@cognitoRegion = eu-central-1
+
+### Get JWT Token from Cognito
+# This will return an IdToken that you should copy and use as {{authToken}}
+POST https://cognito-idp.{{cognitoRegion}}.amazonaws.com/
+Content-Type: application/x-amz-json-1.1
+X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth
+
+{
+  "AuthFlow": "USER_PASSWORD_AUTH",
+  "ClientId": "{{cognitoClientId}}",
+  "AuthParameters": {
+    "USERNAME": "admin-1",
+    "PASSWORD": "Hello-admin-1"
+  }
+}
+
+###
+GET {{baseUrl}}/api/v1/admin/quotes?page=1&pageSize=50&sortBy=likeCount&sortOrder=asc
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+

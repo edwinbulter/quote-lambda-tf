@@ -49,9 +49,25 @@ public class QuoteManagementService {
             
             logger.info("After filtering: {} quotes", filteredQuotes.size());
             
+            // Debug: Log first few quotes before sorting
+            if ("likecount".equalsIgnoreCase(sortBy) && !filteredQuotes.isEmpty()) {
+                logger.info("Before sorting by likeCount - First 5 quotes:");
+                filteredQuotes.stream().limit(5).forEach(q -> 
+                    logger.info("  Quote ID={}, likeCount={}, text={}", q.getId(), q.getLikeCount(), 
+                        q.getQuoteText().substring(0, Math.min(50, q.getQuoteText().length()))));
+            }
+            
             // Apply sorting
             Comparator<Quote> comparator = getComparator(sortBy, sortOrder);
             filteredQuotes.sort(comparator);
+            
+            // Debug: Log first few quotes after sorting
+            if ("likecount".equalsIgnoreCase(sortBy) && !filteredQuotes.isEmpty()) {
+                logger.info("After sorting by likeCount - First 5 quotes:");
+                filteredQuotes.stream().limit(5).forEach(q -> 
+                    logger.info("  Quote ID={}, likeCount={}, text={}", q.getId(), q.getLikeCount(), 
+                        q.getQuoteText().substring(0, Math.min(50, q.getQuoteText().length()))));
+            }
             
             // Calculate pagination
             int totalCount = filteredQuotes.size();
@@ -72,13 +88,13 @@ public class QuoteManagementService {
                     filteredQuotes.subList(startIndex, endIndex) : 
                     Collections.emptyList();
             
-            // Add like counts
+            // Convert to QuoteWithLikeCount (like counts already populated from getAllQuotes)
             List<QuoteWithLikeCount> quotesWithLikes = pageQuotes.stream()
                 .map(q -> new QuoteWithLikeCount(
                     q.getId(),
                     q.getQuoteText(),
                     q.getAuthor(),
-                    userLikeRepository.getLikeCount(q.getId())
+                    q.getLikeCount()
                 ))
                 .collect(Collectors.toList());
             
@@ -153,7 +169,7 @@ public class QuoteManagementService {
         Comparator<Quote> comparator = switch (sortBy != null ? sortBy.toLowerCase() : "id") {
             case "quotetext" -> Comparator.comparing(q -> q.getQuoteText().toLowerCase());
             case "author" -> Comparator.comparing(q -> q.getAuthor().toLowerCase());
-            case "likeCount" -> Comparator.comparing(q -> q.getLikeCount());
+            case "likecount" -> Comparator.comparingInt(Quote::getLikeCount);
             default -> Comparator.comparingInt(Quote::getId);
         };
 
