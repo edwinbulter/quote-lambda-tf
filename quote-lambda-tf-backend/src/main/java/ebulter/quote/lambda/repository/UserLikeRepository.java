@@ -4,9 +4,7 @@ import ebulter.quote.lambda.model.UserLike;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class UserLikeRepository {
     private static final DynamoDbClient dynamoDb = DynamoDbClient.create();
@@ -107,10 +105,41 @@ public class UserLikeRepository {
         dynamoDb.deleteItem(deleteRequest);
     }
 
+    public Map<Integer, Integer> getLikeCounts(Collection<Integer> quoteIds) {
+        Map<Integer, Integer> likeCounts = new HashMap<>();
+
+        // Process in batches to avoid query size limits
+        int batchSize = 100;
+        List<Integer> idList = new ArrayList<>(quoteIds);
+
+        for (int i = 0; i < idList.size(); i += batchSize) {
+            List<Integer> batch = idList.subList(i, Math.min(i + batchSize, idList.size()));
+
+            // For each quote ID in the batch, get the like count
+            for (Integer quoteId : batch) {
+                Map<String, AttributeValue> expressionValues = new HashMap<>();
+                expressionValues.put(":quoteId", AttributeValue.builder().n(String.valueOf(quoteId)).build());
+
+                QueryRequest queryRequest = QueryRequest.builder()
+                        .tableName(TABLE_NAME)
+                        .indexName("QuoteIdIndex")
+                        .keyConditionExpression("quoteId = :quoteId")
+                        .expressionAttributeValues(expressionValues)
+                        .select(Select.COUNT)
+                        .build();
+
+                int count = (int) dynamoDb.query(queryRequest).count();
+                likeCounts.put(quoteId, count);
+            }
+        }
+
+        return likeCounts;
+    }
+
     /**
      * Get the count of likes for a specific quote (using GSI)
      */
-    public int getLikeCountForQuote(int quoteId) {
+    public int getLikeCount(int quoteId) {
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
         expressionAttributeValues.put(":quoteId", AttributeValue.builder().n(String.valueOf(quoteId)).build());
 
@@ -147,5 +176,18 @@ public class UserLikeRepository {
         for (UserLike like : likes) {
             deleteUserLike(username, like.getQuoteId());
         }
+    }
+
+    /**
+     * Get the total number of likes across all quotes
+     */
+    public int getTotalLikesCount() {
+        ScanRequest scanRequest = ScanRequest.builder()
+                .tableName(TABLE_NAME)
+                .select(Select.COUNT)
+                .build();
+
+        ScanResponse scanResponse = dynamoDb.scan(scanRequest);
+        return scanResponse.count();
     }
 }

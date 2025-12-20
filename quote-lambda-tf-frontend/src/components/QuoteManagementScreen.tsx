@@ -10,6 +10,7 @@ interface QuoteManagementScreenProps {
 export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const [quotes, setQuotes] = useState<QuoteWithLikeCount[]>([]);
     const [totalCount, setTotalCount] = useState<number>(0);
+    const [totalLikes, setTotalLikes] = useState<number>(0);
     const [page, setPage] = useState<number>(1);
     const [pageSize, setPageSize] = useState<number>(50);
     const [totalPages, setTotalPages] = useState<number>(0);
@@ -22,7 +23,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const [searching, setSearching] = useState<boolean>(false);
     const [addingQuotes, setAddingQuotes] = useState<boolean>(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-    const [sortBy, setSortBy] = useState<'id' | 'quoteText' | 'author'>('id');
+    const [sortBy, setSortBy] = useState<'id' | 'quoteText' | 'author' | 'likeCount'>('id');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     // Debounce search inputs
@@ -47,15 +48,17 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const loadQuotes = async () => {
         try {
             // Only show loading spinner on initial load
-            if (quotes.length === 0) {
+            if (page === 1 && !searching) {
                 setLoading(true);
-            } else {
-                setSearching(true);
             }
             const response = await adminApi.getQuotes(page, pageSize, debouncedQuoteText, debouncedAuthor, sortBy, sortOrder);
             setQuotes(response.quotes);
             setTotalCount(response.totalCount);
             setTotalPages(response.totalPages);
+            
+            // Get total likes from the new endpoint
+            const totalLikesResponse = await adminApi.getTotalLikes();
+            setTotalLikes(totalLikesResponse.totalLikes);
         } catch (error) {
             console.error('Failed to load quotes:', error);
             showToast('Failed to load quotes', 'error');
@@ -86,12 +89,18 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
         setPage(1);
     };
 
-    const handleSort = (column: 'id' | 'quoteText' | 'author') => {
+    const handleSort = (column: 'id' | 'quoteText' | 'author' | 'likeCount') => {
         if (sortBy === column) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+            // For likeCount, only allow descending sort
+            if (column === 'likeCount') {
+                setSortOrder('desc');
+            } else {
+                setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+            }
         } else {
             setSortBy(column);
-            setSortOrder('asc');
+            // For likeCount, always use descending sort
+            setSortOrder(column === 'likeCount' ? 'desc' : 'asc');
         }
     };
 
@@ -122,7 +131,10 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
             </div>
 
             <div className="quote-count-section">
-                <span className="quote-count">Total Quotes: {totalCount.toLocaleString()}</span>
+                <div className="quote-stats">
+                    <span className="quote-count">Total Quotes: {totalCount.toLocaleString()}</span>
+                    <span className="quote-count">Total Likes: {totalLikes.toLocaleString()}</span>
+                </div>
                 <button 
                     className="add-quotes-button" 
                     onClick={handleAddQuotes}
@@ -181,7 +193,9 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
                                         <th onClick={() => handleSort('author')} className="sortable">
                                             Author {sortBy === 'author' && (sortOrder === 'asc' ? '↑' : '↓')}
                                         </th>
-                                        <th>Likes</th>
+                                        <th onClick={() => handleSort('likeCount')} className="sortable">
+                                            Likes {sortBy === 'likeCount' ? '↓' : ''}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>

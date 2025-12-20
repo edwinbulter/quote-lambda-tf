@@ -48,11 +48,11 @@ public class QuoteManagementService {
                 .collect(Collectors.toList());
             
             logger.info("After filtering: {} quotes", filteredQuotes.size());
-            
+
             // Apply sorting
             Comparator<Quote> comparator = getComparator(sortBy, sortOrder);
             filteredQuotes.sort(comparator);
-            
+
             // Calculate pagination
             int totalCount = filteredQuotes.size();
             int totalPages = (int) Math.ceil((double) totalCount / pageSize);
@@ -72,13 +72,13 @@ public class QuoteManagementService {
                     filteredQuotes.subList(startIndex, endIndex) : 
                     Collections.emptyList();
             
-            // Add like counts
+            // Convert to QuoteWithLikeCount (like counts already populated from getAllQuotes)
             List<QuoteWithLikeCount> quotesWithLikes = pageQuotes.stream()
                 .map(q -> new QuoteWithLikeCount(
                     q.getId(),
                     q.getQuoteText(),
                     q.getAuthor(),
-                    userLikeRepository.getLikeCountForQuote(q.getId())
+                    q.getLikeCount()
                 ))
                 .collect(Collectors.toList());
             
@@ -150,23 +150,26 @@ public class QuoteManagementService {
      * Get comparator based on sort field and order
      */
     private Comparator<Quote> getComparator(String sortBy, String sortOrder) {
-        Comparator<Quote> comparator;
-        
-        switch (sortBy != null ? sortBy.toLowerCase() : "id") {
-            case "quotetext":
-                comparator = Comparator.comparing(q -> q.getQuoteText().toLowerCase());
-                break;
-            case "author":
-                comparator = Comparator.comparing(q -> q.getAuthor().toLowerCase());
-                break;
-            case "id":
-            default:
-                comparator = Comparator.comparingInt(Quote::getId);
-                break;
-        }
-        
-        // Reverse if descending
-        if ("desc".equalsIgnoreCase(sortOrder)) {
+        Comparator<Quote> comparator = switch (sortBy != null ? sortBy.toLowerCase() : "id") {
+            case "quotetext" -> Comparator.comparing(q -> q.getQuoteText().toLowerCase());
+            case "author" -> Comparator.comparing(q -> q.getAuthor().toLowerCase());
+            case "likecount" -> {
+                if ("desc".equalsIgnoreCase(sortOrder)) {
+                    // For descending like count, use reversed comparator with secondary ascending ID
+                    Comparator<Quote> likeCountComparator = Comparator.comparingInt(Quote::getLikeCount).reversed();
+                    comparator = likeCountComparator.thenComparingInt(Quote::getId);
+                } else {
+                    // For ascending like count, use normal comparator with secondary ascending ID
+                    Comparator<Quote> likeCountComparator = Comparator.comparingInt(Quote::getLikeCount);
+                    comparator = likeCountComparator.thenComparingInt(Quote::getId);
+                }
+                yield comparator;
+            }
+            default -> Comparator.comparingInt(Quote::getId);
+        };
+
+        // Reverse if descending (but not for likecount since we handle it above)
+        if ("desc".equalsIgnoreCase(sortOrder) && !"likecount".equalsIgnoreCase(sortBy)) {
             comparator = comparator.reversed();
         }
         

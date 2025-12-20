@@ -79,24 +79,73 @@ The code for the Quote Web App can be found at:
 
 ### Public Endpoints (No Authentication Required)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/quote` | Get a random quote (unauthenticated users don't record views) |
-| `POST` | `/quote` | Get a random quote excluding specific IDs (body: array of IDs) |
-| `GET` | `/quote/liked` | Get all liked quotes (public view, sorted by order) |
+| Method | Endpoint | Description | Request Body |
+|--------|----------|-------------|--------------|
+| `GET` | `/quote` | Get a random quote (unauthenticated users don't record views) | None |
+| `POST` | `/quote` | Get a random quote excluding specific IDs | Array of quote IDs to exclude |
+| `GET` | `/quote/liked` | Get all liked quotes (public view, sorted by order) | None |
 
 ### Authenticated Endpoints (Requires USER Role)
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/quote` | Get a random quote and record view (excludes previously viewed quotes) | Bearer Token |
-| `POST` | `/quote/{id}/like` | Like a quote (adds to end of favourites list) | Bearer Token |
-| `DELETE` | `/quote/{id}/unlike` | Unlike a quote (remove from favourites) | Bearer Token |
-| `GET` | `/quote/liked` | Get user's liked quotes sorted by custom order | Bearer Token |
-| `PUT` | `/quote/{id}/reorder` | Reorder a liked quote to new position | Bearer Token |
-| `GET` | `/quote/history` | Get user's view history in chronological order | Bearer Token |
+| Method | Endpoint | Description | Auth | Request Body |
+|--------|----------|-------------|------|--------------|
+| `GET` | `/quote` | Get a random quote and record view (excludes previously viewed quotes) | Bearer Token | None |
+| `POST` | `/quote/{id}/like` | Like a quote (adds to end of favourites list) | Bearer Token | None |
+| `DELETE` | `/quote/{id}/unlike` | Unlike a quote (remove from favourites) | Bearer Token | None |
+| `GET` | `/quote/liked` | Get user's liked quotes sorted by custom order | Bearer Token | None |
+| `PUT` | `/quote/{id}/reorder` | Reorder a liked quote to new position | Bearer Token | `{"order": <integer>}` |
+| `GET` | `/quote/history` | Get user's view history in chronological order | Bearer Token | None |
+
+### Admin Endpoints (Requires ADMIN Role)
+
+| Method | Endpoint | Description | Auth | Request Body |
+|--------|----------|-------------|------|--------------|
+| `GET` | `/api/v1/admin/users` | List all users with their attributes | Bearer Token | None |
+| `POST` | `/api/v1/admin/users/{username}/groups/{groupName}` | Add user to a group (USER/ADMIN) | Bearer Token | None |
+| `DELETE` | `/api/v1/admin/users/{username}/groups/{groupName}` | Remove user from a group | Bearer Token | None |
+| `DELETE` | `/api/v1/admin/users/{username}` | Delete user and all their data | Bearer Token | None |
+| `GET` | `/api/v1/admin/quotes` | List all quotes with pagination, search, and sorting | Bearer Token | Query Parameters |
+| `POST` | `/api/v1/admin/quotes/fetch` | Fetch and add new quotes from ZEN API | Bearer Token | None |
+| `GET` | `/api/v1/admin/likes/total` | Get total number of likes across all quotes | Bearer Token | None |
 
 **API Base URL**: `https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com`
+
+### Admin Quotes Endpoint - Query Parameters
+
+The `/api/v1/admin/quotes` endpoint supports the following query parameters for pagination, search, and sorting:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | `1` | Page number (1-based) |
+| `pageSize` | integer | `50` | Number of quotes per page (max 250) |
+| `quoteText` | string | `null` | Filter quotes by text content (case-insensitive contains) |
+| `author` | string | `null` | Filter quotes by author name (case-insensitive contains) |
+| `sortBy` | string | `id` | Sort field: `id`, `quoteText`, `author`, `likeCount` |
+| `sortOrder` | string | `asc` | Sort order: `asc`, `desc` (likeCount only supports `desc`) |
+
+**Example Request**:
+```bash
+curl -X GET "https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/quotes?page=1&pageSize=25&quoteText=inspiration&sortBy=likeCount&sortOrder=desc" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+**Response Format**:
+```json
+{
+  "quotes": [
+    {
+      "id": 1,
+      "quoteText": "The only way to do great work is to love what you do.",
+      "author": "Steve Jobs",
+      "likeCount": 15
+    }
+  ],
+  "totalCount": 150,
+  "page": 1,
+  "pageSize": 25,
+  "totalPages": 6
+}
+```
 
 ### Authentication & Authorization
 
@@ -108,6 +157,8 @@ The code for the Quote Web App can be found at:
   - Automatic role assignment on user creation
 
 ### Request/Response Examples
+
+#### User Endpoints
 
 **Like a Quote**:
 ```bash
@@ -134,6 +185,58 @@ curl -X GET https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/quote/like
 ```bash
 curl -X GET https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/quote/history \
   -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+#### Admin Endpoints
+
+**List All Users**:
+```bash
+curl -X GET https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/users \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+**Add User to Admin Group**:
+```bash
+curl -X POST https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/users/john.doe/groups/ADMIN \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+**Remove User from Group**:
+```bash
+curl -X DELETE https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/users/john.doe/groups/ADMIN \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+**Delete User**:
+```bash
+curl -X DELETE https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/users/john.doe \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+**List Quotes with Pagination and Search**:
+```bash
+curl -X GET "https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/quotes?page=1&pageSize=25&quoteText=success&sortBy=likeCount&sortOrder=desc" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+**Fetch New Quotes from ZEN API**:
+```bash
+curl -X POST https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/quotes/fetch \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json"
+```
+
+**Get Total Likes**:
+```bash
+curl -X GET https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/admin/likes/total \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+**Response Format**:
+```json
+{
+  "totalLikes": 150
+}
 ```
 
 ## Documentation

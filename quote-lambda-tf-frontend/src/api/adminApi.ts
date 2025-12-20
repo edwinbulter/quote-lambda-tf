@@ -158,6 +158,24 @@ async function fetchAndAddNewQuotes(): Promise<QuoteAddResponse> {
     return await response.json();
 }
 
+async function getTotalLikes(): Promise<{ totalLikes: number }> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/admin/likes/total`, {
+        method: "GET",
+        headers: {
+            ...authHeaders,
+        },
+    });
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Get total likes failed:', response.status, errorText);
+        throw new Error(`Failed to fetch total likes: ${response.status} - ${errorText}`);
+    }
+    
+    return await response.json();
+}
+
 export default {
     listUsers,
     addUserToGroup,
@@ -165,4 +183,5 @@ export default {
     deleteUser,
     getQuotes,
     fetchAndAddNewQuotes,
+    getTotalLikes,
 };

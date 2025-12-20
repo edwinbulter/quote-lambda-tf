@@ -34,7 +34,7 @@ export function ManagementScreen({
                     disabled={!hasUserRole}
                     title={!hasUserRole ? 'USER role required' : ''}
                 >
-                    Manage Favourites
+                    My Favourites
                 </button>
                 <button
                     className="management-menu-item"
@@ -42,7 +42,7 @@ export function ManagementScreen({
                     disabled={!hasUserRole}
                     title={!hasUserRole ? 'USER role required' : ''}
                 >
-                    Viewed Quotes
+                    My Viewed Quotes
                 </button>
                 <button
                     className="management-menu-item"
