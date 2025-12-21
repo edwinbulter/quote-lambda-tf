@@ -22,6 +22,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const [loading, setLoading] = useState<boolean>(true);
     const [searching, setSearching] = useState<boolean>(false);
     const [addingQuotes, setAddingQuotes] = useState<boolean>(false);
+    const [paginationLoading, setPaginationLoading] = useState<boolean>(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [sortBy, setSortBy] = useState<'id' | 'quoteText' | 'author' | 'likeCount'>('id');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -48,7 +49,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const loadQuotes = async () => {
         try {
             // Only show loading spinner on initial load
-            if (page === 1 && !searching) {
+            if (page === 1 && !searching && !paginationLoading) {
                 setLoading(true);
             }
             const response = await adminApi.getQuotes(page, pageSize, debouncedQuoteText, debouncedAuthor, sortBy, sortOrder);
@@ -65,6 +66,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
         } finally {
             setLoading(false);
             setSearching(false);
+            setPaginationLoading(false);
         }
     };
 
@@ -114,7 +116,24 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
 
     const handlePageJump = (newPage: number) => {
         const validPage = Math.max(1, Math.min(totalPages, newPage));
-        setPage(validPage);
+        if (validPage !== page) {
+            setPaginationLoading(true);
+            setPage(validPage);
+        }
+    };
+
+    const handlePreviousPage = () => {
+        if (page > 1) {
+            setPaginationLoading(true);
+            setPage(page - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (page < totalPages) {
+            setPaginationLoading(true);
+            setPage(page + 1);
+        }
     };
 
     const showToast = (message: string, type: 'success' | 'error') => {
@@ -177,7 +196,12 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
                 <div className="loading">Loading quotes...</div>
             ) : (
                 <>
-                    <div className={`quotes-table-container ${searching ? 'searching' : ''}`}>
+                    <div className={`quotes-table-container ${searching ? 'searching' : ''} ${paginationLoading ? 'pagination-loading' : ''}`}>
+                        {paginationLoading ? (
+                            <div className="pagination-loading-overlay">
+                                <div className="loading">Loading page...</div>
+                            </div>
+                        ) : null}
                         {quotes.length === 0 ? (
                             <div className="empty-state-inline">No quotes found.</div>
                         ) : (
@@ -226,10 +250,10 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
 
                         <div className="pagination-controls">
                             <button 
-                                onClick={() => setPage(Math.max(1, page - 1))}
-                                disabled={page === 1}
+                                onClick={handlePreviousPage}
+                                disabled={page === 1 || paginationLoading}
                             >
-                                Previous
+                                {paginationLoading && page > 1 ? 'Loading...' : 'Previous'}
                             </button>
                             
                             <span className="page-info">
@@ -243,13 +267,14 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
                                 value={page}
                                 onChange={(e) => handlePageJump(Number(e.target.value))}
                                 className="page-input"
+                                disabled={paginationLoading}
                             />
                             
                             <button 
-                                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                                disabled={page === totalPages}
+                                onClick={handleNextPage}
+                                disabled={page === totalPages || paginationLoading}
                             >
-                                Next
+                                {paginationLoading && page < totalPages ? 'Loading...' : 'Next'}
                             </button>
                         </div>
                     </div>
