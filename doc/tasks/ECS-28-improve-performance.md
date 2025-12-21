@@ -1,5 +1,59 @@
 # ECS28 - Sequential Quote Viewing System Performance Improvement
 
+## Table of Contents
+
+- [Goal](#goal)
+- [Problem Statement](#problem-statement)
+  - [Original System Issues](#original-system-issues)
+  - [User Experience Issues](#user-experience-issues)
+- [Design](#design)
+  - [High-Level Architecture](#high-level-architecture)
+  - [Key Design Principles](#key-design-principles)
+  - [Data Model Changes](#data-model-changes)
+- [Implementation](#implementation)
+  - [Backend Changes](#backend-changes)
+    - [New Models and Repositories](#new-models-and-repositories)
+    - [Updated QuoteService](#updated-quoteservice)
+    - [New API Endpoints](#new-api-endpoints)
+    - [Error Handling and Graceful Degradation](#error-handling-and-graceful-degradation)
+  - [Frontend Changes](#frontend-changes)
+    - [Updated API Layer](#updated-api-layer)
+    - [State Management Refactor](#state-management-refactor)
+    - [Navigation Functions](#navigation-functions)
+    - [Navigation Button Boundaries](#navigation-button-boundaries)
+    - [User Progress Loading](#user-progress-loading)
+  - [Database Schema](#database-schema)
+    - [New Table: User Progress](#new-table-user-progress)
+    - [Existing Tables (Unchanged)](#existing-tables-unchanged)
+- [Performance Improvements](#performance-improvements)
+  - [Database Efficiency](#database-efficiency)
+  - [Memory Usage](#memory-usage)
+  - [Network Traffic](#network-traffic)
+  - [Scalability](#scalability)
+- [Testing and Validation](#testing-and-validation)
+  - [Backend Tests](#backend-tests)
+  - [Frontend Tests](#frontend-tests)
+  - [Integration Testing](#integration-testing)
+- [Deployment Considerations](#deployment-considerations)
+  - [Environment Variables](#environment-variables)
+  - [Migration Strategy](#migration-strategy)
+  - [Rollback Plan](#rollback-plan)
+- [Future Enhancements](#future-enhancements)
+  - [Potential Improvements](#potential-improvements)
+  - [Monitoring Metrics](#monitoring-metrics)
+- [Conclusion](#conclusion)
+- [Follow-up Actions - Performance Optimization](#follow-up-actions---performance-optimization)
+  - [Current Performance Issues](#current-performance-issues)
+    - [Previous/Next Button Latency](#previousnext-button-latency)
+    - [Manage Quotes Screen Performance](#manage-quotes-screen-performance)
+  - [Proposed Solutions](#proposed-solutions)
+    - [Frontend Optimizations](#frontend-optimizations)
+    - [Backend Optimizations](#backend-optimizations)
+    - [Database Optimizations](#database-optimizations)
+  - [Implementation Priority](#implementation-priority)
+  - [Expected Performance Improvements](#expected-performance-improvements)
+  - [Monitoring and Metrics](#monitoring-and-metrics)
+
 ## Goal
 
 Improve the performance and scalability of the quote viewing system by replacing the inefficient random, history-based navigation with a sequential, ID-based approach. The original system loaded all viewed quotes into memory and maintained individual view records, which became increasingly inefficient as users viewed more quotes.
@@ -303,3 +357,262 @@ The sequential quote viewing system successfully addresses the performance and s
 - **Graceful degradation** for edge cases
 
 The implementation demonstrates how thoughtful architectural changes can dramatically improve performance while enhancing user experience.
+
+## Follow-up Actions - Performance Optimization
+
+### Current Performance Issues
+
+#### 1. Previous/Next Button Latency
+**Problem**: Sequential navigation shows "Loading..." before quotes appear
+- Each navigation triggers individual API calls to `/quote/{id}/previous` or `/quote/{id}/next`
+- UserProgressRepository lookup adds DynamoDB latency (~50-100ms)
+- No optimistic updates or caching strategy
+
+#### 2. Manage Quotes Screen Performance
+**Problem**: Slow loading on initial load, pagination, and sorting
+- `QuoteManagementService.getQuotesWithPagination()` loads ALL quotes from DynamoDB before filtering
+- In-memory pagination after fetching entire dataset (inefficient for large quote collections)
+- No server-side pagination or query optimization
+- Sorting performed in memory after full dataset retrieval
+
+### Proposed Solutions
+
+#### 1. Frontend Optimizations
+
+##### A. Implement Optimistic Updates for Navigation
+```typescript
+// Cache adjacent quotes and update UI immediately
+const quoteCache = new Map<number, Quote>();
+
+const prefetchAdjacentQuotes = async (currentId: number) => {
+  // Prefetch previous and next quotes
+  const [prev, next] = await Promise.all([
+    quoteApi.getPreviousQuote(currentId),
+    quoteApi.getNextQuote(currentId)
+  ]);
+  quoteCache.set(prev.id, prev);
+  quoteCache.set(next.id, next);
+};
+
+// Use cached quotes for instant navigation
+const previous = async () => {
+  if (quoteCache.has(currentQuoteId - 1)) {
+    const cachedQuote = quoteCache.get(currentQuoteId - 1);
+    setQuote(cachedQuote);
+    setCurrentQuoteId(cachedQuote.id);
+    // Update in background
+    quoteApi.getPreviousQuote(currentQuoteId).then(updateCache);
+  } else {
+    // Fallback to API call
+    const prevQuote = await quoteApi.getPreviousQuote(currentQuoteId);
+    setQuote(prevQuote);
+    setCurrentQuoteId(prevQuote.id);
+  }
+};
+```
+
+##### B. Add React Query/SWR for Data Caching
+```typescript
+// Install: npm install @tanstack/react-query
+const queryClient = useQueryClient();
+
+const useQuote = (quoteId: number) => {
+  return useQuery({
+    queryKey: ['quote', quoteId],
+    queryFn: () => quoteApi.getQuoteById(quoteId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// Prefetch on hover
+<button 
+  onMouseEnter={() => queryClient.prefetchQuery(['quote', currentQuoteId - 1], 
+    () => quoteApi.getPreviousQuote(currentQuoteId))}
+  onClick={previous}
+>
+  Previous
+</button>
+```
+
+#### 2. Backend Optimizations
+
+##### A. Implement Server-Side Pagination
+```java
+public QuotePageResponse getQuotesWithPagination(int page, int pageSize, 
+    String quoteText, String author, String sortBy, String sortOrder) {
+    
+    // Use DynamoDB query with pagination instead of loading all
+    Map<String, AttributeValue> exclusiveStartKey = null;
+    if (page > 1) {
+        // Store pagination token from previous request
+        exclusiveStartKey = getLastEvaluatedKey(page - 1);
+    }
+    
+    // Query with limit and filters
+    QueryRequest queryRequest = new QueryRequest()
+        .withTableName(QUOTES_TABLE)
+        .withLimit(pageSize)
+        .withExclusiveStartKey(exclusiveStartKey)
+        .withScanIndexForward("asc".equals(sortOrder));
+    
+    // Apply filters at database level using GSI if available
+    if (quoteText != null && !quoteText.isEmpty()) {
+        queryRequest.setIndexName("QuoteTextIndex");
+        queryRequest.setKeyConditionExpression(
+            "contains(quoteText, :quoteText)"
+        );
+    }
+    
+    QueryResult result = dynamoDbClient.query(queryRequest);
+    
+    return new QuotePageResponse(
+        convertToQuotesWithLikes(result.getItems()),
+        result.getCount(), // Use count from query result
+        page,
+        pageSize,
+        result.getLastEvaluatedKey() != null ? page + 1 : page
+    );
+}
+```
+
+##### B. Add DynamoDB GSIs for Efficient Querying
+```hcl
+# infrastructure/dynamodb.tf
+resource "aws_dynamodb_table" "quotes" {
+  name           = "quotes"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "id"
+  
+  # Global Secondary Index for text search
+  global_secondary_index {
+    name     = "QuoteTextIndex"
+    hash_key = "quoteText"
+    projection_type = "ALL"
+  }
+  
+  # Global Secondary Index for author search
+  global_secondary_index {
+    name     = "AuthorIndex"
+    hash_key = "author"
+    projection_type = "ALL"
+  }
+  
+  attribute {
+    name = "quoteText"
+    type = "S"
+  }
+  
+  attribute {
+    name = "author"
+    type = "S"
+  }
+}
+```
+
+##### C. Implement Caching Layer (Optional)
+```java
+// Add Redis cache for frequently accessed quotes
+@Service
+public class CachedQuoteService {
+    @Autowired
+    private RedisTemplate<String, Quote> redisTemplate;
+    
+    @Cacheable(value = "quotes", key = "#id")
+    public Quote getQuoteById(int id) {
+        return quoteRepository.findById(id);
+    }
+    
+    @Cacheable(value = "userProgress", key = "#username")
+    public UserProgress getUserProgress(String username) {
+        return userProgressRepository.getUserProgress(username);
+    }
+}
+```
+
+#### 3. Database Optimizations
+
+##### A. Batch Operations for Quote Navigation
+```java
+public QuoteNavigationBatch getNavigationBatch(String username, int currentId) {
+    UserProgress progress = userProgressRepository.getUserProgress(username);
+    
+    // Batch fetch multiple quotes at once
+    List<Integer> idsToFetch = Arrays.asList(
+        currentId - 2, currentId - 1, 
+        currentId, currentId + 1, currentId + 2
+    );
+    
+    Map<Integer, Quote> quotes = quoteRepository.findByIds(idsToFetch);
+    
+    return new QuoteNavigationBatch(
+        quotes.get(currentId - 1),  // previous
+        quotes.get(currentId),      // current
+        quotes.get(currentId + 1),  // next
+        progress.getLastQuoteId()   // maxId
+    );
+}
+```
+
+##### B. Optimized UserProgress Queries
+```java
+// Use DynamoDB's UpdateItem with ReturnValues for atomic operations
+public Quote getNextQuoteOptimized(String username) {
+    UpdateItemRequest request = new UpdateItemRequest()
+        .withTableName(USER_PROGRESS_TABLE)
+        .withKey(Collections.singletonMap("username", 
+            new AttributeValue().withS(username)))
+        .withUpdateExpression("SET lastQuoteId = if_not_exists(lastQuoteId, :start) + :inc")
+        .withExpressionAttributeValues(Map.of(
+            ":start", new AttributeValue().withN("0"),
+            ":inc", new AttributeValue().withN("1")
+        ))
+        .withReturnValues(ReturnValue.ALL_NEW);
+    
+    UpdateItemResult result = dynamoDbClient.updateItem(request);
+    int newQuoteId = Integer.parseInt(result.getAttributes().get("lastQuoteId").getN());
+    
+    return quoteRepository.findById(newQuoteId);
+}
+```
+
+### Implementation Priority
+
+#### Phase 1: Quick Wins (1-2 days)
+1. Add React Query for frontend caching
+2. Implement optimistic updates for navigation
+3. Add prefetching on hover
+
+#### Phase 2: Backend Optimization (3-5 days)
+1. Implement server-side pagination in QuoteManagementService
+2. Add batch operations for navigation
+3. Optimize UserProgress queries
+
+#### Phase 3: Infrastructure (1-2 days)
+1. Add GSIs to DynamoDB table
+2. Implement Redis caching (optional)
+3. Add monitoring and metrics
+
+### Expected Performance Improvements
+
+- **Navigation**: Near-instant previous/next with caching (50-100ms → <10ms perceived)
+- **Manage Quotes**: 90% faster initial load (full table → paginated queries)
+- **Memory Usage**: 80% reduction in frontend memory (no full dataset caching)
+- **Database Costs**: 70% reduction in read capacity (server-side pagination)
+
+### Monitoring and Metrics
+
+Add these metrics to track improvements:
+```java
+// Track navigation latency
+@Timed(name = "quote.navigation.duration", description = "Time to navigate between quotes")
+public Quote getNextQuote(String username) { ... }
+
+// Track pagination performance
+@Timed(name = "quotes.pagination.duration", description = "Time to load quote page")
+public QuotePageResponse getQuotesWithPagination(...) { ... }
+
+// Track cache hit rates
+@Counter(name = "quote.cache.hits", description = "Quote cache hits")
+@Counter(name = "quote.cache.misses", description = "Quote cache misses")
+```
