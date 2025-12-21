@@ -1,0 +1,74 @@
+import { useState, useCallback, useRef } from 'react';
+import { Quote } from '../types/Quote';
+import quoteApi from '../api/quoteApi';
+
+interface QuoteCache {
+  get(id: number): Quote | undefined;
+  set(id: number, quote: Quote): void;
+  has(id: number): boolean;
+  prefetchAdjacent(currentId: number): Promise<void>;
+  clear(): void;
+}
+
+export const useQuoteCache = (): QuoteCache => {
+  const [cache] = useState(() => new Map<number, Quote>());
+  const prefetchPromises = useRef<Map<number, Promise<void>>>(new Map());
+
+  const get = useCallback((id: number): Quote | undefined => {
+    return cache.get(id);
+  }, [cache]);
+
+  const set = useCallback((id: number, quote: Quote): void => {
+    cache.set(id, quote);
+  }, [cache]);
+
+  const has = useCallback((id: number): boolean => {
+    return cache.has(id);
+  }, [cache]);
+
+  const prefetchAdjacent = useCallback(async (currentId: number): Promise<void> => {
+    // Avoid duplicate prefetches
+    if (prefetchPromises.current.has(currentId)) {
+      return prefetchPromises.current.get(currentId);
+    }
+
+    const prefetchPromise = (async () => {
+      try {
+        // Prefetch previous and next quotes in parallel
+        const [prev, next] = await Promise.all([
+          quoteApi.getPreviousQuote(currentId).catch(() => null),
+          quoteApi.getNextQuote(currentId).catch(() => null)
+        ]);
+
+        // Cache the results if they exist
+        if (prev) {
+          cache.set(prev.id, prev);
+        }
+        if (next) {
+          cache.set(next.id, next);
+        }
+      } catch (error) {
+        console.warn('Failed to prefetch adjacent quotes:', error);
+      } finally {
+        // Clean up the promise reference
+        prefetchPromises.current.delete(currentId);
+      }
+    })();
+
+    prefetchPromises.current.set(currentId, prefetchPromise);
+    return prefetchPromise;
+  }, [cache]);
+
+  const clear = useCallback((): void => {
+    cache.clear();
+    prefetchPromises.current.clear();
+  }, [cache]);
+
+  return {
+    get,
+    set,
+    has,
+    prefetchAdjacent,
+    clear
+  };
+};
