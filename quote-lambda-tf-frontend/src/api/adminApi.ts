@@ -1,5 +1,7 @@
 import { BASE_URL } from "../constants/constants";
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { withRetry } from '../utils/apiRetry';
+import { notifyBackendRestart } from '../components/BackendRestartNotification';
 
 async function getAuthHeaders(): Promise<HeadersInit> {
     try {
@@ -49,62 +51,114 @@ export interface QuoteAddResponse {
 
 async function listUsers(): Promise<UserInfo[]> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/admin/users`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/admin/users`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying listUsers (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 async function addUserToGroup(username: string, groupName: string): Promise<void> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}/groups/${groupName}`, {
-        method: "POST",
-        headers: {
-            ...authHeaders,
-        },
-    });
     
-    if (!response.ok) {
-        throw new Error(`Failed to add user to group: ${response.status} ${response.statusText}`);
-    }
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}/groups/${groupName}`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to add user to group: ${response.status} ${response.statusText}`);
+            }
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying addUserToGroup (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
+    });
 }
 
 async function removeUserFromGroup(username: string, groupName: string): Promise<void> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}/groups/${groupName}`, {
-        method: "DELETE",
-        headers: {
-            ...authHeaders,
-        },
-    });
     
-    if (!response.ok) {
-        throw new Error(`Failed to remove user from group: ${response.status} ${response.statusText}`);
-    }
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}/groups/${groupName}`, {
+                method: "DELETE",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to remove user from group: ${response.status} ${response.statusText}`);
+            }
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying removeUserFromGroup (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
+    });
 }
 
 async function deleteUser(username: string): Promise<void> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}`, {
-        method: "DELETE",
-        headers: {
-            ...authHeaders,
-        },
-    });
     
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Delete user failed:', response.status, errorText);
-        throw new Error(`Failed to delete user: ${response.status} - ${errorText}`);
-    }
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}`, {
+                method: "DELETE",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Delete user failed:', response.status, errorText);
+                throw new Error(`Failed to delete user: ${response.status} - ${errorText}`);
+            }
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying deleteUser (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
+    });
 }
 
 async function getQuotes(
@@ -124,56 +178,94 @@ async function getQuotes(
     if (sortBy) params.append('sortBy', sortBy);
     if (sortOrder) params.append('sortOrder', sortOrder);
 
-    const response = await fetch(`${BASE_URL}/admin/quotes?${params.toString()}`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/admin/quotes?${params.toString()}`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Get quotes failed:', response.status, errorText);
+                throw new Error(`Failed to fetch quotes: ${response.status} - ${errorText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getQuotes (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Get quotes failed:', response.status, errorText);
-        throw new Error(`Failed to fetch quotes: ${response.status} - ${errorText}`);
-    }
-    
-    return await response.json();
 }
 
 async function fetchAndAddNewQuotes(): Promise<QuoteAddResponse> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/admin/quotes/fetch`, {
-        method: "POST",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/admin/quotes/fetch`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Fetch quotes failed:', response.status, errorText);
+                throw new Error(`Failed to add quotes: ${response.status} - ${errorText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying fetchAndAddNewQuotes (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Fetch quotes failed:', response.status, errorText);
-        throw new Error(`Failed to add quotes: ${response.status} - ${errorText}`);
-    }
-    
-    return await response.json();
 }
 
 async function getTotalLikes(): Promise<{ totalLikes: number }> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/admin/likes/total`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/admin/likes/total`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Get total likes failed:', response.status, errorText);
+                throw new Error(`Failed to fetch total likes: ${response.status} - ${errorText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getTotalLikes (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Get total likes failed:', response.status, errorText);
-        throw new Error(`Failed to fetch total likes: ${response.status} - ${errorText}`);
-    }
-    
-    return await response.json();
 }
 
 export default {

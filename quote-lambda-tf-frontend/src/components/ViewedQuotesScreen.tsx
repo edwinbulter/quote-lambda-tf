@@ -3,6 +3,7 @@ import './ViewedQuotesScreen.css';
 import quoteApi from '../api/quoteApi';
 import { Quote } from '../types/Quote';
 import { Toast } from './Toast';
+import { BackendRestartNotification, useBackendRestartNotification } from './BackendRestartNotification';
 
 interface ViewedQuotesScreenProps {
     onBack: () => void;
@@ -16,6 +17,7 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
     const [viewedQuotes, setViewedQuotes] = useState<ViewedQuote[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const { isOpen, retryCount } = useBackendRestartNotification();
 
     useEffect(() => {
         loadViewedQuotes();
@@ -78,6 +80,7 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
 
     return (
         <div className="viewed-quotes-screen">
+            <BackendRestartNotification isOpen={isOpen} retryCount={retryCount} />
             <div className="viewed-quotes-header">
                 <button className="back-button" onClick={onBack}>
                     ← Back

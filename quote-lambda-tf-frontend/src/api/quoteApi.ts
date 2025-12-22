@@ -61,35 +61,61 @@ async function getUniqueQuote(receivedQuotes: Quote[]): Promise<Quote> {
 
 async function likeQuote(quote: Quote): Promise<Quote> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/${quote.id}/like`, {
-        method: "POST",
-        headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/${quote.id}/like`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to like quote: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying likeQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to like quote: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 async function getLikedQuotes(): Promise<Quote[]> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/liked`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/liked`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch liked quotes: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getLikedQuotes (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch liked quotes: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 /**
@@ -127,32 +153,58 @@ async function getAuthenticatedQuote(): Promise<Quote> {
 
 async function unlikeQuote(quoteId: number): Promise<void> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/${quoteId}/unlike`, {
-        method: "DELETE",
-        headers: {
-            ...authHeaders,
-        },
-    });
     
-    if (!response.ok) {
-        throw new Error(`Failed to unlike quote: ${response.status} ${response.statusText}`);
-    }
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/${quoteId}/unlike`, {
+                method: "DELETE",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to unlike quote: ${response.status} ${response.statusText}`);
+            }
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying unlikeQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
+    });
 }
 
 async function reorderLikedQuote(quoteId: number, order: number): Promise<void> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/${quoteId}/reorder`, {
-        method: "PUT",
-        headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders,
-        },
-        body: JSON.stringify({ order }),
-    });
     
-    if (!response.ok) {
-        throw new Error(`Failed to reorder quote: ${response.status} ${response.statusText}`);
-    }
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/${quoteId}/reorder`, {
+                method: "PUT",
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders,
+                },
+                body: JSON.stringify({ order }),
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to reorder quote: ${response.status} ${response.statusText}`);
+            }
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying reorderLikedQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
+    });
 }
 
 // New sequential navigation API functions
@@ -162,18 +214,31 @@ async function reorderLikedQuote(quoteId: number, order: number): Promise<void> 
  */
 async function getQuoteById(quoteId: number): Promise<Quote> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/${quoteId}`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/${quoteId}`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getQuoteById (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 /**
@@ -181,18 +246,31 @@ async function getQuoteById(quoteId: number): Promise<Quote> {
  */
 async function getPreviousQuote(currentQuoteId: number): Promise<Quote> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/${currentQuoteId}/previous`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/${currentQuoteId}/previous`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch previous quote: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getPreviousQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch previous quote: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 /**
@@ -200,18 +278,31 @@ async function getPreviousQuote(currentQuoteId: number): Promise<Quote> {
  */
 async function getNextQuote(currentQuoteId: number): Promise<Quote> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/${currentQuoteId}/next`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/${currentQuoteId}/next`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch next quote: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getNextQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch next quote: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 /**
@@ -219,18 +310,31 @@ async function getNextQuote(currentQuoteId: number): Promise<Quote> {
  */
 async function getUserProgress(): Promise<{ lastQuoteId: number; username: string; updatedAt: number }> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/progress`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/progress`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch user progress: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getUserProgress (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch user progress: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 /**
@@ -238,18 +342,31 @@ async function getUserProgress(): Promise<{ lastQuoteId: number; username: strin
  */
 async function getViewedQuotes(): Promise<Quote[]> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote/viewed`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/viewed`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch viewed quotes: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getViewedQuotes (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch viewed quotes: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 export default {

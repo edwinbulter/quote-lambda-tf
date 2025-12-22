@@ -3,6 +3,7 @@ import './ManageFavouritesScreen.css';
 import quoteApi from '../api/quoteApi';
 import { Quote } from '../types/Quote';
 import { Toast } from './Toast';
+import { BackendRestartNotification, useBackendRestartNotification } from './BackendRestartNotification';
 
 interface ManageFavouritesScreenProps {
     onBack: () => void;
@@ -12,6 +13,7 @@ export function ManageFavouritesScreen({ onBack }: ManageFavouritesScreenProps) 
     const [favourites, setFavourites] = useState<Quote[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const { isOpen, retryCount } = useBackendRestartNotification();
 
     useEffect(() => {
         loadFavourites();
@@ -88,6 +90,7 @@ export function ManageFavouritesScreen({ onBack }: ManageFavouritesScreenProps) 
 
     return (
         <div className="manage-favourites-screen">
+            <BackendRestartNotification isOpen={isOpen} retryCount={retryCount} />
             <div className="manage-favourites-header">
                 <button className="back-button" onClick={onBack}>
                     ← Back

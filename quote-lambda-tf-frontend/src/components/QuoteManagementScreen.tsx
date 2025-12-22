@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import './QuoteManagementScreen.css';
 import adminApi, { QuoteWithLikeCount } from '../api/adminApi';
 import { Toast } from './Toast';
+import { BackendRestartNotification, useBackendRestartNotification } from './BackendRestartNotification';
 
 interface QuoteManagementScreenProps {
     onBack: () => void;
@@ -26,6 +27,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [sortBy, setSortBy] = useState<'id' | 'quoteText' | 'author' | 'likeCount'>('id');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const { isOpen, retryCount } = useBackendRestartNotification();
 
     // Debounce search inputs
     useEffect(() => {
@@ -142,6 +144,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
 
     return (
         <div className="quote-management-screen">
+            <BackendRestartNotification isOpen={isOpen} retryCount={retryCount} />
             <div className="quote-management-header">
                 <button className="back-button" onClick={onBack}>
                     ← Back

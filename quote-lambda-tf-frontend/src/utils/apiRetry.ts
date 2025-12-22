@@ -41,7 +41,18 @@ export async function withRetry<T>(
         const isServerError = error.message.includes('500') || 
                             error.message.includes('Internal Server Error') ||
                             error.message.includes('Failed to fetch') ||
-                            error.message.includes('Network request failed');
+                            error.message.includes('Network request failed') ||
+                            error.message.includes('CORS') ||
+                            error.message.includes('blocked by CORS policy') ||
+                            error.message.includes('ERR_FAILED') ||
+                            error.message.includes('ERR_CONNECTION_REFUSED') ||
+                            error.message.includes('ERR_NETWORK') ||
+                            error.message.includes('ERR_INTERNET_DISCONNECTED') ||
+                            error.message.includes('ERR_NAME_NOT_RESOLVED') ||
+                            error.message.includes('ERR_TIMED_OUT') ||
+                            error.message.includes('timeout') ||
+                            error.message.includes('NetworkError') ||
+                            error.message.includes('fetch failed');
         
         if (!isServerError || (opts.maxRetries !== Infinity && attempt > opts.maxRetries)) {
           throw error;
