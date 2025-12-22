@@ -1,6 +1,7 @@
 import { BASE_URL } from "../constants/constants";
 import {Quote} from "../types/Quote.ts";
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { withRetry, notifyBackendRestart } from '../utils/apiRetry';
 
 // Helper function to get auth headers
 async function getAuthHeaders(): Promise<HeadersInit> {
@@ -29,14 +30,32 @@ async function getQuote(): Promise<Quote> {
 
 async function getUniqueQuote(receivedQuotes: Quote[]): Promise<Quote> {
     const quoteIds = receivedQuotes.map(quote => quote.id);
-    const response = await fetch(`${BASE_URL}/quote`, {
-        method: "POST",
-        headers: {
-            'Content-Type': 'application/json',
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(quoteIds),
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
-        body: JSON.stringify(quoteIds),
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getUniqueQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    return await response.json();
 }
 
 async function likeQuote(quote: Quote): Promise<Quote> {
@@ -78,18 +97,31 @@ async function getLikedQuotes(): Promise<Quote[]> {
  */
 async function getAuthenticatedQuote(): Promise<Quote> {
     const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/quote`, {
-        method: "GET",
-        headers: {
-            ...authHeaders,
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
         },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getAuthenticatedQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
 }
 
 async function unlikeQuote(quoteId: number): Promise<void> {

@@ -2,6 +2,7 @@ import './App.scss';
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import quoteApi from "./api/quoteApi";
 import FavouritesComponent, { FavouritesComponentHandle } from "./components/FavouritesComponent.tsx";
+import { BackendRestartNotification, useBackendRestartNotification } from "./components/BackendRestartNotification";
 
 // Import `Quote` interface from the appropriate file
 import { Quote } from "./types/Quote"; // Adjust the path based on your project
@@ -29,6 +30,9 @@ const App: React.FC = () => {
     const [userEmail, setUserEmail] = useState<string>('');
     const [displayUsername, setDisplayUsername] = useState<string>('');
     const favouritesRef = useRef<FavouritesComponentHandle>(null);
+    
+    // Backend restart notification
+    const { isOpen: isBackendRestarting, retryCount } = useBackendRestartNotification();
 
     // Use the new hooks for optimized quote fetching (always call hooks, but disable when not authenticated)
     const { quote: optimizedQuote, isLoading: quoteLoading, prefetchAdjacent, updateQuote } = 
@@ -304,6 +308,7 @@ const App: React.FC = () => {
     };
 
     return (
+        <>
         <div className="app">
             <div className={`quoteView ${(signingIn || showProfile || needsUsernameSetup || showManagement) ? 'fullHeight fullWidth' : ''}`}>
                 {showManagement ? (
@@ -438,6 +443,8 @@ const App: React.FC = () => {
                 <FavouritesComponent ref={favouritesRef}/>
             )}
         </div>
+        <BackendRestartNotification isOpen={isBackendRestarting} retryCount={retryCount} />
+        </>
     );
 };
 
