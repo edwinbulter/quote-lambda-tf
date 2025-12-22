@@ -18,6 +18,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import java.util.UUID;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -340,12 +341,28 @@ public class QuoteManagementServiceWithCache {
     }
     
     /**
-     * Refresh cache manually
+     * Refresh cache manually with debug logging
      */
     public void refreshCache() {
-        logger.info("Manual cache refresh requested");
-        cacheBuilder.buildAndUploadCache();
-        clearCache();
+        String requestId = UUID.randomUUID().toString().substring(0, 8);
+        logger.info("[{}] Manual cache refresh requested", requestId);
+        
+        try {
+            long refreshStart = System.currentTimeMillis();
+            cacheBuilder.buildAndUploadCache();
+            clearCache();
+            long refreshDuration = System.currentTimeMillis() - refreshStart;
+            logger.info("[{}] Cache refresh completed successfully in {}ms", 
+                requestId, refreshDuration);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("concurrent modifications")) {
+                logger.warn("[{}] Cache refresh failed due to concurrent updates. " +
+                    "Another instance may have updated the cache.", requestId);
+            } else {
+                logger.error("[{}] Cache refresh failed", requestId, e);
+                throw e;
+            }
+        }
     }
     
     /**

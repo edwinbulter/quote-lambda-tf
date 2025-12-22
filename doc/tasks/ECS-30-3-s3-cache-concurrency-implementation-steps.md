@@ -12,7 +12,6 @@
    - 3.2. Step 2: Add Debug Logging for Verification
 4. [Verification Steps](#verification-steps)
 5. [Success Criteria](#success-criteria)
-6. [Rollback Procedure](#rollback-procedure)
 
 ## Chosen Implementation
 
