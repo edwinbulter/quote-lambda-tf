@@ -23,10 +23,27 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 // Define the functions with explicit parameter and return types
 async function getQuote(): Promise<Quote> {
-    const response = await fetch(`${BASE_URL}/quote`, {
-        method: "GET",
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote`, {
+                method: "GET",
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch quote: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
     });
-    return await response.json();
 }
 
 async function getUniqueQuote(receivedQuotes: Quote[]): Promise<Quote> {
