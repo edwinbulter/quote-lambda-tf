@@ -34,11 +34,20 @@ export const useQuoteCache = (): QuoteCache => {
 
     const prefetchPromise = (async () => {
       try {
-        // Prefetch previous and next quotes in parallel
-        const [prev, next] = await Promise.all([
-          quoteApi.getPreviousQuote(currentId).catch(() => null),
-          quoteApi.getNextQuote(currentId).catch(() => null)
-        ]);
+        // Prefetch previous and next quotes in parallel, but only if valid
+        const promises = [];
+        
+        // Only prefetch previous if currentId > 1
+        if (currentId > 1) {
+          promises.push(quoteApi.getPreviousQuote(currentId).catch(() => null));
+        } else {
+          promises.push(Promise.resolve(null));
+        }
+        
+        // Always prefetch next quote
+        promises.push(quoteApi.getNextQuote(currentId).catch(() => null));
+
+        const [prev, next] = await Promise.all(promises);
 
         // Cache the results if they exist
         if (prev) {
