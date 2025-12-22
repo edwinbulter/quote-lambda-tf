@@ -42,7 +42,7 @@ const App: React.FC = () => {
 
     // Use optimized quote for authenticated users, local state for unauthenticated
     const displayQuote = isAuthenticated ? optimizedQuote : quote;
-    const effectiveLoading = isAuthenticated ? (quoteLoading && !optimizedQuote) : loading;
+    const effectiveLoading = isAuthenticated ? (quoteLoading && !optimizedQuote) : (loading || !displayQuote);
 
     useEffect(() => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
