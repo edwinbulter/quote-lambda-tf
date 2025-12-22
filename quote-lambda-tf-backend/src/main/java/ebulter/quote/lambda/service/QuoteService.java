@@ -24,10 +24,12 @@ public class QuoteService {
     private final QuoteRepository quoteRepository;
     private final UserLikeRepository userLikeRepository;
     private UserProgressRepository userProgressRepository;
+    private final QuoteManagementServiceWithCache quoteManagementServiceWithCache;
 
     public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository) {
         this.quoteRepository = quoteRepository;
         this.userLikeRepository = userLikeRepository;
+        this.quoteManagementServiceWithCache = null;
         try {
             this.userProgressRepository = new UserProgressRepository();
         } catch (Exception e) {
@@ -40,7 +42,29 @@ public class QuoteService {
     public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository, UserProgressRepository userProgressRepository) {
         this.quoteRepository = quoteRepository;
         this.userLikeRepository = userLikeRepository;
+        this.quoteManagementServiceWithCache = null;
         this.userProgressRepository = userProgressRepository;
+    }
+    
+    // Constructor that accepts QuoteManagementServiceWithCache for cache-first operations
+    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository, QuoteManagementServiceWithCache quoteManagementServiceWithCache) {
+        this.quoteRepository = quoteRepository;
+        this.userLikeRepository = userLikeRepository;
+        this.quoteManagementServiceWithCache = quoteManagementServiceWithCache;
+        try {
+            this.userProgressRepository = new UserProgressRepository();
+        } catch (Exception e) {
+            logger.warn("Could not initialize UserProgressRepository, sequential navigation will be disabled: {}", e.getMessage());
+            this.userProgressRepository = null;
+        }
+    }
+    
+    // Full constructor for testing
+    public QuoteService(QuoteRepository quoteRepository, UserLikeRepository userLikeRepository, UserProgressRepository userProgressRepository, QuoteManagementServiceWithCache quoteManagementServiceWithCache) {
+        this.quoteRepository = quoteRepository;
+        this.userLikeRepository = userLikeRepository;
+        this.userProgressRepository = userProgressRepository;
+        this.quoteManagementServiceWithCache = quoteManagementServiceWithCache;
     }
 
     public Quote getQuote(String username, final Set<Integer> idsToExclude) {
@@ -87,7 +111,16 @@ public class QuoteService {
         }
         
         // Get the quote
-        Quote quote = quoteRepository.findById(nextQuoteId);
+        Quote quote;
+        if (quoteManagementServiceWithCache != null) {
+            quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(nextQuoteId));
+            if (quote == null) {
+                logger.warn("Quote with ID {} not found in cache, trying fallback", nextQuoteId);
+            }
+        } else {
+            quote = quoteRepository.findById(nextQuoteId);
+        }
+        
         if (quote == null) {
             logger.warn("Quote with ID {} not found, finding next available quote", nextQuoteId);
             quote = findNextAvailableQuote(nextQuoteId);
@@ -131,7 +164,12 @@ public class QuoteService {
             
             attemptedIds.add(candidateId);
             
-            Quote quote = quoteRepository.findById(candidateId);
+            Quote quote;
+            if (quoteManagementServiceWithCache != null) {
+                quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(candidateId));
+            } else {
+                quote = quoteRepository.findById(candidateId);
+            }
             if (quote != null) {
                 logger.info("Selected random quote ID: {} after {} attempts", candidateId, attempt + 1);
                 return quote;
@@ -183,7 +221,12 @@ public class QuoteService {
     private Quote findNextAvailableQuote(int startId) {
         int maxId = quoteRepository.getMaxQuoteId();
         for (int id = startId; id <= maxId; id++) {
-            Quote quote = quoteRepository.findById(id);
+            Quote quote;
+            if (quoteManagementServiceWithCache != null) {
+                quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(id));
+            } else {
+                quote = quoteRepository.findById(id);
+            }
             if (quote != null) {
                 logger.info("Found next available quote ID: {}", id);
                 return quote;
@@ -193,7 +236,13 @@ public class QuoteService {
     }
 
     public Quote likeQuote(String username, int quoteId) {
-        Quote quote = quoteRepository.findById(quoteId);
+        Quote quote;
+        if (quoteManagementServiceWithCache != null) {
+            quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(quoteId));
+        } else {
+            quote = quoteRepository.findById(quoteId);
+        }
+        
         if (quote != null) {
             // Get max order for user and set new order to max + 1
             int maxOrder = userLikeRepository.getMaxOrderForUser(username);
@@ -224,7 +273,15 @@ public class QuoteService {
         List<UserLike> userLikes = userLikeRepository.getLikesByUser(username);
         // userLikes are already sorted by order from repository
         return userLikes.stream()
-                .map(userLike -> quoteRepository.findById(userLike.getQuoteId()))
+                .map(userLike -> {
+                    Quote quote;
+                    if (quoteManagementServiceWithCache != null) {
+                        quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(userLike.getQuoteId()));
+                    } else {
+                        quote = quoteRepository.findById(userLike.getQuoteId());
+                    }
+                    return quote;
+                })
                 .filter(quote -> quote != null)
                 .toList();
     }
@@ -242,7 +299,22 @@ public class QuoteService {
      */
     public Quote getQuoteById(String username, int quoteId) {
         logger.info("Getting quote {} for user {}", quoteId, username);
-        Quote quote = quoteRepository.findById(quoteId);
+        
+        Quote quote;
+        
+        // Use cache-first approach if QuoteManagementServiceWithCache is available
+        if (quoteManagementServiceWithCache != null) {
+            quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(quoteId));
+            if (quote != null) {
+                logger.info("Found quote {} using cache-first approach", quoteId);
+            } else {
+                logger.info("Quote {} not found in cache, fallback returned null", quoteId);
+            }
+        } else {
+            // Fallback to direct DynamoDB call
+            quote = quoteRepository.findById(quoteId);
+            logger.info("Found quote {} using direct DynamoDB call", quoteId);
+        }
         
         if (quote != null && username != null && !username.isEmpty() && userProgressRepository != null) {
             // Update user progress to this quote ID
@@ -265,7 +337,12 @@ public class QuoteService {
         
         // Find previous available quote
         for (int id = currentQuoteId - 1; id >= 1; id--) {
-            Quote quote = quoteRepository.findById(id);
+            Quote quote;
+            if (quoteManagementServiceWithCache != null) {
+                quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(id));
+            } else {
+                quote = quoteRepository.findById(id);
+            }
             if (quote != null) {
                 // Update user progress
                 userProgressRepository.updateLastQuoteId(username, id);
@@ -291,7 +368,12 @@ public class QuoteService {
         // Find next available quote
         int maxId = quoteRepository.getMaxQuoteId();
         for (int id = currentQuoteId + 1; id <= maxId; id++) {
-            Quote quote = quoteRepository.findById(id);
+            Quote quote;
+            if (quoteManagementServiceWithCache != null) {
+                quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(id));
+            } else {
+                quote = quoteRepository.findById(id);
+            }
             if (quote != null) {
                 // Update user progress
                 userProgressRepository.updateLastQuoteId(username, id);
@@ -332,7 +414,12 @@ public class QuoteService {
         
         List<Quote> viewedQuotes = new ArrayList<>();
         for (int id = 1; id <= lastQuoteId; id++) {
-            Quote quote = quoteRepository.findById(id);
+            Quote quote;
+            if (quoteManagementServiceWithCache != null) {
+                quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(id));
+            } else {
+                quote = quoteRepository.findById(id);
+            }
             if (quote != null) {
                 viewedQuotes.add(quote);
             }
@@ -375,7 +462,12 @@ public class QuoteService {
         
         List<Quote> viewedQuotes = new ArrayList<>();
         for (int i = 1; i <= progress.getLastQuoteId(); i++) {
-            Quote quote = quoteRepository.findById(i);
+            Quote quote;
+            if (quoteManagementServiceWithCache != null) {
+                quote = quoteManagementServiceWithCache.getQuoteById(String.valueOf(i));
+            } else {
+                quote = quoteRepository.findById(i);
+            }
             if (quote != null) {
                 viewedQuotes.add(quote);
             }

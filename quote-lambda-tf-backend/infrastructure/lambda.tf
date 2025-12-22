@@ -19,7 +19,7 @@ resource "aws_iam_role" "lambda_execution_role" {
 # IAM policy for Lambda to access DynamoDB and Cognito
 resource "aws_iam_policy" "lambda_policy" {
   name        = local.environment == "prod" ? "${var.project_name}-lambda-policy" : "${var.project_name}-lambda-policy-${local.environment}"
-  description = "IAM policy for Lambda to access DynamoDB and Cognito"
+  description = "IAM policy for Lambda to access DynamoDB, Cognito, and S3"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -54,6 +54,24 @@ resource "aws_iam_policy" "lambda_policy" {
           "cognito-idp:AdminDeleteUser"
         ]
         Resource = aws_cognito_user_pool.quote_app.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = aws_s3_bucket.quote_cache.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:GetObjectMetadata",
+          "s3:DeleteObject"
+        ]
+        Resource = "${aws_s3_bucket.quote_cache.arn}/*"
       },
       {
         Effect = "Allow"
@@ -93,6 +111,7 @@ resource "aws_lambda_function" "quote_lambda" {
       DYNAMODB_USER_LIKES_TABLE    = aws_dynamodb_table.user_likes_table.name
       DYNAMODB_USER_PROGRESS_TABLE = aws_dynamodb_table.user_progress.name
       USER_POOL_ID                 = aws_cognito_user_pool.quote_app.id
+      CACHE_BUCKET_NAME            = aws_s3_bucket.quote_cache.id
     }
   }
 

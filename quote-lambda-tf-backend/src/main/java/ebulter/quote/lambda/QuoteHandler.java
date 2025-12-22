@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import ebulter.quote.lambda.model.Quote;
@@ -18,9 +19,11 @@ import ebulter.quote.lambda.repository.UserLikeRepository;
 import ebulter.quote.lambda.repository.UserProgressRepository;
 import ebulter.quote.lambda.service.AdminService;
 import ebulter.quote.lambda.service.QuoteManagementService;
+import ebulter.quote.lambda.service.QuoteManagementServiceWithCache;
 import ebulter.quote.lambda.service.QuoteService;
 import ebulter.quote.lambda.util.QuoteUtil;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.s3.S3Client;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,13 +44,30 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     private final QuoteService quoteService;
     private final AdminService adminService;
     private final QuoteManagementService quoteManagementService;
+    private final QuoteManagementServiceWithCache quoteManagementServiceWithCache;
     private final UserLikeRepository userLikeRepository;
 
     public QuoteHandler() {
         this.userLikeRepository = new UserLikeRepository();
         QuoteRepository quoteRepository = new QuoteRepository(userLikeRepository);
-        this.quoteService = new QuoteService(quoteRepository, userLikeRepository);
+        
+        // Initialize S3 client and cached service
+        String bucketName = System.getenv("CACHE_BUCKET_NAME");
+        if (bucketName == null || bucketName.isEmpty()) {
+            logger.warn("CACHE_BUCKET_NAME environment variable not set. Using DynamoDB directly.");
+            this.quoteManagementServiceWithCache = null;
+            this.quoteService = new QuoteService(quoteRepository, userLikeRepository);
+        } else {
+            S3Client s3Client = S3Client.create();
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+            this.quoteManagementServiceWithCache = new QuoteManagementServiceWithCache(
+                quoteRepository, s3Client, objectMapper, bucketName);
+            this.quoteService = new QuoteService(quoteRepository, userLikeRepository, quoteManagementServiceWithCache);
+        }
+        
         this.quoteManagementService = new QuoteManagementService(quoteRepository);
+        
         String userPoolId = System.getenv("USER_POOL_ID");
         if (userPoolId == null || userPoolId.isEmpty()) {
             logger.warn("USER_POOL_ID environment variable not set. Admin features will not work.");
@@ -61,6 +81,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.quoteService = quoteService;
         this.adminService = null;
         this.quoteManagementService = null;
+        this.quoteManagementServiceWithCache = null;
         this.userLikeRepository = null;
     }
 
@@ -68,6 +89,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.quoteService = quoteService;
         this.adminService = adminService;
         this.quoteManagementService = null;
+        this.quoteManagementServiceWithCache = null;
         this.userLikeRepository = null;
     }
 
@@ -75,6 +97,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         this.quoteService = quoteService;
         this.adminService = adminService;
         this.quoteManagementService = quoteManagementService;
+        this.quoteManagementServiceWithCache = null;
         this.userLikeRepository = userLikeRepository;
     }
 
@@ -615,15 +638,28 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                     sortOrder = queryParams.getOrDefault("sortOrder", "asc");
                 }
                 
-                QuotePageResponse quotePageResponse = quoteManagementService.getQuotesWithPagination(
-                    page, pageSize, quoteText, author, sortBy, sortOrder
-                );
+                QuotePageResponse quotePageResponse;
+                if (quoteManagementServiceWithCache != null) {
+                    quotePageResponse = quoteManagementServiceWithCache.getQuotesWithPagination(
+                        page, pageSize, quoteText, author, sortBy, sortOrder
+                    );
+                } else {
+                    // Fallback to original service if cache not available
+                    quotePageResponse = quoteManagementService.getQuotesWithPagination(
+                        page, pageSize, quoteText, author, sortBy, sortOrder
+                    );
+                }
                 return createQuotePageResponse(quotePageResponse);
             }
             
             // POST /admin/quotes/fetch - Fetch and add new quotes from ZEN API
             if (path.equals("/api/v1/admin/quotes/fetch") && "POST".equals(httpMethod)) {
-                QuoteAddResponse quoteAddResponse = quoteManagementService.fetchAndAddNewQuotes(requestingUsername);
+                QuoteAddResponse quoteAddResponse;
+                if (quoteManagementServiceWithCache != null) {
+                    quoteAddResponse = quoteManagementServiceWithCache.fetchAndAddNewQuotes(requestingUsername);
+                } else {
+                    quoteAddResponse = quoteManagementService.fetchAndAddNewQuotes(requestingUsername);
+                }
                 return createQuoteAddResponse(quoteAddResponse);
             }
             
@@ -635,6 +671,18 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                 Map<String, Object> response = new HashMap<>();
                 response.put("totalLikes", totalLikes);
                 return createResponse(response);
+            }
+            
+            // POST /admin/cache/refresh - Refresh quotes cache
+            if (path.equals("/api/v1/admin/cache/refresh") && "POST".equals(httpMethod)) {
+                if (quoteManagementServiceWithCache != null) {
+                    quoteManagementServiceWithCache.refreshCache();
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("message", "Cache refreshed successfully");
+                    return createResponse(response);
+                } else {
+                    return createErrorResponse("Cache not available");
+                }
             }
             
             return createErrorResponse("Invalid admin request");

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import './UserManagementScreen.css';
 import adminApi, { UserInfo } from '../api/adminApi';
 import { Toast } from './Toast';
+import { BackendRestartNotification, useBackendRestartNotification } from './BackendRestartNotification';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface UserManagementScreenProps {
@@ -13,6 +14,7 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
     const [loading, setLoading] = useState<boolean>(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+    const { isOpen, retryCount } = useBackendRestartNotification();
 
     useEffect(() => {
         loadCurrentUsername();
@@ -117,6 +119,7 @@ export function UserManagementScreen({ onBack }: UserManagementScreenProps) {
 
     return (
         <div className="user-management-screen">
+            <BackendRestartNotification isOpen={isOpen} retryCount={retryCount} />
             <div className="user-management-header">
                 <button className="back-button" onClick={onBack}>
                     ← Back

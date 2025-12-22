@@ -46,6 +46,12 @@ variable "dynamodb_write_capacity" {
   description = "DynamoDB write capacity units"
 }
 
+variable "cache_bucket_name" {
+  description = "S3 bucket name for quotes cache"
+  type        = string
+  default     = "quote-lambda-cache"
+}
+
 # Google OAuth Configuration
 variable "google_oauth_client_id" {
   type        = string
