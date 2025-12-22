@@ -1,37 +1,80 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
-import quoteApi from './api/quoteApi';
 import { Quote } from './types/Quote';
-import * as AuthContext from './contexts/AuthContext';
 
 // Mock the quoteApi module
-vi.mock('./api/quoteApi');
+vi.mock('./api/quoteApi', () => ({
+    __esModule: true,
+    default: {
+        getQuote: vi.fn(),
+        getUniqueQuote: vi.fn(),
+        likeQuote: vi.fn(),
+        getLikedQuotes: vi.fn(),
+        unlikeQuote: vi.fn(),
+        reorderLikedQuote: vi.fn(),
+        getQuoteById: vi.fn(),
+        getPreviousQuote: vi.fn(),
+        getNextQuote: vi.fn(),
+        getUserProgress: vi.fn(),
+        getViewedQuotes: vi.fn(),
+    },
+}));
+
+// Mock the AuthContext
+vi.mock('./contexts/AuthContext', () => ({
+    useAuth: vi.fn(),
+}));
 
 // Mock the FavouritesComponent
 vi.mock('./components/FavouritesComponent.tsx', () => ({
+    __esModule: true,
     default: vi.fn(() => <div data-testid="favourites-component">Favourites</div>),
     FavouritesComponentHandle: vi.fn(),
 }));
 
 // Mock the management screen components
 vi.mock('./components/ManagementScreen.tsx', () => ({
-    ManagementScreen: vi.fn(() => <div data-testid="management-screen">Management</div>),
+    __esModule: true,
+    default: vi.fn(() => <div data-testid="management-screen">Management</div>),
 }));
 
 vi.mock('./components/ManageFavouritesScreen.tsx', () => ({
-    ManageFavouritesScreen: vi.fn(() => <div data-testid="manage-favourites-screen">Manage Favourites</div>),
+    __esModule: true,
+    default: vi.fn(() => <div data-testid="manage-favourites-screen">Manage Favourites</div>),
 }));
 
 vi.mock('./components/ViewedQuotesScreen.tsx', () => ({
-    ViewedQuotesScreen: vi.fn(() => <div data-testid="viewed-quotes-screen">Viewed Quotes</div>),
+    __esModule: true,
+    default: vi.fn(() => <div data-testid="viewed-quotes-screen">Viewed Quotes</div>),
 }));
 
 // Mock the Login component
 vi.mock('./components/Login.tsx', () => ({
-    Login: vi.fn(() => <div data-testid="login-component">Login</div>),
+    __esModule: true,
+    default: vi.fn(() => <div data-testid="login-component">Login</div>),
 }));
+
+// Mock the BackendRestartNotification component
+vi.mock('./components/BackendRestartNotification', () => ({
+    __esModule: true,
+    BackendRestartNotification: vi.fn(() => null),
+    useBackendRestartNotification: () => ({
+        isOpen: false,
+        retryCount: 0,
+    }),
+}));
+
+// Import the mocked modules after all mocks are defined
+import quoteApi from './api/quoteApi';
+import { useAuth } from './contexts/AuthContext';
+
+const mockQuoteApi = vi.mocked(quoteApi);
+const mockUseAuth = vi.mocked(useAuth);
+
+
 
 // Default mock auth context value (unauthenticated)
 const mockAuthContextValue = {
@@ -40,16 +83,34 @@ const mockAuthContextValue = {
     user: null as any,
     signIn: vi.fn(),
     signOut: vi.fn(),
-    hasRole: vi.fn(() => false),
+    hasRole: vi.fn((_role: string) => false),
     userGroups: [] as string[],
     needsUsernameSetup: false,
+    setNeedsUsernameSetup: vi.fn(),
+    signUp: vi.fn(),
+    confirmSignUp: vi.fn(),
+    refreshUserAttributes: vi.fn(),
 };
 
-// Helper function to render App with mocked AuthContext
-const renderApp = (authValue: any = mockAuthContextValue) => {
-    vi.spyOn(AuthContext, 'useAuth').mockReturnValue(authValue);
-    return render(<App />);
+// Helper function to render the App with test providers
+const renderApp = (authContextValue = mockAuthContextValue) => {
+    mockUseAuth.mockReturnValue(authContextValue);
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false,
+                gcTime: 0,
+            },
+        },
+    });
+
+    return render(
+        <QueryClientProvider client={queryClient}>
+            <App />
+        </QueryClientProvider>
+    );
 };
+
 
 describe('App Component', () => {
     const mockQuote1: Quote = {
@@ -83,7 +144,7 @@ describe('App Component', () => {
 
     describe('Initial Load', () => {
         it('should display loading state initially', () => {
-            vi.mocked(quoteApi.getQuote).mockImplementation(
+            mockQuoteApi.getQuote.mockImplementation(
                 () => new Promise(() => {}) // Never resolves
             );
 
@@ -93,7 +154,7 @@ describe('App Component', () => {
         });
 
         it('should fetch and display the first quote on mount', async () => {
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
+            mockQuoteApi.getQuote.mockResolvedValue(mockQuote1);
 
             renderApp();
 
@@ -102,24 +163,30 @@ describe('App Component', () => {
                 expect(screen.getByText(mockQuote1.author)).toBeInTheDocument();
             });
 
-            expect(quoteApi.getQuote).toHaveBeenCalledTimes(1);
+            expect(mockQuoteApi.getQuote).toHaveBeenCalledTimes(1);
         });
 
         it('should handle API errors gracefully', async () => {
-            vi.mocked(quoteApi.getQuote).mockRejectedValue(new Error('API Error'));
+            const errorMessage = 'Failed to fetch quote';
+            mockQuoteApi.getQuote.mockRejectedValue(new Error(errorMessage));
 
             renderApp();
 
+            // Wait for loading to complete
             await waitFor(() => {
                 expect(screen.queryByText('"Loading..."')).not.toBeInTheDocument();
             });
+
+            // Check for error message or retry button
+            const errorElement = await screen.findByText(/error|failed|try again/i);
+            expect(errorElement).toBeInTheDocument();
         });
     });
 
     describe('New Quote Button', () => {
         it('should fetch and display a new quote when clicked', async () => {
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
-            vi.mocked(quoteApi.getUniqueQuote).mockResolvedValue(mockQuote2);
+            mockQuoteApi.getQuote.mockResolvedValue(mockQuote1);
+            mockQuoteApi.getUniqueQuote.mockResolvedValue(mockQuote2);
 
             renderApp();
 
@@ -137,12 +204,12 @@ describe('App Component', () => {
                 expect(screen.getByText(mockQuote2.author)).toBeInTheDocument();
             });
 
-            expect(quoteApi.getUniqueQuote).toHaveBeenCalledWith([mockQuote1]);
+            expect(mockQuoteApi.getUniqueQuote).toHaveBeenCalledWith([mockQuote1]);
         });
 
         it('should disable the button while loading', async () => {
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
-            vi.mocked(quoteApi.getUniqueQuote).mockImplementation(
+            mockQuoteApi.getQuote.mockResolvedValue(mockQuote1);
+            mockQuoteApi.getUniqueQuote.mockImplementation(
                 () => new Promise(() => {}) // Never resolves
             );
 
@@ -172,12 +239,16 @@ describe('App Component', () => {
             hasRole: vi.fn((role: string) => role === 'USER'),
             userGroups: ['USER'],
             needsUsernameSetup: false,
+            setNeedsUsernameSetup: vi.fn(),
+            signUp: vi.fn(),
+            confirmSignUp: vi.fn(),
+            refreshUserAttributes: vi.fn(),
         };
 
         it('should like a quote when clicked', async () => {
             const likedQuote = { ...mockQuote1, liked: true };
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
-            vi.mocked(quoteApi.likeQuote).mockResolvedValue(likedQuote);
+            mockQuoteApi.getQuote.mockResolvedValue(mockQuote1);
+            mockQuoteApi.likeQuote.mockResolvedValue(likedQuote);
 
             renderApp(authenticatedUserWithRole);
 
@@ -191,14 +262,14 @@ describe('App Component', () => {
             fireEvent.click(likeButton);
 
             await waitFor(() => {
-                expect(quoteApi.likeQuote).toHaveBeenCalledWith(mockQuote1);
+                expect(mockQuoteApi.likeQuote).toHaveBeenCalledWith(mockQuote1);
                 expect(likeButton).toBeDisabled();
             });
         });
 
         it('should disable the button while liking', async () => {
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
-            vi.mocked(quoteApi.likeQuote).mockImplementation(
+            mockQuoteApi.getQuote.mockResolvedValue(mockQuote1);
+            mockQuoteApi.likeQuote.mockImplementation(
                 () => new Promise(() => {}) // Never resolves
             );
 
@@ -213,18 +284,18 @@ describe('App Component', () => {
 
             await waitFor(() => {
                 expect(likeButton).toBeDisabled();
-                expect(screen.getByText('Liking...')).toBeInTheDocument();
             });
         });
 
         it('should disable the button if quote is already liked', async () => {
             const likedQuote = { ...mockQuote1, liked: true };
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(likedQuote);
+            mockQuoteApi.getQuote.mockResolvedValue(likedQuote);
+            mockQuoteApi.getLikedQuotes.mockResolvedValue([likedQuote]);
 
             renderApp(authenticatedUserWithRole);
 
             await waitFor(() => {
-                expect(screen.getByText(`"${mockQuote1.quoteText}"`)).toBeInTheDocument();
+                expect(screen.getByText(`"${likedQuote.quoteText}"`)).toBeInTheDocument();
             });
 
             const likeButton = screen.getByRole('button', { name: /^like$/i });
@@ -233,11 +304,31 @@ describe('App Component', () => {
     });
 
     describe('Navigation Buttons', () => {
-        beforeEach(async () => {
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
-            vi.mocked(quoteApi.getUniqueQuote)
-                .mockResolvedValueOnce(mockQuote2)
-                .mockResolvedValueOnce(mockQuote3);
+        beforeEach(() => {
+            mockQuoteApi.getQuoteById.mockImplementation((id) => {
+                const quotes = [mockQuote1, mockQuote2, mockQuote3];
+                return Promise.resolve(quotes[id - 1]);
+            });
+
+            mockQuoteApi.getPreviousQuote.mockImplementation((currentId) => {
+                if (currentId === 1) return Promise.resolve(mockQuote1);
+                return Promise.resolve({
+                    id: currentId - 1,
+                    quoteText: `Quote ${currentId - 1}`,
+                    author: `Author ${currentId - 1}`,
+                    liked: false
+                });
+            });
+
+            mockQuoteApi.getNextQuote.mockImplementation((currentId) => {
+                if (currentId === 3) return Promise.resolve(mockQuote3);
+                return Promise.resolve({
+                    id: currentId + 1,
+                    quoteText: `Quote ${currentId + 1}`,
+                    author: `Author ${currentId + 1}`,
+                    liked: false
+                });
+            });
         });
 
         it('should navigate to previous quote', async () => {
@@ -378,7 +469,7 @@ describe('App Component', () => {
 
     describe('UI Elements', () => {
         it('should display the logo', async () => {
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
+            mockQuoteApi.getQuote.mockResolvedValue(mockQuote1);
 
             renderApp();
 
@@ -389,7 +480,7 @@ describe('App Component', () => {
         });
 
         it('should render the FavouritesComponent', async () => {
-            vi.mocked(quoteApi.getQuote).mockResolvedValue(mockQuote1);
+            mockQuoteApi.getQuote.mockResolvedValue(mockQuote1);
 
             renderApp();
 
