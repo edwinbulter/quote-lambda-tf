@@ -90,11 +90,10 @@ async function likeQuote(quote: Quote): Promise<Quote> {
 }
 
 async function getLikedQuotes(): Promise<Quote[]> {
-    const authHeaders = await getAuthHeaders();
-    
     return withRetry(
         async () => {
-            // Check if user is authenticated
+            // Check if user is authenticated (re-evaluated on each retry)
+            const authHeaders = await getAuthHeaders();
             if (!authHeaders || !('Authorization' in authHeaders)) {
                 console.log('User not authenticated, returning empty liked quotes');
                 return [];
@@ -315,11 +314,10 @@ async function getNextQuote(currentQuoteId: number): Promise<Quote> {
  * Get user's current progress (lastQuoteId)
  */
 async function getUserProgress(): Promise<{ lastQuoteId: number; username: string; updatedAt: number }> {
-    const authHeaders = await getAuthHeaders();
-    
     return withRetry(
         async () => {
-            // Check if user is authenticated
+            // Check if user is authenticated (re-evaluated on each retry)
+            const authHeaders = await getAuthHeaders();
             if (!authHeaders || !('Authorization' in authHeaders)) {
                 console.log('User not authenticated, returning default progress');
                 return { lastQuoteId: 0, username: '', updatedAt: 0 };
@@ -353,11 +351,10 @@ async function getUserProgress(): Promise<{ lastQuoteId: number; username: strin
  * Get all viewed quotes (1 to lastQuoteId)
  */
 async function getViewedQuotes(): Promise<Quote[]> {
-    const authHeaders = await getAuthHeaders();
-    
     return withRetry(
         async () => {
-            // Check if user is authenticated
+            // Check if user is authenticated (re-evaluated on each retry)
+            const authHeaders = await getAuthHeaders();
             if (!authHeaders || !('Authorization' in authHeaders)) {
                 console.log('User not authenticated, returning empty viewed quotes');
                 return [];
