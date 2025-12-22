@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import ebulter.quote.lambda.model.Quote;
 import ebulter.quote.lambda.model.QuotesCacheData;
 import ebulter.quote.lambda.repository.QuoteRepository;
+import ebulter.quote.lambda.util.MockTimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +38,7 @@ public class QuotesCacheBuilderTest {
     
     private QuotesCacheBuilder cacheBuilder;
     private ObjectMapper objectMapper;
+    private MockTimeProvider mockTimeProvider;
     
     private static final String BUCKET_NAME = "test-bucket";
     
@@ -45,7 +47,8 @@ public class QuotesCacheBuilderTest {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         
-        cacheBuilder = new QuotesCacheBuilder(BUCKET_NAME);
+        mockTimeProvider = new MockTimeProvider();
+        cacheBuilder = new QuotesCacheBuilder(BUCKET_NAME, mockTimeProvider);
         cacheBuilder.setQuoteRepository(quoteRepository);
         cacheBuilder.setS3Client(s3Client);
         cacheBuilder.setObjectMapper(objectMapper);
@@ -139,15 +142,15 @@ public class QuotesCacheBuilderTest {
                 .message("Precondition Failed")
                 .build());
         
-        // Should throw exception after max retries
+        // Should throw exception after max retries (Phase 2: increased to 5)
         RuntimeException exception = assertThrows(RuntimeException.class, 
             () -> cacheBuilder.buildAndUploadCache());
         
         assertTrue(exception.getMessage().contains("concurrent modifications") || 
                   exception.getMessage().contains("Cache update failed"));
         
-        // Verify upload was called 3 times (max retries)
-        verify(s3Client, times(3)).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        // Verify upload was called 5 times (Phase 2: max retries increased to 5)
+        verify(s3Client, times(5)).putObject(any(PutObjectRequest.class), any(RequestBody.class));
     }
     
     @Test
