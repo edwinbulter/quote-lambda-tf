@@ -2,6 +2,7 @@ import './FavouritesComponent.css';
 import {forwardRef, useEffect, useImperativeHandle, useState} from "react";
 import quoteApi from "../api/quoteApi";
 import {Quote} from "../types/Quote.ts";
+import { useAuth } from "../contexts/AuthContext";
 
 export type FavouritesComponentHandle = {
     reloadFavouriteQuotes: () => void;
@@ -10,18 +11,28 @@ export type FavouritesComponentHandle = {
 const FavouritesComponent = forwardRef<FavouritesComponentHandle>((_, ref) => {
     const [messages, setMessages] = useState<string[]>([]); // List of messages as strings
     const [loading, setLoading] = useState<boolean>(false); // Loading state as a boolean
+    const { isAuthenticated } = useAuth();
 
     useEffect(() => {
-        loadFavouriteQuotes();
-    }, []);
+        if (isAuthenticated) {
+            loadFavouriteQuotes();
+        }
+    }, [isAuthenticated]);
 
     useImperativeHandle(ref, () => ({
         reloadFavouriteQuotes() {
-            loadFavouriteQuotes();
+            if (isAuthenticated) {
+                loadFavouriteQuotes();
+            }
         }
     }));
 
     const loadFavouriteQuotes = async (): Promise<void> => {
+        if (!isAuthenticated) {
+            console.log('User not authenticated, skipping favourite quotes load');
+            return;
+        }
+        
         try {
             setLoading(true);
             const quotes: Quote[] = await quoteApi.getLikedQuotes();

@@ -4,6 +4,7 @@ import quoteApi from '../api/quoteApi';
 import { Quote } from '../types/Quote';
 import { Toast } from './Toast';
 import { BackendRestartNotification, useBackendRestartNotification } from './BackendRestartNotification';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ManageFavouritesScreenProps {
     onBack: () => void;
@@ -14,12 +15,22 @@ export function ManageFavouritesScreen({ onBack }: ManageFavouritesScreenProps) 
     const [loading, setLoading] = useState<boolean>(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const { isOpen, retryCount } = useBackendRestartNotification();
+    const { isAuthenticated } = useAuth();
 
     useEffect(() => {
-        loadFavourites();
-    }, []);
+        if (isAuthenticated) {
+            loadFavourites();
+        } else {
+            setLoading(false);
+        }
+    }, [isAuthenticated]);
 
     const loadFavourites = async () => {
+        if (!isAuthenticated) {
+            console.log('User not authenticated, skipping favourites load');
+            return;
+        }
+        
         try {
             setLoading(true);
             const quotes = await quoteApi.getLikedQuotes();

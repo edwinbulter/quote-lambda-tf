@@ -60,10 +60,14 @@ async function getUniqueQuote(receivedQuotes: Quote[]): Promise<Quote> {
 }
 
 async function likeQuote(quote: Quote): Promise<Quote> {
-    const authHeaders = await getAuthHeaders();
-    
     return withRetry(
         async () => {
+            // Check if user is authenticated (re-evaluated on each retry)
+            const authHeaders = await getAuthHeaders();
+            if (!authHeaders || !('Authorization' in authHeaders)) {
+                throw new Error('User not authenticated');
+            }
+            
             const response = await fetch(`${BASE_URL}/quote/${quote.id}/like`, {
                 method: "POST",
                 headers: {
