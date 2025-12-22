@@ -109,7 +109,7 @@ public class QuoteHandlerTest {
             // Debug: verify mock setup
             System.out.println("Mock getMaxQuoteId: " + quoteRepositoryMock.getMaxQuoteId());
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                     .withHttpMethod("GET")
                     .withPath("/api/v1/quote");
@@ -136,7 +136,7 @@ public class QuoteHandlerTest {
             List<Quote> quotes = getQuoteTestData(6);
             Mockito.lenient().when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("POST")
                 .withBody("[1,2,3,4,5]")
@@ -161,7 +161,7 @@ public class QuoteHandlerTest {
             List<Quote> quotes = getQuoteTestData(3);
             Mockito.lenient().when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote", "GET");
             
             // Debug: check the token
@@ -185,7 +185,7 @@ public class QuoteHandlerTest {
             List<Quote> quotes = getQuoteTestData(3);
             Mockito.lenient().when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("GET")
                 .withPath("/api/v1/quote");
@@ -207,7 +207,7 @@ public class QuoteHandlerTest {
             List<Quote> quotes = getQuoteTestData(20);
             Mockito.lenient().when(quoteRepositoryMock.getAllQuotes()).thenReturn(quotes);
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote", "GET");
             Context context = Mockito.mock(Context.class);
 
@@ -230,7 +230,7 @@ public class QuoteHandlerTest {
             Quote quote = new Quote(1, "Quote 1", "Author 1");
             when(quoteRepositoryMock.findById(1)).thenReturn(quote);
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/1/like", "POST");
             Context context = Mockito.mock(Context.class);
 
@@ -248,7 +248,7 @@ public class QuoteHandlerTest {
         @Test
         public void handleRequest_LikeQuote_WithoutAuthorization_ShouldReturn403() {
             // Arrange
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("POST")
                 .withPath("/api/v1/quote/1/like");
@@ -265,7 +265,7 @@ public class QuoteHandlerTest {
         public void handleRequest_GetLikedQuotes_Success() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/liked", "GET");
             Context context = Mockito.mock(Context.class);
 
@@ -280,7 +280,7 @@ public class QuoteHandlerTest {
         public void handleRequest_UnlikeQuote_WithAuthentication_ShouldReturn204() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/1/unlike", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -297,7 +297,7 @@ public class QuoteHandlerTest {
         public void handleRequest_UnlikeQuote_WithoutAuthorization_ShouldReturn403() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("DELETE")
                 .withPath("/api/v1/quote/1/unlike");
@@ -320,7 +320,7 @@ public class QuoteHandlerTest {
             // Note: UserViewRepository has been removed, now using UserProgressRepository
             // This test now returns quotes 1 to lastQuoteId instead of individual view records
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/history", "GET");
             Context context = Mockito.mock(Context.class);
 
@@ -336,7 +336,7 @@ public class QuoteHandlerTest {
         public void handleRequest_GetViewHistory_WithoutAuthentication_ShouldReturn403() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("GET")
                 .withPath("/api/v1/quote/history");
@@ -357,7 +357,7 @@ public class QuoteHandlerTest {
         public void handleRequest_ReorderQuote_WithValidOrder_ShouldReturn204() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/1/reorder", "PUT");
             event.setBody("{\"order\": 2}");
             Context context = Mockito.mock(Context.class);
@@ -375,7 +375,7 @@ public class QuoteHandlerTest {
         public void handleRequest_ReorderQuote_WithoutAuthorization_ShouldReturn403() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("PUT")
                 .withPath("/api/v1/quote/1/reorder")
@@ -393,7 +393,7 @@ public class QuoteHandlerTest {
         public void handleRequest_ReorderQuote_WithInvalidOrder_Zero_ShouldReturn400() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/1/reorder", "PUT");
             event.setBody("{\"order\": 0}");
             Context context = Mockito.mock(Context.class);
@@ -409,7 +409,7 @@ public class QuoteHandlerTest {
         public void handleRequest_ReorderQuote_WithInvalidOrder_Negative_ShouldReturn400() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/1/reorder", "PUT");
             event.setBody("{\"order\": -5}");
             Context context = Mockito.mock(Context.class);
@@ -425,7 +425,7 @@ public class QuoteHandlerTest {
         public void handleRequest_ReorderQuote_WithMissingOrder_ShouldReturn400() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/quote/1/reorder", "PUT");
             event.setBody("{}");
             Context context = Mockito.mock(Context.class);
@@ -466,7 +466,7 @@ public class QuoteHandlerTest {
             mockUsers.add(new ebulter.quote.lambda.model.UserInfo("user2", "user2@example.com", List.of("USER", "ADMIN"), true, "CONFIRMED", null, null));
             when(adminServiceMock.listAllUsers()).thenReturn(mockUsers);
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users", "GET");
             Context context = Mockito.mock(Context.class);
 
@@ -484,7 +484,7 @@ public class QuoteHandlerTest {
             // Arrange
             setupQuoteRepositoryMocks();
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users", "GET");
             Context context = Mockito.mock(Context.class);
 
@@ -502,7 +502,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             Mockito.doNothing().when(adminServiceMock).addUserToGroup(Mockito.eq("user1"), Mockito.eq("USER"), Mockito.eq("adminuser"));
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user1/groups/USER", "POST");
             Context context = Mockito.mock(Context.class);
 
@@ -522,7 +522,7 @@ public class QuoteHandlerTest {
             // The URL-encoded username "user%40example.com" should be decoded to "user@example.com"
             Mockito.doNothing().when(adminServiceMock).addUserToGroup(Mockito.eq("user@example.com"), Mockito.eq("USER"), Mockito.eq("adminuser"));
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user%40example.com/groups/USER", "POST");
             Context context = Mockito.mock(Context.class);
 
@@ -539,7 +539,7 @@ public class QuoteHandlerTest {
             // Arrange
             setupQuoteRepositoryMocks();
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users/user1/groups/USER", "POST");
             Context context = Mockito.mock(Context.class);
 
@@ -558,7 +558,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
             Mockito.doNothing().when(adminServiceMock).removeUserFromGroup(Mockito.eq("user1"), Mockito.eq("USER"), Mockito.eq("adminuser"));
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user1/groups/USER", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -578,7 +578,7 @@ public class QuoteHandlerTest {
             // The URL-encoded username "user%40example.com" should be decoded to "user@example.com"
             Mockito.doNothing().when(adminServiceMock).removeUserFromGroup(Mockito.eq("user@example.com"), Mockito.eq("USER"), Mockito.eq("adminuser"));
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/user%40example.com/groups/USER", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -595,7 +595,7 @@ public class QuoteHandlerTest {
             // Arrange
             setupQuoteRepositoryMocks();
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users/user1/groups/USER", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -615,7 +615,7 @@ public class QuoteHandlerTest {
             Mockito.doThrow(new IllegalArgumentException("Cannot remove yourself from ADMIN group"))
                 .when(adminServiceMock).removeUserFromGroup(Mockito.eq("adminuser"), Mockito.eq("ADMIN"), Mockito.eq("adminuser"));
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users/adminuser/groups/ADMIN", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -631,7 +631,7 @@ public class QuoteHandlerTest {
         public void handleRequest_AdminEndpoint_WithNullAdminService_ShouldReturnError() {
             // Arrange
             setupQuoteRepositoryMocks();
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), null);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), null);
             APIGatewayProxyRequestEvent event = createEventWithAdminRole("/api/v1/admin/users", "GET");
             Context context = Mockito.mock(Context.class);
 
@@ -654,7 +654,7 @@ public class QuoteHandlerTest {
             Mockito.doNothing().when(adminServiceMock).deleteUser(Mockito.eq("user1"), Mockito.eq("adminuser"));
             Mockito.doNothing().when(userLikeRepositoryMock).deleteAllLikesForUser("user1");
             
-            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null);
+            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null);
             QuoteHandler handler = new QuoteHandler(quoteService, adminServiceMock);
             // Manually set repository using reflection since constructor sets it to null
             try {
@@ -682,7 +682,7 @@ public class QuoteHandlerTest {
             // Arrange
             setupQuoteRepositoryMocks();
             ebulter.quote.lambda.service.AdminService adminServiceMock = Mockito.mock(ebulter.quote.lambda.service.AdminService.class);
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = createEventWithUserRole("/api/v1/admin/users/user1", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -703,7 +703,7 @@ public class QuoteHandlerTest {
             Mockito.doNothing().when(adminServiceMock).deleteUser(Mockito.eq("user@example.com"), Mockito.eq("adminuser"));
             Mockito.doNothing().when(userLikeRepositoryMock).deleteAllLikesForUser("user@example.com");
             
-            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null);
+            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null);
             QuoteHandler handler = new QuoteHandler(quoteService, adminServiceMock);
             // Manually set repository using reflection since constructor sets it to null
             try {
@@ -734,7 +734,7 @@ public class QuoteHandlerTest {
             Mockito.doThrow(new IllegalArgumentException("Cannot delete yourself"))
                 .when(adminServiceMock).deleteUser(Mockito.eq("adminuser"), Mockito.eq("adminuser"));
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/users/adminuser", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -754,7 +754,7 @@ public class QuoteHandlerTest {
             Mockito.doNothing().when(adminServiceMock).deleteUser(Mockito.eq("user1"), Mockito.eq("adminuser"));
             Mockito.doNothing().when(userLikeRepositoryMock).deleteAllLikesForUser("user1");
             
-            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null);
+            QuoteService quoteService = new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null);
             QuoteHandler handler = new QuoteHandler(quoteService, adminServiceMock);
             // Manually set repository using reflection since constructor sets it to null
             try {
@@ -785,7 +785,7 @@ public class QuoteHandlerTest {
             Mockito.doThrow(new IllegalArgumentException("User not found: nonexistent"))
                 .when(adminServiceMock).deleteUser(Mockito.eq("nonexistent"), Mockito.eq("adminuser"));
 
-            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), adminServiceMock, null, userLikeRepositoryMock);
+            QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), adminServiceMock, null, userLikeRepositoryMock);
             APIGatewayProxyRequestEvent event = AdminEndpointTests.createEventWithAdminRole("/api/v1/admin/users/nonexistent", "DELETE");
             Context context = Mockito.mock(Context.class);
 
@@ -802,7 +802,7 @@ public class QuoteHandlerTest {
     public void handleRequest_InvalidRequest() {
         // Arrange
         setupQuoteRepositoryMocks();
-        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null));
+        QuoteHandler handler = new QuoteHandler(new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null));
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
             .withHttpMethod("GET")
             .withPath("/invalid");
@@ -829,7 +829,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -860,7 +860,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -897,7 +897,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -932,7 +932,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -967,7 +967,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -1002,7 +1002,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -1041,7 +1041,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -1097,7 +1097,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -1152,7 +1152,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -1179,7 +1179,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementService = 
                 new ebulter.quote.lambda.service.QuoteManagementService(quoteRepositoryMock);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementService,
                 userLikeRepositoryMock
@@ -1208,7 +1208,7 @@ public class QuoteHandlerTest {
             when(quoteManagementServiceMock.fetchAndAddNewQuotes(Mockito.anyString())).thenReturn(mockResponse);
 
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementServiceMock,
                 userLikeRepositoryMock
@@ -1235,7 +1235,7 @@ public class QuoteHandlerTest {
             ebulter.quote.lambda.service.QuoteManagementService quoteManagementServiceMock = 
                 Mockito.mock(ebulter.quote.lambda.service.QuoteManagementService.class);
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementServiceMock,
                 userLikeRepositoryMock
@@ -1264,7 +1264,7 @@ public class QuoteHandlerTest {
             when(quoteManagementServiceMock.fetchAndAddNewQuotes(Mockito.anyString())).thenReturn(mockResponse);
 
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementServiceMock,
                 userLikeRepositoryMock
@@ -1325,7 +1325,7 @@ public class QuoteHandlerTest {
 
             // Use the same constructor pattern as other admin tests
             QuoteHandler handler = new QuoteHandler(
-                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, null), 
+                new QuoteService(quoteRepositoryMock, userLikeRepositoryMock, (ebulter.quote.lambda.repository.UserProgressRepository) null), 
                 adminServiceMock,
                 quoteManagementServiceMock,
                 userLikeRepositoryMock

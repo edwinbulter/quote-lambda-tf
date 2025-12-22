@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.Random;
 
 /**
  * Quote management service with S3 caching support
@@ -376,6 +377,102 @@ public class QuoteManagementServiceWithCache {
             case "likecount" -> "likeCount";
             default -> "id";
         };
+    }
+    
+    /**
+     * Get a single quote by ID using cache-first approach
+     */
+    public Quote getQuoteById(String quoteId) {
+        logger.info("Getting quote by ID: {}", quoteId);
+        
+        try {
+            // Try cache first
+            ensureCacheLoaded();
+            checkCacheFreshness();
+            
+            if (cache != null && cache.quoteMap != null) {
+                try {
+                    int id = Integer.parseInt(quoteId);
+                    Quote quote = cache.quoteMap.get(id);
+                    if (quote != null) {
+                        logger.info("Found quote {} in cache", quoteId);
+                        return quote;
+                    }
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid quote ID format: {}", quoteId);
+                    return null;
+                }
+            }
+            
+            // Fallback to DynamoDB (should be rare)
+            logger.info("Quote {} not found in cache, falling back to DynamoDB", quoteId);
+            try {
+                int id = Integer.parseInt(quoteId);
+                return quoteRepository.findById(id);
+            } catch (NumberFormatException e) {
+                logger.warn("Invalid quote ID format: {}", quoteId);
+                return null;
+            }
+            
+        } catch (Exception e) {
+            logger.error("Error getting quote by ID: {}", quoteId, e);
+            // Final fallback to DynamoDB
+            try {
+                int id = Integer.parseInt(quoteId);
+                return quoteRepository.findById(id);
+            } catch (NumberFormatException ex) {
+                logger.warn("Invalid quote ID format: {}", quoteId);
+                return null;
+            }
+        }
+    }
+    
+    /**
+     * Get a random quote using cache-first approach
+     */
+    public Quote getRandomQuote() {
+        logger.info("Getting random quote");
+        
+        try {
+            // Try cache first
+            ensureCacheLoaded();
+            checkCacheFreshness();
+            
+            if (cache != null && cache.quotes != null && !cache.quotes.isEmpty()) {
+                Random random = new Random();
+                Quote quote = cache.quotes.get(random.nextInt(cache.quotes.size()));
+                logger.info("Selected random quote {} from cache", quote.getId());
+                return quote;
+            }
+            
+            // Fallback to DynamoDB
+            logger.info("Cache not available for random quote, falling back to DynamoDB");
+            List<Quote> allQuotes = quoteRepository.getAllQuotes();
+            if (allQuotes.isEmpty()) {
+                logger.warn("No quotes available in database");
+                return null;
+            }
+            
+            Random random = new Random();
+            Quote quote = allQuotes.get(random.nextInt(allQuotes.size()));
+            logger.info("Selected random quote {} from DynamoDB", quote.getId());
+            return quote;
+            
+        } catch (Exception e) {
+            logger.error("Error getting random quote", e);
+            // Final fallback to DynamoDB
+            try {
+                List<Quote> allQuotes = quoteRepository.getAllQuotes();
+                if (allQuotes.isEmpty()) {
+                    return null;
+                }
+                Random random = new Random();
+                return allQuotes.get(random.nextInt(allQuotes.size()));
+            } catch (Exception ex) {
+                logger.error("Final fallback failed for random quote", ex);
+                return null;
+            }
+        }
     }
     
     /**

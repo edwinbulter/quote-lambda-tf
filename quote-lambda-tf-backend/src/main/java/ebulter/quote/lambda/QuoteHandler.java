@@ -50,21 +50,23 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
     public QuoteHandler() {
         this.userLikeRepository = new UserLikeRepository();
         QuoteRepository quoteRepository = new QuoteRepository(userLikeRepository);
-        this.quoteService = new QuoteService(quoteRepository, userLikeRepository);
-        this.quoteManagementService = new QuoteManagementService(quoteRepository);
         
         // Initialize S3 client and cached service
         String bucketName = System.getenv("CACHE_BUCKET_NAME");
         if (bucketName == null || bucketName.isEmpty()) {
             logger.warn("CACHE_BUCKET_NAME environment variable not set. Using DynamoDB directly.");
             this.quoteManagementServiceWithCache = null;
+            this.quoteService = new QuoteService(quoteRepository, userLikeRepository);
         } else {
             S3Client s3Client = S3Client.create();
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
             this.quoteManagementServiceWithCache = new QuoteManagementServiceWithCache(
                 quoteRepository, s3Client, objectMapper, bucketName);
+            this.quoteService = new QuoteService(quoteRepository, userLikeRepository, quoteManagementServiceWithCache);
         }
+        
+        this.quoteManagementService = new QuoteManagementService(quoteRepository);
         
         String userPoolId = System.getenv("USER_POOL_ID");
         if (userPoolId == null || userPoolId.isEmpty()) {
