@@ -61,6 +61,7 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
         } else {
             S3Client s3Client = S3Client.create();
             ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
             this.quoteManagementServiceWithCache = new QuoteManagementServiceWithCache(
                 quoteRepository, s3Client, objectMapper, bucketName);
         }

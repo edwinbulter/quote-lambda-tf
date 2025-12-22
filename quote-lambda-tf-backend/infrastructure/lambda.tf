@@ -58,6 +58,14 @@ resource "aws_iam_policy" "lambda_policy" {
       {
         Effect = "Allow"
         Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = aws_s3_bucket.quote_cache.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "s3:GetObject",
           "s3:PutObject",
           "s3:GetObjectMetadata",
