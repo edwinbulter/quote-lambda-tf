@@ -1,7 +1,8 @@
 import { BASE_URL } from "../constants/constants";
 import {Quote} from "../types/Quote.ts";
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { withRetry, notifyBackendRestart } from '../utils/apiRetry';
+import { withRetry } from '../utils/apiRetry';
+import { notifyBackendRestart } from '../components/BackendRestartNotification';
 
 // Helper function to get auth headers
 async function getAuthHeaders(): Promise<HeadersInit> {

@@ -61,9 +61,3 @@ export async function withRetry<T>(
     }
   }
 }
-
-// Global notification function for backend restart
-export const notifyBackendRestart = (isOpen: boolean, retryCount: number = 0) => {
-  // This will be implemented by the notification component
-  console.log(`Backend restart notification: ${isOpen}, attempt ${retryCount}`);
-};
