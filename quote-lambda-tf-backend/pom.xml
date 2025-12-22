@@ -29,6 +29,13 @@
             <version>2.29.9</version>
         </dependency>
 
+        <!-- AWS Java SDK for S3 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.29.9</version>
+        </dependency>
+
         <!-- AWS Lambda Java Core library -->
         <dependency>
             <groupId>com.amazonaws</groupId>
