@@ -40,7 +40,7 @@ export async function withRetry<T>(
       if (error instanceof Error) {
         const isServerError = error.message.includes('500') || 
                             error.message.includes('Internal Server Error') ||
-                            error.message.includes('Failed to fetch') ||
+                            (error.message.includes('Failed to fetch') && !error.message.includes('400') && !error.message.includes('403') && !error.message.includes('404')) ||
                             error.message.includes('Network request failed') ||
                             error.message.includes('CORS') ||
                             error.message.includes('blocked by CORS policy') ||
