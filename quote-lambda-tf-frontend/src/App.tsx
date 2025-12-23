@@ -356,6 +356,10 @@ const App: React.FC = () => {
                                 setCurrentQuoteId(null);
                                 setLastQuoteId(0);
                                 setQuote(null);
+                                // Trigger fetch of first quote
+                                setTimeout(() => {
+                                    fetchNextQuote();
+                                }, 100);
                             }}
                         />
                     ) : managementView === 'users' ? (
