@@ -30,7 +30,6 @@ const App: React.FC = () => {
     const [userEmail, setUserEmail] = useState<string>('');
     const [displayUsername, setDisplayUsername] = useState<string>('');
     const favouritesRef = useRef<FavouritesComponentHandle>(null);
-    const isFetchingRef = useRef<boolean>(false); // Prevent infinite loop
     
     // Backend restart notification
     const { isOpen: isBackendRestarting, retryCount } = useBackendRestartNotification();
@@ -52,7 +51,7 @@ const App: React.FC = () => {
     // Load user progress when user authenticates
     useEffect(() => {
         const loadUserProgress = async () => {
-            if (isAuthenticated && user && !isFetchingRef.current) {
+            if (isAuthenticated && user) {
                 try {
                     console.log('Loading user progress for authenticated user...');
                     setLoading(true); // Start loading
@@ -162,14 +161,8 @@ const App: React.FC = () => {
     };
 
     const fetchNextQuote = async (): Promise<void> => {
-        if (isFetchingRef.current) {
-            console.log('🚫 fetchNextQuote already in progress, skipping');
-            return;
-        }
-        
         console.log('🔄 fetchNextQuote called - timestamp:', Date.now());
         console.log('📍 CALL SITE: Manual fetchNextQuote() call');
-        isFetchingRef.current = true;
         
         try {
             setLoading(true);
@@ -191,7 +184,6 @@ const App: React.FC = () => {
             console.error('Failed to fetch next quote:', error);
         } finally {
             setLoading(false);
-            isFetchingRef.current = false;
         }
     };
 
@@ -260,9 +252,6 @@ const App: React.FC = () => {
             const nextId = currentQuoteId + 1;
             console.log('➡️ Setting currentQuoteId to:', nextId);
             setCurrentQuoteId(nextId);
-            
-            // Temporarily disabled prefetch to debug double-quote issue
-            // prefetchAdjacent();
         } else if (!isAuthenticated) {
             // For unauthenticated users, use old array-based navigation
             const currentIndex = receivedQuotes.findIndex(q => q.id === displayQuote?.id);
