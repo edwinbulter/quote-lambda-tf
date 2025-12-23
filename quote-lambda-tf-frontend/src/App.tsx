@@ -36,7 +36,7 @@ const App: React.FC = () => {
     const { isOpen: isBackendRestarting, retryCount } = useBackendRestartNotification();
 
     // Use the new hooks for optimized quote fetching (always call hooks, but disable when not authenticated)
-    const { quote: optimizedQuote, isLoading: quoteLoading, prefetchAdjacent, updateQuote } = 
+    const { quote: optimizedQuote, isLoading: quoteLoading, updateQuote } = 
         useQuote(currentQuoteId, { enableOptimisticUpdates: isAuthenticated });
     useUserProgress(); // Keep for potential future use
     useAuthenticatedQuote(); // Keep for potential future use
@@ -243,9 +243,6 @@ const App: React.FC = () => {
         if (isAuthenticated && currentQuoteId && currentQuoteId > 1) {
             const prevId = currentQuoteId - 1;
             setCurrentQuoteId(prevId);
-            
-            // Prefetch adjacent quotes for the new position
-            prefetchAdjacent();
         } else if (!isAuthenticated) {
             // For unauthenticated users, use old array-based navigation
             if (receivedQuotes.length > 0) {
@@ -255,7 +252,7 @@ const App: React.FC = () => {
                 }
             }
         }
-    }, [isAuthenticated, currentQuoteId, displayQuote?.id, receivedQuotes, prefetchAdjacent]);
+    }, [isAuthenticated, currentQuoteId, displayQuote?.id, receivedQuotes]);
 
     const next = useCallback(async (): Promise<void> => {
         console.log('➡️ next() called - currentQuoteId:', currentQuoteId, 'lastQuoteId:', lastQuoteId);
@@ -277,7 +274,7 @@ const App: React.FC = () => {
             console.log('📍 CALL SITE: next function - else branch');
             await fetchNextQuote();
         }
-    }, [isAuthenticated, currentQuoteId, lastQuoteId, displayQuote?.id, receivedQuotes, prefetchAdjacent]);
+    }, [isAuthenticated, currentQuoteId, lastQuoteId, displayQuote?.id, receivedQuotes]);
 
     const jumpToFirst = async (): Promise<void> => {
         if (isAuthenticated) {
@@ -432,12 +429,6 @@ const App: React.FC = () => {
                     className="previousButton" 
                     disabled={(isAuthenticated ? (currentQuoteId === null || currentQuoteId <= 1) : receivedQuotes.findIndex(q => q.id === displayQuote?.id) <= 0) || signingIn || showProfile || needsUsernameSetup || showManagement || effectiveLoading} 
                     onClick={previous}
-                    onMouseEnter={() => {
-                        if (isAuthenticated && currentQuoteId && currentQuoteId > 1) {
-                            // Prefetch adjacent quotes on hover
-                            prefetchAdjacent();
-                        }
-                    }}
                 >
                     Previous
                 </button>
@@ -445,12 +436,6 @@ const App: React.FC = () => {
                     className="nextButton"
                     disabled={(isAuthenticated ? (currentQuoteId === null || currentQuoteId >= lastQuoteId) : receivedQuotes.findIndex(q => q.id === displayQuote?.id) >= receivedQuotes.length - 1) || signingIn || showProfile || needsUsernameSetup || showManagement || effectiveLoading}
                     onClick={next}
-                    onMouseEnter={() => {
-                        if (isAuthenticated && currentQuoteId && currentQuoteId < lastQuoteId) {
-                            // Prefetch adjacent quotes on hover
-                            prefetchAdjacent();
-                        }
-                    }}
                 >
                     Next
                 </button>
