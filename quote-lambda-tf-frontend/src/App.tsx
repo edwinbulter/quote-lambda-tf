@@ -42,7 +42,7 @@ const App: React.FC = () => {
 
     // Use optimized quote for authenticated users, local state for unauthenticated
     const displayQuote = isAuthenticated ? optimizedQuote : quote;
-    const effectiveLoading = isAuthenticated ? (quoteLoading && !optimizedQuote) : (loading || !displayQuote);
+    const effectiveLoading = isAuthenticated ? (quoteLoading && !optimizedQuote) || loading || !displayQuote : (loading || !displayQuote);
 
     useEffect(() => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
@@ -54,6 +54,7 @@ const App: React.FC = () => {
             if (isAuthenticated && user) {
                 try {
                     console.log('Loading user progress for authenticated user...');
+                    setLoading(true); // Start loading
                     const progress = await quoteApi.getUserProgress();
                     setLastQuoteId(progress.lastQuoteId);
                     
@@ -62,12 +63,17 @@ const App: React.FC = () => {
                         const lastQuote = await quoteApi.getQuoteById(progress.lastQuoteId);
                         setQuote(lastQuote);
                         setCurrentQuoteId(lastQuote.id);
+                    } else {
+                        // First-time user or no viewed quotes, fetch next quote
+                        await fetchNextQuote();
                     }
                     console.log(`Loaded user progress: lastQuoteId=${progress.lastQuoteId}`);
                 } catch (error) {
                     console.error('Failed to load user progress:', error);
                     // Fallback to getting next quote
                     fetchNextQuote();
+                } finally {
+                    setLoading(false); // End loading
                 }
             } else {
                 // Clear progress when user signs out
