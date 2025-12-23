@@ -1,7 +1,7 @@
 .viewed-quotes-screen {
     position: absolute;
     top: 0;
-    left: 141px;
+    left: 41px;
     width: calc(100vw - 141px);
     height: 100vh;
     background-color: white;
@@ -10,6 +10,7 @@
     padding: 20px;
     box-sizing: border-box;
     overflow: hidden;
+    max-width: 90%;
 }
 
 .viewed-quotes-header {
@@ -18,12 +19,43 @@
     gap: 20px;
     margin-bottom: 20px;
     flex-shrink: 0;
+    justify-content: space-between;
 }
 
 .viewed-quotes-header h2 {
     margin: 0;
     color: green;
     font-size: 28px;
+    flex: 1;
+}
+
+.delete-all-button {
+    min-width: 100px;
+    min-height: 40px;
+    padding: 8px 16px;
+    font-size: 16px;
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    background-color: #dc3545;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.delete-all-button:hover:not(:disabled) {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+.delete-all-button:disabled {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+    cursor: not-allowed;
+}
+
+.delete-all-button:active:not(:disabled) {
+    transform: scale(0.98);
 }
 
 .viewed-quotes-screen .back-button {
@@ -65,10 +97,12 @@
 .viewed-quotes-table-container {
     flex: 1;
     overflow-y: auto;
+    overflow-x: auto;
 }
 
 .viewed-quotes-table {
     width: 100%;
+    min-width: 600px;
     border-collapse: collapse;
     font-size: 16px;
 }
@@ -97,8 +131,114 @@
     word-wrap: break-word;
 }
 
+.viewed-quotes-table .id-cell {
+    width: 60px;
+    text-align: center;
+    font-weight: 600;
+    color: #666;
+}
+
 .viewed-quotes-table .author-cell {
     white-space: nowrap;
+}
+
+/* Warning dialog styles */
+.warning-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.warning-dialog {
+    background-color: white;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.warning-dialog h3 {
+    margin: 0 0 16px 0;
+    color: #dc3545;
+    font-size: 20px;
+}
+
+.warning-dialog p {
+    margin: 0 0 12px 0;
+    color: #333;
+    line-height: 1.5;
+}
+
+.warning-dialog ul {
+    margin: 0 0 16px 0;
+    padding-left: 20px;
+}
+
+.warning-dialog li {
+    margin-bottom: 8px;
+    color: #666;
+}
+
+.warning-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.cancel-button {
+    min-width: 80px;
+    min-height: 40px;
+    padding: 8px 16px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cancel-button:hover:not(:disabled) {
+    background-color: #e0e0e0;
+}
+
+.cancel-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.confirm-delete-button {
+    min-width: 100px;
+    min-height: 40px;
+    padding: 8px 16px;
+    font-size: 16px;
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    background-color: #dc3545;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.confirm-delete-button:hover:not(:disabled) {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+.confirm-delete-button:disabled {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+    cursor: not-allowed;
 }
 
 .like-cell {

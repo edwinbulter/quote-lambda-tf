@@ -525,4 +525,25 @@ public class QuoteService {
         logger.info("Reordered quote {} for user {} from order {} to {}", quoteId, username, oldOrder, newOrder);
     }
 
+    /**
+     * Reset user progress to 0 (effectively starting over from quote #1)
+     */
+    public void resetUserProgress(String username) {
+        if (userProgressRepository == null) {
+            logger.warn("Cannot reset user progress: UserProgressRepository is not initialized");
+            return;
+        }
+        
+        if (username == null || username.isEmpty()) {
+            logger.warn("Cannot reset user progress: username is null or empty");
+            return;
+        }
+        
+        // Create a new UserProgress with lastQuoteId = 0
+        UserProgress resetProgress = new UserProgress(username, 0, System.currentTimeMillis());
+        userProgressRepository.saveUserProgress(resetProgress);
+        
+        logger.info("Reset user progress for {} to start from quote #1", username);
+    }
+
 }

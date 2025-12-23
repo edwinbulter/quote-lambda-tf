@@ -192,6 +192,27 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
             
             List<Quote> viewedQuotes = quoteService.getViewedQuotes(username);
             return createResponse(viewedQuotes);
+        } else if (path.equals("/api/v1/quote/viewed") && "DELETE".equals(httpMethod)) {
+            // DELETE /quote/viewed - Delete all viewed quotes and liked quotes, reset progress
+            String username = extractUsername(event);
+            if (username == null || username.isEmpty()) {
+                return createForbiddenResponse("Authentication required");
+            }
+            
+            try {
+                // Delete all user likes
+                userLikeRepository.deleteAllLikesForUser(username);
+                
+                // Reset user progress to 0
+                quoteService.resetUserProgress(username);
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "All viewed quotes and liked quotes deleted successfully");
+                return createResponse(response);
+            } catch (Exception e) {
+                logger.error("Error deleting all viewed quotes for user: " + username, e);
+                return createErrorResponse("Failed to delete all viewed quotes: " + e.getMessage());
+            }
         }
 
         if (path.equals("/api/v1/quote") && ("GET".equals(httpMethod) || "POST".equals(httpMethod))) {

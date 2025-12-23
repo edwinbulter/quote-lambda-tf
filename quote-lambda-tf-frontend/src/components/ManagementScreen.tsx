@@ -25,7 +25,7 @@ export function ManagementScreen({
                 <button className="back-button" onClick={onBack}>
                     ← Back
                 </button>
-                <h2>Management</h2>
+                <h2>Manage</h2>
             </div>
             <div className="management-menu">
                 <button

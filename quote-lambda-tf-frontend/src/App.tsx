@@ -35,14 +35,14 @@ const App: React.FC = () => {
     const { isOpen: isBackendRestarting, retryCount } = useBackendRestartNotification();
 
     // Use the new hooks for optimized quote fetching (always call hooks, but disable when not authenticated)
-    const { quote: optimizedQuote, isLoading: quoteLoading, prefetchAdjacent, updateQuote } = 
+    const { quote: optimizedQuote, isLoading: quoteLoading, updateQuote } = 
         useQuote(currentQuoteId, { enableOptimisticUpdates: isAuthenticated });
     useUserProgress(); // Keep for potential future use
     useAuthenticatedQuote(); // Keep for potential future use
 
     // Use optimized quote for authenticated users, local state for unauthenticated
     const displayQuote = isAuthenticated ? optimizedQuote : quote;
-    const effectiveLoading = isAuthenticated ? (quoteLoading && !optimizedQuote) : (loading || !displayQuote);
+    const effectiveLoading = isAuthenticated ? (quoteLoading && !optimizedQuote) || loading || !displayQuote : (loading || !displayQuote);
 
     useEffect(() => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
@@ -54,6 +54,7 @@ const App: React.FC = () => {
             if (isAuthenticated && user) {
                 try {
                     console.log('Loading user progress for authenticated user...');
+                    setLoading(true); // Start loading
                     const progress = await quoteApi.getUserProgress();
                     setLastQuoteId(progress.lastQuoteId);
                     
@@ -62,12 +63,19 @@ const App: React.FC = () => {
                         const lastQuote = await quoteApi.getQuoteById(progress.lastQuoteId);
                         setQuote(lastQuote);
                         setCurrentQuoteId(lastQuote.id);
+                    } else {
+                        // First-time user or no viewed quotes, fetch next quote
+                        console.log('📍 CALL SITE: loadUserProgress - first time user');
+                        await fetchNextQuote();
                     }
                     console.log(`Loaded user progress: lastQuoteId=${progress.lastQuoteId}`);
                 } catch (error) {
                     console.error('Failed to load user progress:', error);
                     // Fallback to getting next quote
+                    console.log('📍 CALL SITE: loadUserProgress - error fallback');
                     fetchNextQuote();
+                } finally {
+                    setLoading(false); // End loading
                 }
             } else {
                 // Clear progress when user signs out
@@ -153,11 +161,16 @@ const App: React.FC = () => {
     };
 
     const fetchNextQuote = async (): Promise<void> => {
+        console.log('🔄 fetchNextQuote called - timestamp:', Date.now());
+        console.log('📍 CALL SITE: Manual fetchNextQuote() call');
+        
         try {
             setLoading(true);
             if (isAuthenticated) {
                 // For authenticated users, get next sequential quote
+                console.log('📈 Calling getAuthenticatedQuote for user');
                 const nextQuote = await quoteApi.getAuthenticatedQuote();
+                console.log('📈 Received quote:', nextQuote.id, nextQuote.quoteText.substring(0, 50));
                 setQuote(nextQuote);
                 setCurrentQuoteId(nextQuote.id);
                 setLastQuoteId(nextQuote.id);
@@ -175,6 +188,15 @@ const App: React.FC = () => {
     };
 
     const newQuote = async (): Promise<void> => {
+        console.log('📍 CALL SITE: newQuote function');
+        console.trace('🔍 Full call stack for newQuote() call:');
+        
+        // Prevent automatic calls - only allow if not loading
+        if (effectiveLoading) {
+            console.log('🚫 newQuote blocked - effectiveLoading is true');
+            return;
+        }
+        
         await fetchNextQuote();
     };
 
@@ -213,9 +235,6 @@ const App: React.FC = () => {
         if (isAuthenticated && currentQuoteId && currentQuoteId > 1) {
             const prevId = currentQuoteId - 1;
             setCurrentQuoteId(prevId);
-            
-            // Prefetch adjacent quotes for the new position
-            prefetchAdjacent();
         } else if (!isAuthenticated) {
             // For unauthenticated users, use old array-based navigation
             if (receivedQuotes.length > 0) {
@@ -225,23 +244,26 @@ const App: React.FC = () => {
                 }
             }
         }
-    }, [isAuthenticated, currentQuoteId, displayQuote?.id, receivedQuotes, prefetchAdjacent]);
+    }, [isAuthenticated, currentQuoteId, displayQuote?.id, receivedQuotes]);
 
     const next = useCallback(async (): Promise<void> => {
+        console.log('➡️ next() called - currentQuoteId:', currentQuoteId, 'lastQuoteId:', lastQuoteId);
         if (isAuthenticated && currentQuoteId && currentQuoteId < lastQuoteId) {
             const nextId = currentQuoteId + 1;
+            console.log('➡️ Setting currentQuoteId to:', nextId);
             setCurrentQuoteId(nextId);
-            
-            // Prefetch adjacent quotes for the new position
-            prefetchAdjacent();
         } else if (!isAuthenticated) {
             // For unauthenticated users, use old array-based navigation
             const currentIndex = receivedQuotes.findIndex(q => q.id === displayQuote?.id);
             if (currentIndex >= 0 && currentIndex < receivedQuotes.length - 1) {
                 setQuote(receivedQuotes[currentIndex + 1]);
             }
+        } else {
+            console.log('➡️ Calling fetchNextQuote() - currentQuoteId >= lastQuoteId');
+            console.log('📍 CALL SITE: next function - else branch');
+            await fetchNextQuote();
         }
-    }, [isAuthenticated, currentQuoteId, lastQuoteId, displayQuote?.id, receivedQuotes, prefetchAdjacent]);
+    }, [isAuthenticated, currentQuoteId, lastQuoteId, displayQuote?.id, receivedQuotes]);
 
     const jumpToFirst = async (): Promise<void> => {
         if (isAuthenticated) {
@@ -329,6 +351,16 @@ const App: React.FC = () => {
                     ) : managementView === 'viewed' ? (
                         <ViewedQuotesScreen
                             onBack={() => setManagementView('main')}
+                            onDeleteAll={() => {
+                                // Reset user state to start from beginning
+                                setCurrentQuoteId(null);
+                                setLastQuoteId(0);
+                                setQuote(null);
+                                // Trigger fetch of first quote
+                                setTimeout(() => {
+                                    fetchNextQuote();
+                                }, 100);
+                            }}
                         />
                     ) : managementView === 'users' ? (
                         <UserManagementScreen
@@ -396,12 +428,6 @@ const App: React.FC = () => {
                     className="previousButton" 
                     disabled={(isAuthenticated ? (currentQuoteId === null || currentQuoteId <= 1) : receivedQuotes.findIndex(q => q.id === displayQuote?.id) <= 0) || signingIn || showProfile || needsUsernameSetup || showManagement || effectiveLoading} 
                     onClick={previous}
-                    onMouseEnter={() => {
-                        if (isAuthenticated && currentQuoteId && currentQuoteId > 1) {
-                            // Prefetch adjacent quotes on hover
-                            prefetchAdjacent();
-                        }
-                    }}
                 >
                     Previous
                 </button>
@@ -409,12 +435,6 @@ const App: React.FC = () => {
                     className="nextButton"
                     disabled={(isAuthenticated ? (currentQuoteId === null || currentQuoteId >= lastQuoteId) : receivedQuotes.findIndex(q => q.id === displayQuote?.id) >= receivedQuotes.length - 1) || signingIn || showProfile || needsUsernameSetup || showManagement || effectiveLoading}
                     onClick={next}
-                    onMouseEnter={() => {
-                        if (isAuthenticated && currentQuoteId && currentQuoteId < lastQuoteId) {
-                            // Prefetch adjacent quotes on hover
-                            prefetchAdjacent();
-                        }
-                    }}
                 >
                     Next
                 </button>
