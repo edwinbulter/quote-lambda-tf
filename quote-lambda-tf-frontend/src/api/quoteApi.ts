@@ -46,6 +46,37 @@ async function getQuote(): Promise<Quote> {
     });
 }
 
+async function getNextQuote(currentQuoteId: number): Promise<Quote> {
+    console.log('🔍 API: getNextQuote called with currentQuoteId:', currentQuoteId);
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/next`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ currentQuoteId }),
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch next quote: ${response.status} ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log('🔍 API: getNextQuote received:', result.id, result.quoteText.substring(0, 50));
+            return result;
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying getNextQuote (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
+    });
+}
+
 async function getUniqueQuote(receivedQuotes: Quote[]): Promise<Quote> {
     const quoteIds = receivedQuotes.map(quote => quote.id);
     
@@ -300,9 +331,9 @@ async function getPreviousQuote(currentQuoteId: number): Promise<Quote> {
 }
 
 /**
- * Get next quote for sequential navigation
+ * Get next quote for sequential navigation (authenticated users)
  */
-async function getNextQuote(currentQuoteId: number): Promise<Quote> {
+async function getNextAuthenticatedQuote(currentQuoteId: number): Promise<Quote> {
     const authHeaders = await getAuthHeaders();
     
     return withRetry(
@@ -322,7 +353,7 @@ async function getNextQuote(currentQuoteId: number): Promise<Quote> {
         },
         {
             onRetry: (attempt, error) => {
-                console.log(`Retrying getNextQuote (attempt ${attempt})...`, error);
+                console.log(`Retrying getNextAuthenticatedQuote (attempt ${attempt})...`, error);
                 notifyBackendRestart(true, attempt);
             }
         }
@@ -416,6 +447,7 @@ export default {
     // Sequential navigation functions
     getQuoteById,
     getPreviousQuote,
+    getNextAuthenticatedQuote,
     getNextQuote,
     getUserProgress,
     getViewedQuotes,

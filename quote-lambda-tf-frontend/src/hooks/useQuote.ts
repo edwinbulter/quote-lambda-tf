@@ -35,7 +35,9 @@ export const useQuote = (quoteId: number | null, options: UseQuoteOptions = {}) 
   // Prefetch adjacent quotes when quote changes
   const prefetchAdjacent = useCallback(async () => {
     if (quoteId && enableOptimisticUpdates) {
-      await quoteCache.prefetchAdjacent(quoteId);
+      // Temporarily disabled to debug double-quote advancement issue
+      console.log('🚫 prefetchAdjacent disabled to prevent double state advancement');
+      // await quoteCache.prefetchAdjacent(quoteId);
     }
   }, [quoteId, quoteCache, enableOptimisticUpdates]);
 
