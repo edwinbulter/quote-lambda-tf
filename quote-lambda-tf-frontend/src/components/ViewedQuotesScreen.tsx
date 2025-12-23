@@ -20,9 +20,6 @@ export function ViewedQuotesScreen({ onBack, onDeleteAll }: ViewedQuotesScreenPr
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [showDeleteWarning, setShowDeleteWarning] = useState<boolean>(false);
     const [deleting, setDeleting] = useState<boolean>(false);
-    const [searchTerm, setSearchTerm] = useState<string>('');
-    const [sortField, setSortField] = useState<'id' | 'quote' | 'author' | 'favourite'>('id');
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const { isOpen, retryCount } = useBackendRestartNotification();
 
     useEffect(() => {
@@ -104,44 +101,6 @@ export function ViewedQuotesScreen({ onBack, onDeleteAll }: ViewedQuotesScreenPr
         }
     };
 
-    const handleSort = (field: 'id' | 'quote' | 'author' | 'favourite') => {
-        if (sortField === field) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortDirection('asc');
-        }
-    };
-
-    const filteredAndSortedQuotes = viewedQuotes
-        .filter(quote => 
-            quote.quoteText.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            quote.author.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        .sort((a, b) => {
-            let comparison = 0;
-            
-            switch (sortField) {
-                case 'id':
-                    comparison = a.id - b.id;
-                    break;
-                case 'quote':
-                    comparison = a.quoteText.localeCompare(b.quoteText);
-                    if (comparison === 0) comparison = a.id - b.id;
-                    break;
-                case 'author':
-                    comparison = a.author.localeCompare(b.author);
-                    if (comparison === 0) comparison = a.id - b.id;
-                    break;
-                case 'favourite':
-                    comparison = (a.isLiked ? 1 : 0) - (b.isLiked ? 1 : 0);
-                    if (comparison === 0) comparison = a.id - b.id;
-                    break;
-            }
-            
-            return sortDirection === 'asc' ? comparison : -comparison;
-        });
-
     return (
         <div className="viewed-quotes-screen">
             <BackendRestartNotification isOpen={isOpen} retryCount={retryCount} />
@@ -149,7 +108,7 @@ export function ViewedQuotesScreen({ onBack, onDeleteAll }: ViewedQuotesScreenPr
                 <button className="back-button" onClick={onBack}>
                     ← Back
                 </button>
-                <h2>My Viewed Quotes</h2>
+                <h2>Viewed Quotes</h2>
                 {viewedQuotes.length > 0 && (
                     <button 
                         className="delete-all-button" 
@@ -161,75 +120,25 @@ export function ViewedQuotesScreen({ onBack, onDeleteAll }: ViewedQuotesScreenPr
                 )}
             </div>
 
-            <div className="search-controls">
-                <input
-                    type="text"
-                    placeholder="Search by quote or author..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-input"
-                />
-            </div>
-
             {loading ? (
                 <div className="loading">Loading viewed quotes...</div>
-            ) : filteredAndSortedQuotes.length === 0 ? (
+            ) : viewedQuotes.length === 0 ? (
                 <div className="empty-state">
-                    No quotes found matching "{searchTerm}".
+                    No viewed quotes yet.
                 </div>
             ) : (
                 <div className="viewed-quotes-table-container">
                     <table className="viewed-quotes-table">
                         <thead>
                             <tr>
-                                <th 
-                                    className="sortable-header"
-                                    onClick={() => handleSort('id')}
-                                >
-                                    ID
-                                    {sortField === 'id' && (
-                                        <span className="sort-indicator">
-                                            {sortDirection === 'asc' ? ' ↑' : ' ↓'}
-                                        </span>
-                                    )}
-                                </th>
-                                <th 
-                                    className="sortable-header"
-                                    onClick={() => handleSort('quote')}
-                                >
-                                    Quote
-                                    {sortField === 'quote' && (
-                                        <span className="sort-indicator">
-                                            {sortDirection === 'asc' ? ' ↑' : ' ↓'}
-                                        </span>
-                                    )}
-                                </th>
-                                <th 
-                                    className="sortable-header"
-                                    onClick={() => handleSort('author')}
-                                >
-                                    Author
-                                    {sortField === 'author' && (
-                                        <span className="sort-indicator">
-                                            {sortDirection === 'asc' ? ' ↑' : ' ↓'}
-                                        </span>
-                                    )}
-                                </th>
-                                <th 
-                                    className="sortable-header"
-                                    onClick={() => handleSort('favourite')}
-                                >
-                                    Favourite
-                                    {sortField === 'favourite' && (
-                                        <span className="sort-indicator">
-                                            {sortDirection === 'asc' ? ' ↑' : ' ↓'}
-                                        </span>
-                                    )}
-                                </th>
+                                <th>ID</th>
+                                <th>Quote</th>
+                                <th>Author</th>
+                                <th>Favourite</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredAndSortedQuotes.map((quote) => (
+                            {viewedQuotes.map((quote) => (
                                 <tr key={quote.id}>
                                     <td className="id-cell">{quote.id}</td>
                                     <td className="quote-cell">{quote.quoteText}</td>

@@ -1,21 +1,5 @@
 # ECS-31: Frontend Loading State and Quote Navigation Fixes
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Problems Addressed](#problems-addressed)
-  - [Empty Quote Display Instead of "Loading..."](#1-empty-quote-display-instead-of-loading)
-  - [First-Time Users Stuck in Loading State](#2-first-time-users-stuck-in-loading-state)
-  - [Double Quote Addition and Skipping Quotes](#3-double-quote-addition-and-skipping-quotes)
-- [Improvements](#improvements)
-  - [Delete All Viewed Quotes Feature](#1-delete-all-viewed-quotes-feature)
-  - [Search and Sorting Functionality](#2-search-and-sorting-functionality)
-- [Implementation Details](#implementation-details)
-- [Testing and Verification](#testing-and-verification)
-- [Results](#results)
-- [Future Considerations](#future-considerations)
-- [Conclusion](#conclusion)
-
 ## Overview
 
 This document describes the fixes implemented to resolve multiple frontend issues related to loading states, user authentication flows, and quote navigation inconsistencies.
@@ -104,108 +88,6 @@ const prefetchAdjacent = useCallback(async () => {
 }, [quoteId, quoteCache, enableOptimisticUpdates]);
 ```
 
-## Improvements
-
-### 1. Delete All Viewed Quotes Feature
-
-**Problem**: Users had no way to reset their progress and start over from the beginning. The Viewed Quotes screen lacked functionality to clear all viewed quotes and liked quotes, forcing users to manually navigate through all quotes or create a new account.
-
-**Solution**: Added comprehensive "Delete All" functionality to the Viewed Quotes screen:
-
-#### Frontend Implementation
-- **Quote ID Column**: Added ID column as the first column in the viewed quotes table for better quote identification
-- **Delete All Button**: Added red "Delete All" button in the header (only shows when viewed quotes exist)
-- **Warning Dialog**: Comprehensive modal warning explaining the consequences:
-  - All viewed quotes will be deleted
-  - All liked quotes will be deleted  
-  - Next quote will start from quote #1
-- **State Management**: Added callback prop to reset App.tsx state (`currentQuoteId`, `lastQuoteId`, `quote`)
-
-#### Backend Implementation  
-- **DELETE Endpoint**: Implemented `DELETE /quote/viewed` endpoint in QuoteHandler.java
-- **Service Layer**: Added `resetUserProgress()` method in QuoteService.java
-- **Repository Operations**: Used existing `deleteAllLikesForUser()` method in UserLikeRepository
-- **Authentication**: Required authentication for DELETE operations
-
-#### Key Features
-```typescript
-// Frontend - Delete All button with warning
-<button className="delete-all-button" onClick={() => setShowDeleteWarning(true)}>
-    Delete All
-</button>
-
-// Frontend - State reset callback
-onDeleteAll={() => {
-    setCurrentQuoteId(null);
-    setLastQuoteId(0);
-    setQuote(null);
-    fetchNextQuote(); // Auto-fetch first quote
-}}
-```
-
-```java
-// Backend - DELETE endpoint
-} else if (path.equals("/api/v1/quote/viewed") && "DELETE".equals(httpMethod)) {
-    // Delete all user likes and reset progress
-    userLikeRepository.deleteAllLikesForUser(username);
-    quoteService.resetUserProgress(username);
-    return createResponse(response);
-}
-```
-
-#### UI/UX Improvements
-- **Responsive Layout**: Fixed horizontal overflow issues with proper CSS adjustments
-- **Loading States**: Automatic quote fetch after deletion prevents perpetual loading state
-- **User Feedback**: Toast notifications confirm successful deletion
-- **Accessibility**: Proper button states and ARIA labels
-
-### 2. Search and Sorting Functionality
-
-**Problem**: The Viewed Quotes table was static with no way to find specific quotes or organize the data. Users with many viewed quotes couldn't efficiently locate quotes of interest or sort them by preference.
-
-**Solution**: Added comprehensive search and multi-column sorting functionality to enhance user experience:
-
-#### Search Features
-- **Real-time Search**: Instant filtering as user types
-- **Multi-field Search**: Searches both quote text and author names
-- **Case-insensitive**: User-friendly search regardless of capitalization
-- **Empty State**: Shows "No quotes found" message when no matches exist
-
-#### Sorting Features
-- **ID Column**: Numeric sort (default descending for newest first)
-- **Quote Column**: Alphabetical sort with ID as secondary sort
-- **Author Column**: Alphabetical sort with ID as secondary sort
-- **Favourite Column**: Boolean sort (liked quotes first) with ID secondary sort
-- **Bidirectional**: Click headers to toggle between ascending/descending
-- **Visual Indicators**: Shows current sort direction with ↑/↓ arrows
-
-#### Key Implementation
-```typescript
-// Search and filter logic
-const filteredAndSortedQuotes = viewedQuotes
-    .filter(quote => 
-        quote.quoteText.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.author.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-        // Multi-column sorting with secondary ID sort
-        switch (sortField) {
-            case 'author':
-                comparison = a.author.localeCompare(b.author);
-                if (comparison === 0) comparison = a.id - b.id;
-                break;
-            // ... other cases
-        }
-        return sortDirection === 'asc' ? comparison : -comparison;
-    });
-```
-
-#### UI/UX Enhancements
-- **Clickable Headers**: Interactive table headers with hover effects
-- **Search Input**: Full-width search bar with focus styling
-- **Responsive Design**: Maintains mobile compatibility
-- **Performance**: Efficient client-side filtering and sorting
-
 ## Implementation Details
 
 ### Files Modified
@@ -215,54 +97,17 @@ const filteredAndSortedQuotes = viewedQuotes
    - Added first-time user handling in `loadUserProgress`
    - Removed all prefetch functionality
    - Added extensive debugging logs
-   - Added `onDeleteAll` callback for state reset
 
-2. **`/src/components/ViewedQuotesScreen.tsx`**
-   - Added quote ID column to table
-   - Added "Delete All" button with conditional display
-   - Implemented warning dialog with detailed consequences
-   - Added delete handler with API integration
-   - Added state management for deletion process
-   - Added search functionality with real-time filtering
-   - Implemented multi-column sorting with secondary ID sort
-   - Added sort state management and visual indicators
-   - Enhanced table headers with click handlers
-
-3. **`/src/components/ViewedQuotesScreen.css`**
-   - Added styles for quote ID column
-   - Added styles for "Delete All" button
-   - Added warning dialog and overlay styles
-   - Fixed horizontal layout issues
-   - Added responsive design considerations
-   - Added search input styling with focus states
-   - Added sortable header styles with hover effects
-   - Added sort indicator styling
-
-4. **`/src/api/quoteApi.ts`**
-   - Added `deleteAllViewedQuotes()` API function
-   - Added proper authentication headers
-   - Added error handling and retry logic
-
-5. **`/src/hooks/useQuoteCache.ts`**
+2. **`/src/hooks/useQuoteCache.ts`**
    - Disabled prefetch in `prefetchAdjacent` function
    - Added logging for debugging (can be removed)
 
-6. **`/src/hooks/useQuote.ts`**
+3. **`/src/hooks/useQuote.ts`**
    - Disabled prefetch calls in useEffect
 
-7. **`/backend/src/main/java/ebulter/quote/lambda/QuoteHandler.java`**
-   - Added `DELETE /quote/viewed` endpoint
-   - Added authentication validation
-   - Added comprehensive error handling
-
-8. **`/backend/src/main/java/ebulter/quote/lambda/service/QuoteService.java`**
-   - Added `resetUserProgress()` method
-   - Added proper validation and logging
-
-9. **`/backend/src/main/java/ebulter/quote/lambda/repository/UserLikeRepository.java`**
-   - Used existing `deleteAllLikesForUser()` method
-
-10. **`/src/api/quoteApi.ts`**
+4. **`/src/api/quoteApi.ts`**
+   - Fixed duplicate function implementation
+   - Renamed `getNextQuote` to `getNextAuthenticatedQuote` for authenticated users
 
 ### Debugging Tools Added
 
