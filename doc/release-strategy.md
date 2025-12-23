@@ -489,6 +489,73 @@ git merge hotfix/1.0.1
 git push origin main
 ```
 
+**Handling Merge Conflicts:**
+
+If `main` has changed significantly since the hotfix branch was created, you may encounter merge conflicts. Here are the strategies to handle this:
+
+##### Strategy 1: Resolve Conflicts (Recommended for Small Changes)
+```bash
+git checkout main
+git pull origin main
+git merge hotfix/1.0.1
+# If conflicts occur:
+# 1. Open conflicted files and resolve manually
+# 2. git add <resolved-files>
+# 3. git commit -m "chore: merge hotfix/1.0.1 into main with conflict resolution"
+git push origin main
+```
+
+##### Strategy 2: Cherry-Pick (When Hotfix is Small and Isolated)
+```bash
+git checkout main
+git pull origin main
+git log hotfix/1.0.1  # Find the commit hash of the hotfix
+git cherry-pick <commit-hash>
+git push origin main
+```
+
+##### Strategy 3: Rebase Hotfix onto Main (Cleaner History)
+```bash
+git checkout hotfix/1.0.1
+git fetch origin
+git rebase origin/main
+# Resolve conflicts if they occur during rebase
+git checkout main
+git merge hotfix/1.0.1  # This should be a fast-forward merge now
+git push origin main
+```
+
+##### Strategy 4: Manual Backport (When Code Structure Changed Drastically)
+If the target code no longer exists or has been completely refactored:
+
+1. **Analyze the hotfix**: Understand what the fix actually does
+2. **Locate equivalent code**: Find where the same functionality exists in current `main`
+3. **Apply fix manually**: Implement the same logic in the current codebase
+4. **Test thoroughly**: Ensure the fix works in the new context
+5. **Commit as new fix**: 
+   ```bash
+   git checkout main
+   git pull origin main
+   # Make the manual changes
+   git add .
+   git commit -m "fix: backport hotfix 1.0.1 changes to current main"
+   git push origin main
+   ```
+
+**When to Use Each Strategy:**
+
+- **Strategy 1**: Small conflicts, similar code structure
+- **Strategy 2**: Single commit hotfix, minimal conflicts expected
+- **Strategy 3**: Want clean linear history, conflicts are manageable
+- **Strategy 4**: Major refactoring occurred, original code doesn't exist
+
+**Prevention Tips:**
+
+1. **Keep hotfixes small and focused**: Reduce the chance of conflicts
+2. **Regular main merges**: Keep hotfix branches updated with main changes
+3. **Document architectural changes**: Make it easier to backport fixes later
+4. **Consider feature flags**: For changes that might need hotfixing later
+
 #### 8. Delete Hotfix Branch
 
 ```bash
