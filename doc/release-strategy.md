@@ -209,10 +209,10 @@ terraform init
 terraform workspace select default
 
 # Review the planned changes (ALWAYS review before applying)
-terraform plan -var-file="prod.tfvars"
+terraform plan
 
 # Apply the changes (requires confirmation)
-terraform apply -var-file="prod.tfvars"
+terraform apply
 
 # Verify deployment
 terraform output
