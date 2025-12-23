@@ -206,7 +206,9 @@ public class QuoteHandler implements RequestHandler<APIGatewayProxyRequestEvent,
                 // Reset user progress to 0
                 quoteService.resetUserProgress(username);
                 
-                return createResponse("All viewed quotes and liked quotes deleted successfully");
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "All viewed quotes and liked quotes deleted successfully");
+                return createResponse(response);
             } catch (Exception e) {
                 logger.error("Error deleting all viewed quotes for user: " + username, e);
                 return createErrorResponse("Failed to delete all viewed quotes: " + e.getMessage());
