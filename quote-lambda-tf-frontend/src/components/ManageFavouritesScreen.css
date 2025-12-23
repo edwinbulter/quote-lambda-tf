@@ -1,7 +1,7 @@
 .manage-favourites-screen {
     position: absolute;
     top: 0;
-    left: 141px;
+    left: 41px;
     width: calc(100vw - 141px);
     height: 100vh;
     background-color: white;

@@ -7,16 +7,19 @@ import { BackendRestartNotification, useBackendRestartNotification } from './Bac
 
 interface ViewedQuotesScreenProps {
     onBack: () => void;
+    onDeleteAll?: () => void;
 }
 
 interface ViewedQuote extends Quote {
     isLiked: boolean;
 }
 
-export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
+export function ViewedQuotesScreen({ onBack, onDeleteAll }: ViewedQuotesScreenProps) {
     const [viewedQuotes, setViewedQuotes] = useState<ViewedQuote[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [showDeleteWarning, setShowDeleteWarning] = useState<boolean>(false);
+    const [deleting, setDeleting] = useState<boolean>(false);
     const { isOpen, retryCount } = useBackendRestartNotification();
 
     useEffect(() => {
@@ -78,6 +81,26 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
         }
     };
 
+    const handleDeleteAll = async () => {
+        try {
+            setDeleting(true);
+            await quoteApi.deleteAllViewedQuotes();
+            setViewedQuotes([]);
+            showToast('All viewed quotes and liked quotes have been deleted. Next quote will start from the beginning.', 'success');
+            setShowDeleteWarning(false);
+            
+            // Call the callback to reset state in App.tsx
+            if (onDeleteAll) {
+                onDeleteAll();
+            }
+        } catch (error) {
+            console.error('Failed to delete all viewed quotes:', error);
+            showToast('Failed to delete all viewed quotes', 'error');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     return (
         <div className="viewed-quotes-screen">
             <BackendRestartNotification isOpen={isOpen} retryCount={retryCount} />
@@ -86,6 +109,15 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
                     ← Back
                 </button>
                 <h2>Viewed Quotes</h2>
+                {viewedQuotes.length > 0 && (
+                    <button 
+                        className="delete-all-button" 
+                        onClick={() => setShowDeleteWarning(true)}
+                        disabled={deleting}
+                    >
+                        Delete All
+                    </button>
+                )}
             </div>
 
             {loading ? (
@@ -99,6 +131,7 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
                     <table className="viewed-quotes-table">
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>Quote</th>
                                 <th>Author</th>
                                 <th>Favourite</th>
@@ -107,6 +140,7 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
                         <tbody>
                             {viewedQuotes.map((quote) => (
                                 <tr key={quote.id}>
+                                    <td className="id-cell">{quote.id}</td>
                                     <td className="quote-cell">{quote.quoteText}</td>
                                     <td className="author-cell">{quote.author}</td>
                                     <td className="like-cell">
@@ -123,6 +157,36 @@ export function ViewedQuotesScreen({ onBack }: ViewedQuotesScreenProps) {
                             ))}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {showDeleteWarning && (
+                <div className="warning-overlay">
+                    <div className="warning-dialog">
+                        <h3>⚠️ Warning</h3>
+                        <p>This will permanently delete:</p>
+                        <ul>
+                            <li>All your viewed quotes</li>
+                            <li>All your liked quotes</li>
+                        </ul>
+                        <p>The next time you request a new quote, you will start from the beginning (Quote #1).</p>
+                        <div className="warning-actions">
+                            <button 
+                                className="cancel-button" 
+                                onClick={() => setShowDeleteWarning(false)}
+                                disabled={deleting}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                className="confirm-delete-button" 
+                                onClick={handleDeleteAll}
+                                disabled={deleting}
+                            >
+                                {deleting ? 'Deleting...' : 'Delete All'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

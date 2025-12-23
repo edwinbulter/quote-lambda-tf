@@ -351,6 +351,12 @@ const App: React.FC = () => {
                     ) : managementView === 'viewed' ? (
                         <ViewedQuotesScreen
                             onBack={() => setManagementView('main')}
+                            onDeleteAll={() => {
+                                // Reset user state to start from beginning
+                                setCurrentQuoteId(null);
+                                setLastQuoteId(0);
+                                setQuote(null);
+                            }}
                         />
                     ) : managementView === 'users' ? (
                         <UserManagementScreen

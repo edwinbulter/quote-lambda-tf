@@ -403,31 +403,59 @@ async function getUserProgress(): Promise<{ lastQuoteId: number; username: strin
  * Get all viewed quotes (1 to lastQuoteId)
  */
 async function getViewedQuotes(): Promise<Quote[]> {
+    const authHeaders = await getAuthHeaders();
+    
+    if (!authHeaders || !('Authorization' in authHeaders)) {
+        console.log('User not authenticated, returning empty viewed quotes');
+        return [];
+    }
+    
     return withRetry(
         async () => {
-            // Check if user is authenticated (re-evaluated on each retry)
-            const authHeaders = await getAuthHeaders();
-            if (!authHeaders || !('Authorization' in authHeaders)) {
-                console.log('User not authenticated, returning empty viewed quotes');
-                return [];
-            }
-            
             const response = await fetch(`${BASE_URL}/quote/viewed`, {
                 method: "GET",
                 headers: {
                     ...authHeaders,
                 },
             });
-            
             if (!response.ok) {
                 throw new Error(`Failed to fetch viewed quotes: ${response.status} ${response.statusText}`);
             }
-            
             return await response.json();
         },
         {
             onRetry: (attempt, error) => {
                 console.log(`Retrying getViewedQuotes (attempt ${attempt})...`, error);
+                notifyBackendRestart(true, attempt);
+            }
+        }
+    ).finally(() => {
+        notifyBackendRestart(false);
+    });
+}
+
+async function deleteAllViewedQuotes(): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    
+    if (!authHeaders || !('Authorization' in authHeaders)) {
+        throw new Error('User not authenticated');
+    }
+    
+    return withRetry(
+        async () => {
+            const response = await fetch(`${BASE_URL}/quote/viewed`, {
+                method: "DELETE",
+                headers: {
+                    ...authHeaders,
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to delete all viewed quotes: ${response.status} ${response.statusText}`);
+            }
+        },
+        {
+            onRetry: (attempt, error) => {
+                console.log(`Retrying deleteAllViewedQuotes (attempt ${attempt})...`, error);
                 notifyBackendRestart(true, attempt);
             }
         }
@@ -451,4 +479,5 @@ export default {
     getNextQuote,
     getUserProgress,
     getViewedQuotes,
+    deleteAllViewedQuotes,
 };
