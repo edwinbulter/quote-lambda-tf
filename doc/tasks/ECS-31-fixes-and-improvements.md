@@ -9,6 +9,7 @@
   - [Double Quote Addition and Skipping Quotes](#3-double-quote-addition-and-skipping-quotes)
 - [Improvements](#improvements)
   - [Delete All Viewed Quotes Feature](#1-delete-all-viewed-quotes-feature)
+  - [Search and Sorting Functionality](#2-search-and-sorting-functionality)
 - [Implementation Details](#implementation-details)
 - [Testing and Verification](#testing-and-verification)
 - [Results](#results)
@@ -158,6 +159,53 @@ onDeleteAll={() => {
 - **User Feedback**: Toast notifications confirm successful deletion
 - **Accessibility**: Proper button states and ARIA labels
 
+### 2. Search and Sorting Functionality
+
+**Problem**: The Viewed Quotes table was static with no way to find specific quotes or organize the data. Users with many viewed quotes couldn't efficiently locate quotes of interest or sort them by preference.
+
+**Solution**: Added comprehensive search and multi-column sorting functionality to enhance user experience:
+
+#### Search Features
+- **Real-time Search**: Instant filtering as user types
+- **Multi-field Search**: Searches both quote text and author names
+- **Case-insensitive**: User-friendly search regardless of capitalization
+- **Empty State**: Shows "No quotes found" message when no matches exist
+
+#### Sorting Features
+- **ID Column**: Numeric sort (default descending for newest first)
+- **Quote Column**: Alphabetical sort with ID as secondary sort
+- **Author Column**: Alphabetical sort with ID as secondary sort
+- **Favourite Column**: Boolean sort (liked quotes first) with ID secondary sort
+- **Bidirectional**: Click headers to toggle between ascending/descending
+- **Visual Indicators**: Shows current sort direction with ↑/↓ arrows
+
+#### Key Implementation
+```typescript
+// Search and filter logic
+const filteredAndSortedQuotes = viewedQuotes
+    .filter(quote => 
+        quote.quoteText.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quote.author.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+        // Multi-column sorting with secondary ID sort
+        switch (sortField) {
+            case 'author':
+                comparison = a.author.localeCompare(b.author);
+                if (comparison === 0) comparison = a.id - b.id;
+                break;
+            // ... other cases
+        }
+        return sortDirection === 'asc' ? comparison : -comparison;
+    });
+```
+
+#### UI/UX Enhancements
+- **Clickable Headers**: Interactive table headers with hover effects
+- **Search Input**: Full-width search bar with focus styling
+- **Responsive Design**: Maintains mobile compatibility
+- **Performance**: Efficient client-side filtering and sorting
+
 ## Implementation Details
 
 ### Files Modified
@@ -175,6 +223,10 @@ onDeleteAll={() => {
    - Implemented warning dialog with detailed consequences
    - Added delete handler with API integration
    - Added state management for deletion process
+   - Added search functionality with real-time filtering
+   - Implemented multi-column sorting with secondary ID sort
+   - Added sort state management and visual indicators
+   - Enhanced table headers with click handlers
 
 3. **`/src/components/ViewedQuotesScreen.css`**
    - Added styles for quote ID column
@@ -182,6 +234,9 @@ onDeleteAll={() => {
    - Added warning dialog and overlay styles
    - Fixed horizontal layout issues
    - Added responsive design considerations
+   - Added search input styling with focus states
+   - Added sortable header styles with hover effects
+   - Added sort indicator styling
 
 4. **`/src/api/quoteApi.ts`**
    - Added `deleteAllViewedQuotes()` API function

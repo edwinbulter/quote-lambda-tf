@@ -106,7 +106,7 @@ export function ManageFavouritesScreen({ onBack }: ManageFavouritesScreenProps) 
                 <button className="back-button" onClick={onBack}>
                     ← Back
                 </button>
-                <h2>Manage Favourites</h2>
+                <h2>My Favourites</h2>
             </div>
 
             {loading ? (
