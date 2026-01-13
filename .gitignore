@@ -40,6 +40,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# HTTP Client environment files (secrets)
+**/http-client.env.json
+
 # Build directories
 /dist
 /build

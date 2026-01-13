@@ -3,6 +3,10 @@
 # Or get specific function keys
 # az functionapp function keys list --resource-group quote-backend-rg --name quote-backend-function --function-name QuoteHandler
 
+# Note: FUNCTION_KEY variable is defined in http-client.env.json in the same directory (not committed to git)
+# Create this file with your actual function keys to test the endpoints
+
+# This only works in Intellij and you need to set the environment. VS Code does not translate the {{FUNCTION_KEY}} variable.
 
 ### Get Quote
 GET https://quote-backend-function.azurewebsites.net/api/quote?code={{FUNCTION_KEY}}
