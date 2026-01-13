@@ -29,6 +29,12 @@
 - [Phase 5: Testing in Azure](#phase-5-testing-in-azure)
   - [Step 15: Test the Deployed API](#step-15-test-the-deployed-api)
   - [Step 16: Monitor and Debug](#step-16-monitor-and-debug)
+- [Phase 6: Advanced Features Implementation](#phase-6-advanced-features-implementation)
+  - [Step 17: Implement ZenQuotes API Integration](#step-17-implement-zenquotes-api-integration)
+  - [Step 18: Implement User Activity Tracking](#step-18-implement-user-activity-tracking)
+  - [Step 19: Update HTTP Handlers for Advanced Features](#step-19-update-http-handlers-for-advanced-features)
+  - [Step 20: Update Dependency Injection](#step-20-update-dependency-injection)
+  - [Step 21: Update Configuration](#step-21-update-configuration)
 - [Troubleshooting](#troubleshooting)
   - [Common Issues](#common-issues)
 - [Resources](#resources)
@@ -795,6 +801,776 @@ func azure functionapp logstream quote-backend-function
 
 ---
 
+## Phase 6: Advanced Features Implementation
+
+### Step 17: Implement ZenQuotes API Integration
+
+#### Add HTTP Client Service
+```csharp
+// Services/ZenQuotesService.cs
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using QuoteAzureBackend.Models;
+using System.Net.Http.Json;
+using System.Text.Json;
+
+namespace QuoteAzureBackend.Services
+{
+    public interface IZenQuotesService
+    {
+        Task<Quote> GetRandomQuoteAsync();
+        Task<List<Quote>> GetMultipleQuotesAsync(int count = 5);
+    }
+
+    public class ZenQuotesService : IZenQuotesService
+    {
+        private readonly HttpClient _httpClient;
+        private readonly ILogger<ZenQuotesService> _logger;
+        private readonly string _apiKey;
+
+        public ZenQuotesService(HttpClient httpClient, ILogger<ZenQuotesService> logger, IConfiguration configuration)
+        {
+            _httpClient = httpClient;
+            _logger = logger;
+            _apiKey = configuration["ZenQuotes:ApiKey"] ?? string.Empty;
+            _httpClient.BaseAddress = new Uri("https://zenquotes.io/api/");
+        }
+
+        public async Task<Quote> GetRandomQuoteAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"random/{_apiKey}");
+                response.EnsureSuccessStatusCode();
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var zenQuotes = JsonSerializer.Deserialize<List<ZenQuoteResponse>>(content);
+                
+                if (zenQuotes?.Any() == true)
+                {
+                    var zenQuote = zenQuotes.First();
+                    return new Quote
+                    {
+                        Id = Guid.NewGuid().GetHashCode(),
+                        QuoteText = zenQuote.q,
+                        Author = zenQuote.a,
+                        LikeCount = 0,
+                        CreatedAt = DateTime.UtcNow,
+                        Source = "ZenQuotes"
+                    };
+                }
+                
+                throw new InvalidOperationException("No quotes returned from ZenQuotes API");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching quote from ZenQuotes API");
+                throw;
+            }
+        }
+
+        public async Task<List<Quote>> GetMultipleQuotesAsync(int count = 5)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"quotes/{_apiKey}");
+                response.EnsureSuccessStatusCode();
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var zenQuotes = JsonSerializer.Deserialize<List<ZenQuoteResponse>>(content);
+                
+                return zenQuotes?.Select(zq => new Quote
+                {
+                    Id = Guid.NewGuid().GetHashCode(),
+                    QuoteText = zq.q,
+                    Author = zq.a,
+                    LikeCount = 0,
+                    CreatedAt = DateTime.UtcNow,
+                    Source = "ZenQuotes"
+                }).ToList() ?? new List<Quote>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching multiple quotes from ZenQuotes API");
+                throw;
+            }
+        }
+    }
+
+    public class ZenQuoteResponse
+    {
+        public string q { get; set; } = string.Empty;
+        public string a { get; set; } = string.Empty;
+        public string h { get; set; } = string.Empty;
+    }
+}
+```
+
+#### Update Quote Service to Use ZenQuotes
+```csharp
+// Services/QuoteService.cs (updated)
+using Microsoft.Extensions.Logging;
+using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Data;
+
+namespace QuoteAzureBackend.Services
+{
+    public interface IQuoteService
+    {
+        Task<Quote> GetRandomQuoteAsync();
+        Task<Quote> GetQuoteByIdAsync(int id);
+        Task<List<Quote>> GetAllQuotesAsync();
+        Task<Quote> AddQuoteAsync(Quote quote);
+        Task<bool> DeleteQuoteAsync(int id);
+        Task<List<Quote>> GetQuotesFromZenQuotesAsync(int count = 5);
+    }
+
+    public class QuoteService : IQuoteService
+    {
+        private readonly IQuoteRepository _repository;
+        private readonly IZenQuotesService _zenQuotesService;
+        private readonly ILogger<QuoteService> _logger;
+
+        public QuoteService(IQuoteRepository repository, IZenQuotesService zenQuotesService, ILogger<QuoteService> logger)
+        {
+            _repository = repository;
+            _zenQuotesService = zenQuotesService;
+            _logger = logger;
+        }
+
+        public async Task<Quote> GetRandomQuoteAsync()
+        {
+            var quotes = await _repository.GetAllQuotesAsync();
+            if (quotes.Any())
+            {
+                var random = new Random();
+                return quotes[random.Next(quotes.Count)];
+            }
+            
+            // Fallback to ZenQuotes if no local quotes
+            return await _zenQuotesService.GetRandomQuoteAsync();
+        }
+
+        public async Task<Quote> GetQuoteByIdAsync(int id)
+        {
+            return await _repository.GetQuoteByIdAsync(id);
+        }
+
+        public async Task<List<Quote>> GetAllQuotesAsync()
+        {
+            return await _repository.GetAllQuotesAsync();
+        }
+
+        public async Task<Quote> AddQuoteAsync(Quote quote)
+        {
+            return await _repository.AddQuoteAsync(quote);
+        }
+
+        public async Task<bool> DeleteQuoteAsync(int id)
+        {
+            return await _repository.DeleteQuoteAsync(id);
+        }
+
+        public async Task<List<Quote>> GetQuotesFromZenQuotesAsync(int count = 5)
+        {
+            var zenQuotes = await _zenQuotesService.GetMultipleQuotesAsync(count);
+            var addedQuotes = new List<Quote>();
+            
+            foreach (var quote in zenQuotes)
+            {
+                try
+                {
+                    var addedQuote = await _repository.AddQuoteAsync(quote);
+                    addedQuotes.Add(addedQuote);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to add quote: {QuoteText}", quote.QuoteText);
+                }
+            }
+            
+            return addedQuotes;
+        }
+    }
+}
+```
+
+### Step 18: Implement User Activity Tracking
+
+#### Add User Activity Models
+```csharp
+// Models/UserActivity.cs
+using System.ComponentModel.DataAnnotations;
+
+namespace QuoteAzureBackend.Models
+{
+    public class UserFavorite
+    {
+        [Required]
+        public string UserId { get; set; } = string.Empty;
+        
+        [Required]
+        public int QuoteId { get; set; }
+        
+        public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+        
+        public string PartitionKey => UserId;
+        public string RowKey => $"favorite_{QuoteId}";
+    }
+
+    public class UserViewHistory
+    {
+        [Required]
+        public string UserId { get; set; } = string.Empty;
+        
+        [Required]
+        public int QuoteId { get; set; }
+        
+        public DateTime ViewedAt { get; set; } = DateTime.UtcNow;
+        
+        public string PartitionKey => UserId;
+        public string RowKey => $"view_{QuoteId}_{ViewedAt:yyyyMMddHHmmss}";
+    }
+
+    public class UserPreferences
+    {
+        [Required]
+        public string UserId { get; set; } = string.Empty;
+        
+        public string PreferredCategory { get; set; } = string.Empty;
+        
+        public int QuotesPerPage { get; set; } = 10;
+        
+        public bool EnableNotifications { get; set; } = true;
+        
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        
+        public string PartitionKey => UserId;
+        public string RowKey => "preferences";
+    }
+}
+```
+
+#### Create User Activity Service
+```csharp
+// Services/UserActivityService.cs
+using Microsoft.Extensions.Logging;
+using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Data;
+
+namespace QuoteAzureBackend.Services
+{
+    public interface IUserActivityService
+    {
+        Task<bool> AddFavoriteAsync(string userId, int quoteId);
+        Task<bool> RemoveFavoriteAsync(string userId, int quoteId);
+        Task<List<Quote>> GetUserFavoritesAsync(string userId);
+        Task<bool> RecordViewAsync(string userId, int quoteId);
+        Task<List<Quote>> GetUserViewHistoryAsync(string userId, int limit = 50);
+        Task<UserPreferences> GetUserPreferencesAsync(string userId);
+        Task<bool> UpdateUserPreferencesAsync(string userId, UserPreferences preferences);
+    }
+
+    public class UserActivityService : IUserActivityService
+    {
+        private readonly IUserActivityRepository _repository;
+        private readonly IQuoteService _quoteService;
+        private readonly ILogger<UserActivityService> _logger;
+
+        public UserActivityService(IUserActivityRepository repository, IQuoteService quoteService, ILogger<UserActivityService> logger)
+        {
+            _repository = repository;
+            _quoteService = quoteService;
+            _logger = logger;
+        }
+
+        public async Task<bool> AddFavoriteAsync(string userId, int quoteId)
+        {
+            try
+            {
+                var favorite = new UserFavorite { UserId = userId, QuoteId = quoteId };
+                return await _repository.AddFavoriteAsync(favorite);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding favorite for user {UserId}, quote {QuoteId}", userId, quoteId);
+                return false;
+            }
+        }
+
+        public async Task<bool> RemoveFavoriteAsync(string userId, int quoteId)
+        {
+            try
+            {
+                return await _repository.RemoveFavoriteAsync(userId, quoteId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing favorite for user {UserId}, quote {QuoteId}", userId, quoteId);
+                return false;
+            }
+        }
+
+        public async Task<List<Quote>> GetUserFavoritesAsync(string userId)
+        {
+            try
+            {
+                var favoriteQuoteIds = await _repository.GetUserFavoriteQuoteIdsAsync(userId);
+                var quotes = new List<Quote>();
+                
+                foreach (var quoteId in favoriteQuoteIds)
+                {
+                    var quote = await _quoteService.GetQuoteByIdAsync(quoteId);
+                    if (quote != null)
+                    {
+                        quotes.Add(quote);
+                    }
+                }
+                
+                return quotes;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting favorites for user {UserId}", userId);
+                return new List<Quote>();
+            }
+        }
+
+        public async Task<bool> RecordViewAsync(string userId, int quoteId)
+        {
+            try
+            {
+                var viewHistory = new UserViewHistory { UserId = userId, QuoteId = quoteId };
+                return await _repository.RecordViewAsync(viewHistory);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error recording view for user {UserId}, quote {QuoteId}", userId, quoteId);
+                return false;
+            }
+        }
+
+        public async Task<List<Quote>> GetUserViewHistoryAsync(string userId, int limit = 50)
+        {
+            try
+            {
+                var viewedQuoteIds = await _repository.GetUserViewHistoryQuoteIdsAsync(userId, limit);
+                var quotes = new List<Quote>();
+                
+                foreach (var quoteId in viewedQuoteIds)
+                {
+                    var quote = await _quoteService.GetQuoteByIdAsync(quoteId);
+                    if (quote != null)
+                    {
+                        quotes.Add(quote);
+                    }
+                }
+                
+                return quotes;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting view history for user {UserId}", userId);
+                return new List<Quote>();
+            }
+        }
+
+        public async Task<UserPreferences> GetUserPreferencesAsync(string userId)
+        {
+            try
+            {
+                return await _repository.GetUserPreferencesAsync(userId) ?? new UserPreferences { UserId = userId };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting preferences for user {UserId}", userId);
+                return new UserPreferences { UserId = userId };
+            }
+        }
+
+        public async Task<bool> UpdateUserPreferencesAsync(string userId, UserPreferences preferences)
+        {
+            try
+            {
+                preferences.UserId = userId;
+                preferences.UpdatedAt = DateTime.UtcNow;
+                return await _repository.UpdateUserPreferencesAsync(preferences);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating preferences for user {UserId}", userId);
+                return false;
+            }
+        }
+    }
+}
+```
+
+### Step 19: Update HTTP Handlers for Advanced Features
+
+#### Enhanced Quote Handler
+```csharp
+// QuoteHandler.cs (updated)
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Services;
+using System.Net;
+
+namespace QuoteAzureBackend
+{
+    public class QuoteHandler
+    {
+        private readonly ILogger<QuoteHandler> _logger;
+        private readonly IQuoteService _quoteService;
+        private readonly IUserActivityService _userActivityService;
+
+        public QuoteHandler(ILogger<QuoteHandler> logger, IQuoteService quoteService, IUserActivityService userActivityService)
+        {
+            _logger = logger;
+            _quoteService = quoteService;
+            _userActivityService = userActivityService;
+        }
+
+        [Function("quotes")]
+        public async Task<HttpResponseData> GetQuotesAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quotes")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            _logger.LogInformation("Getting all quotes");
+
+            try
+            {
+                var quotes = await _quoteService.GetAllQuotesAsync();
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(quotes);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting quotes");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("quote/random")]
+        public async Task<HttpResponseData> GetRandomQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/random")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            _logger.LogInformation("Getting random quote");
+
+            try
+            {
+                var quote = await _quoteService.GetRandomQuoteAsync();
+                
+                // Record view if user is authenticated
+                var userId = GetUserFromRequest(req);
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    await _userActivityService.RecordViewAsync(userId, quote.Id);
+                }
+
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(quote);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting random quote");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("quotes/zen")]
+        public async Task<HttpResponseData> GetZenQuotesAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "quotes/zen")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            _logger.LogInformation("Fetching quotes from ZenQuotes API");
+
+            try
+            {
+                var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var count = string.IsNullOrEmpty(requestBody) ? 5 : int.Parse(requestBody);
+                
+                var quotes = await _quoteService.GetQuotesFromZenQuotesAsync(count);
+                
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(new { AddedQuotes = quotes.Count, Quotes = quotes });
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching ZenQuotes");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("quote/{id}")]
+        public async Task<HttpResponseData> GetQuoteByIdAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/{id}")] HttpRequestData req,
+            int id,
+            FunctionContext executionContext)
+        {
+            _logger.LogInformation("Getting quote by ID: {QuoteId}", id);
+
+            try
+            {
+                var quote = await _quoteService.GetQuoteByIdAsync(id);
+                
+                if (quote == null)
+                {
+                    return req.CreateResponse(HttpStatusCode.NotFound);
+                }
+
+                // Record view if user is authenticated
+                var userId = GetUserFromRequest(req);
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    await _userActivityService.RecordViewAsync(userId, quote.Id);
+                }
+
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(quote);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting quote by ID");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        private string GetUserFromRequest(HttpRequestData req)
+        {
+            // Extract user ID from JWT token or headers
+            // This is a simplified version - implement proper JWT validation
+            if (req.Headers.TryGetValues("X-User-Id", out var userIdValues))
+            {
+                return userIdValues.FirstOrDefault();
+            }
+            return string.Empty;
+        }
+    }
+}
+```
+
+#### Add User Activity Handler
+```csharp
+// UserActivityHandler.cs
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Services;
+using System.Net;
+
+namespace QuoteAzureBackend
+{
+    public class UserActivityHandler
+    {
+        private readonly ILogger<UserActivityHandler> _logger;
+        private readonly IUserActivityService _userActivityService;
+
+        public UserActivityHandler(ILogger<UserActivityHandler> logger, IUserActivityService userActivityService)
+        {
+            _logger = logger;
+            _userActivityService = userActivityService;
+        }
+
+        [Function("user/favorites")]
+        public async Task<HttpResponseData> GetUserFavoritesAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", "post", "delete", Route = "user/favorites")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            var userId = GetUserFromRequest(req);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return req.CreateResponse(HttpStatusCode.Unauthorized);
+            }
+
+            try
+            {
+                if (req.Method == HttpMethod.Get)
+                {
+                    var favorites = await _userActivityService.GetUserFavoritesAsync(userId);
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(favorites);
+                    return response;
+                }
+                else if (req.Method == HttpMethod.Post)
+                {
+                    var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                    var quoteId = int.Parse(requestBody);
+                    
+                    var success = await _userActivityService.AddFavoriteAsync(userId, quoteId);
+                    return success ? req.CreateResponse(HttpStatusCode.OK) : req.CreateResponse(HttpStatusCode.BadRequest);
+                }
+                else if (req.Method == HttpMethod.Delete)
+                {
+                    var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                    var quoteId = int.Parse(requestBody);
+                    
+                    var success = await _userActivityService.RemoveFavoriteAsync(userId, quoteId);
+                    return success ? req.CreateResponse(HttpStatusCode.OK) : req.CreateResponse(HttpStatusCode.BadRequest);
+                }
+
+                return req.CreateResponse(HttpStatusCode.MethodNotAllowed);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error handling user favorites request");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("user/history")]
+        public async Task<HttpResponseData> GetUserViewHistoryAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "user/history")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            var userId = GetUserFromRequest(req);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return req.CreateResponse(HttpStatusCode.Unauthorized);
+            }
+
+            try
+            {
+                var queryParams = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
+                var limit = int.TryParse(queryParams["limit"], out var l) ? l : 50;
+                
+                var history = await _userActivityService.GetUserViewHistoryAsync(userId, limit);
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(history);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user view history");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("user/preferences")]
+        public async Task<HttpResponseData> GetUserPreferencesAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", "put", Route = "user/preferences")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            var userId = GetUserFromRequest(req);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return req.CreateResponse(HttpStatusCode.Unauthorized);
+            }
+
+            try
+            {
+                if (req.Method == HttpMethod.Get)
+                {
+                    var preferences = await _userActivityService.GetUserPreferencesAsync(userId);
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(preferences);
+                    return response;
+                }
+                else if (req.Method == HttpMethod.Put)
+                {
+                    var preferences = await req.ReadFromJsonAsync<UserPreferences>();
+                    if (preferences == null)
+                    {
+                        return req.CreateResponse(HttpStatusCode.BadRequest);
+                    }
+                    
+                    var success = await _userActivityService.UpdateUserPreferencesAsync(userId, preferences);
+                    return success ? req.CreateResponse(HttpStatusCode.OK) : req.CreateResponse(HttpStatusCode.BadRequest);
+                }
+
+                return req.CreateResponse(HttpStatusCode.MethodNotAllowed);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error handling user preferences request");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        private string GetUserFromRequest(HttpRequestData req)
+        {
+            // Extract user ID from JWT token or headers
+            // This is a simplified version - implement proper JWT validation
+            if (req.Headers.TryGetValues("X-User-Id", out var userIdValues))
+            {
+                return userIdValues.FirstOrDefault();
+            }
+            return string.Empty;
+        }
+    }
+}
+```
+
+### Step 20: Update Dependency Injection
+
+#### Update Program.cs
+```csharp
+// Program.cs (updated)
+using Microsoft.Azure.Functions.Worker.Configuration;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using QuoteAzureBackend.Services;
+using QuoteAzureBackend.Data;
+
+var host = new HostBuilder()
+    .ConfigureFunctionsWorkerDefaults()
+    .ConfigureAppConfiguration((context, config) =>
+    {
+        config.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
+        config.AddEnvironmentVariables();
+    })
+    .ConfigureServices((context, services) =>
+    {
+        // Add HTTP client for ZenQuotes
+        services.AddHttpClient<IZenQuotesService, ZenQuotesService>();
+        
+        // Add repositories
+        services.AddScoped<IQuoteRepository, QuoteRepository>();
+        services.AddScoped<IUserActivityRepository, UserActivityRepository>();
+        
+        // Add services
+        services.AddScoped<IQuoteService, QuoteService>();
+        services.AddScoped<IUserActivityService, UserActivityService>();
+        
+        // Add logging
+        services.AddLogging();
+    })
+    .Build();
+
+host.Run();
+```
+
+### Step 21: Update Configuration
+
+#### Add ZenQuotes Configuration
+```json
+// local.settings.json (updated)
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "ZenQuotes:ApiKey": "your_zenquotes_api_key_here"
+  },
+  "ConnectionStrings": {
+    "AzureStorage": "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=yourkey;EndpointSuffix=core.windows.net"
+  }
+}
+```
+
+---
+
 ## Next Steps
 
 ### Production Considerations
@@ -804,10 +1580,16 @@ func azure functionapp logstream quote-backend-function
 4. **Add monitoring** with Application Insights
 5. **Configure scaling** and performance optimization
 
+### Advanced Features Implemented
+1. **ZenQuotes Integration** - Fetch quotes from external API
+2. **User Activity Tracking** - Track favorites and view history
+3. **User Preferences** - Store and manage user preferences
+4. **Enhanced API Endpoints** - Full CRUD operations for user data
+
 ### Cost Optimization
 1. **Monitor usage** in Azure Cost Management
 2. **Optimize function performance** to reduce compute costs
 3. **Use appropriate storage tiers** based on access patterns
 4. **Set up budgets** and alerts for cost control
 
-This guide provides a complete path from local development to cloud deployment using a dual-IDE workflow, enabling you to leverage AI assistance in Windsurf while maintaining full C# development capabilities in VS Code, all without any initial Azure costs.
+This extended guide now provides a complete implementation matching the AWS Lambda backend functionality, including external API integration, user activity tracking, and comprehensive data management capabilities.
