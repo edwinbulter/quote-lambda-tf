@@ -1,0 +1,14 @@
+# Get master key
+# az functionapp keys list --resource-group quote-backend-rg --name quote-backend-function --query "masterKey"
+# Or get specific function keys
+# az functionapp function keys list --resource-group quote-backend-rg --name quote-backend-function --function-name QuoteHandler
+
+
+### Get Quote
+GET https://quote-backend-function.azurewebsites.net/api/quote?code=Hb7vDjogyeQoyabz88I9NgpEqI-L3ERMXxWDial0u1RuAzFu811PgA==
+
+### Like Quote
+POST https://quote-backend-function.azurewebsites.net/api/quote/123/like?code=Hb7vDjogyeQoyabz88I9NgpEqI-L3ERMXxWDial0u1RuAzFu811PgA==
+
+### System Status
+GET https://quote-backend-function.azurewebsites.net/api/system/status?code=Hb7vDjogyeQoyabz88I9NgpEqI-L3ERMXxWDial0u1RuAzFu811PgA==
