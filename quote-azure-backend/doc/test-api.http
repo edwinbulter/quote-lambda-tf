@@ -5,10 +5,10 @@
 
 
 ### Get Quote
-GET https://quote-backend-function.azurewebsites.net/api/quote?code=Hb7vDjogyeQoyabz88I9NgpEqI-L3ERMXxWDial0u1RuAzFu811PgA==
+GET https://quote-backend-function.azurewebsites.net/api/quote?code={{FUNCTION_KEY}}
 
 ### Like Quote
-POST https://quote-backend-function.azurewebsites.net/api/quote/123/like?code=Hb7vDjogyeQoyabz88I9NgpEqI-L3ERMXxWDial0u1RuAzFu811PgA==
+POST https://quote-backend-function.azurewebsites.net/api/quote/123/like?code={{FUNCTION_KEY}}
 
 ### System Status
-GET https://quote-backend-function.azurewebsites.net/api/system/status?code=Hb7vDjogyeQoyabz88I9NgpEqI-L3ERMXxWDial0u1RuAzFu811PgA==
+GET https://quote-backend-function.azurewebsites.net/api/system/status?code={{FUNCTION_KEY}}
