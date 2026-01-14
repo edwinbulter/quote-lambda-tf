@@ -7,5 +7,6 @@ namespace QuoteAzureBackend.Models
         public string Author { get; set; } = string.Empty;
         public int LikeCount { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string Source { get; set; } = "Local";
     }
 }

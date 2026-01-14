@@ -1,77 +1,85 @@
 using Microsoft.Extensions.Logging;
 using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Data;
 
 namespace QuoteAzureBackend.Services
 {
     public interface IQuoteService
     {
-        Task<Quote> GetRandomQuoteAsync(List<int>? excludeIds = null);
-        Task<List<Quote>> GetLikedQuotesAsync(string userId);
-        Task LikeQuoteAsync(string userId, int quoteId);
-        Task UnlikeQuoteAsync(string userId, int quoteId);
-        Task<List<Quote>> GetViewHistoryAsync(string userId);
+        Task<Quote> GetRandomQuoteAsync();
+        Task<Quote> GetQuoteByIdAsync(int id);
+        Task<List<Quote>> GetAllQuotesAsync();
+        Task<Quote> AddQuoteAsync(Quote quote);
+        Task<bool> DeleteQuoteAsync(int id);
+        Task<List<Quote>> GetQuotesFromZenQuotesAsync(int count = 5);
     }
 
     public class QuoteService : IQuoteService
     {
+        private readonly IQuoteRepository _repository;
+        private readonly IZenQuotesService _zenQuotesService;
         private readonly ILogger<QuoteService> _logger;
-        private readonly List<Quote> _quotes; // In-memory for local testing
 
-        public QuoteService(ILogger<QuoteService> logger)
+        public QuoteService(IQuoteRepository repository, IZenQuotesService zenQuotesService, ILogger<QuoteService> logger)
         {
+            _repository = repository;
+            _zenQuotesService = zenQuotesService;
             _logger = logger;
-            _quotes = GenerateSampleQuotes();
         }
 
-        public async Task<Quote> GetRandomQuoteAsync(List<int>? excludeIds = null)
+        public async Task<Quote> GetRandomQuoteAsync()
         {
-            var availableQuotes = excludeIds != null 
-                ? _quotes.Where(q => !excludeIds.Contains(q.Id)).ToList()
-                : _quotes;
-
-            if (!availableQuotes.Any())
-                throw new InvalidOperationException("No quotes available");
-
-            var random = new Random();
-            var selectedQuote = availableQuotes[random.Next(availableQuotes.Count)];
-            
-            return await Task.FromResult(selectedQuote);
-        }
-
-        public async Task<List<Quote>> GetLikedQuotesAsync(string userId)
-        {
-            // Mock implementation - in real app, query database
-            return await Task.FromResult(new List<Quote>());
-        }
-
-        public async Task LikeQuoteAsync(string userId, int quoteId)
-        {
-            // Mock implementation - in real app, save to database
-            await Task.CompletedTask;
-        }
-
-        public async Task UnlikeQuoteAsync(string userId, int quoteId)
-        {
-            // Mock implementation - in real app, remove from database
-            await Task.CompletedTask;
-        }
-
-        public async Task<List<Quote>> GetViewHistoryAsync(string userId)
-        {
-            // Mock implementation - in real app, query database
-            return await Task.FromResult(new List<Quote>());
-        }
-
-        private List<Quote> GenerateSampleQuotes()
-        {
-            return new List<Quote>
+            var quotes = await _repository.GetAllQuotesAsync();
+            if (quotes.Any())
             {
-                new Quote { Id = 1, QuoteText = "The only way to do great work is to love what you do.", Author = "Steve Jobs", LikeCount = 15, CreatedAt = DateTime.UtcNow },
-                new Quote { Id = 2, QuoteText = "Innovation distinguishes between a leader and a follower.", Author = "Steve Jobs", LikeCount = 12, CreatedAt = DateTime.UtcNow },
-                new Quote { Id = 3, QuoteText = "Life is what happens when you're busy making other plans.", Author = "John Lennon", LikeCount = 8, CreatedAt = DateTime.UtcNow },
-                new Quote { Id = 4, QuoteText = "The future belongs to those who believe in the beauty of their dreams.", Author = "Eleanor Roosevelt", LikeCount = 10, CreatedAt = DateTime.UtcNow },
-                new Quote { Id = 5, QuoteText = "It is during our darkest moments that we must focus to see the light.", Author = "Aristotle", LikeCount = 6, CreatedAt = DateTime.UtcNow }
-            };
+                var random = new Random();
+                var index = random.Next(quotes.Count);
+                return quotes[index];
+            }
+            
+            // Fallback to ZenQuotes if no local quotes
+            return await _zenQuotesService.GetRandomQuoteAsync();
+        }
+
+        public async Task<Quote> GetQuoteByIdAsync(int id)
+        {
+            return await _repository.GetQuoteByIdAsync(id);
+        }
+
+        public async Task<List<Quote>> GetAllQuotesAsync()
+        {
+            return await _repository.GetAllQuotesAsync();
+        }
+
+        public async Task<Quote> AddQuoteAsync(Quote quote)
+        {
+            return await _repository.AddQuoteAsync(quote);
+        }
+
+        public async Task<bool> DeleteQuoteAsync(int id)
+        {
+            return await _repository.DeleteQuoteAsync(id);
+        }
+
+        public async Task<List<Quote>> GetQuotesFromZenQuotesAsync(int count = 5)
+        {
+            var zenQuotes = await _zenQuotesService.GetMultipleQuotesAsync(count);
+            var addedQuotes = new List<Quote>();
+            
+            foreach (var quote in zenQuotes)
+            {
+                try
+                {
+                    var addedQuote = await _repository.AddQuoteAsync(quote);
+                    addedQuotes.Add(addedQuote);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to add quote: {QuoteText}", quote.QuoteText);
+                }
+            }
+            
+            return addedQuotes;
         }
     }
 }

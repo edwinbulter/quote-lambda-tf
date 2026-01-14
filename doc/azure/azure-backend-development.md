@@ -1,5 +1,25 @@
 # Azure Backend Development Guide
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Development Environment Setup](#development-environment-setup)
+  - [Prerequisites](#prerequisites)
+  - [Opening the Project](#opening-the-project)
+- [Local Development Workflow](#local-development-workflow)
+  - [1. Configuration Management](#1-configuration-management)
+  - [2. Running the Application](#2-running-the-application)
+  - [3. Testing the API](#3-testing-the-api)
+  - [4. Debugging](#4-debugging)
+  - [5. Code Development](#5-code-development)
+  - [6. Project Structure](#6-project-structure)
+  - [7. Common Development Issues](#7-common-development-issues)
+  - [8. Best Practices](#8-best-practices)
+  - [9. Testing Strategy](#9-testing-strategy)
+  - [10. Deployment Preparation](#10-deployment-preparation)
+- [Troubleshooting Quick Reference](#troubleshooting-quick-reference)
+- [Next Steps](#next-steps)
+
 ## Overview
 
 This guide covers the day-to-day development workflow for the Azure Functions Quote API backend once the initial setup is complete. It assumes you have already followed the implementation guide and have a working codebase.
