@@ -41,7 +41,7 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
-        [Function("quote/random")]
+        [Function("GetRandomQuote")]
         public async Task<HttpResponseData> GetRandomQuoteAsync(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/random")] HttpRequestData req,
             FunctionContext executionContext)
@@ -70,7 +70,7 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
-        [Function("quotes/zen")]
+        [Function("GetZenQuotes")]
         public async Task<HttpResponseData> GetZenQuotesAsync(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = "quotes/zen")] HttpRequestData req,
             FunctionContext executionContext)
@@ -95,7 +95,7 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
-        [Function("quote/{id}")]
+        [Function("GetQuoteById")]
         public async Task<HttpResponseData> GetQuoteByIdAsync(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/{id}")] HttpRequestData req,
             int id,

@@ -65,7 +65,39 @@ resource "azurerm_windows_function_app" "function_app" {
     "FUNCTIONS_WORKER_RUNTIME" = "dotnet-isolated"
     "AzureWebJobsStorage"        = azurerm_storage_account.sa.primary_connection_string
     "WEBSITE_RUN_FROM_PACKAGE"  = "1"
+    "APPINSIGHTS_INSTRUMENTATIONKEY" = azurerm_application_insights.app_insights.instrumentation_key
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.app_insights.connection_string
+    "Logging__LogLevel__Default" = "Information"
+    "Logging__LogLevel__Microsoft" = "Warning"
+    "Logging__LogLevel__Microsoft.Hosting.Lifetime" = "Information"
   }
+
+  tags = {
+    environment = "production"
+    project     = "quote-backend"
+  }
+}
+
+# Application Insights for logging
+resource "azurerm_application_insights" "app_insights" {
+  name                = "quote-backend-ai"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  application_type    = "web"
+
+  tags = {
+    environment = "production"
+    project     = "quote-backend"
+  }
+}
+
+# Log Analytics Workspace
+resource "azurerm_log_analytics_workspace" "workspace" {
+  name                = "quote-backend-law"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
 
   tags = {
     environment = "production"
