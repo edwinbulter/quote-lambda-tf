@@ -4,7 +4,13 @@
 # 1. AZURE_CREDENTIALS - Service principal credentials in JSON format
 #    Create with: az ad sp create-for-rbac --name "github-actions-quote-backend" --role contributor --scopes /subscriptions/SUBSCRIPTION_ID
 #    Replace SUBSCRIPTION_ID with your actual subscription ID from: az account show --query id --output tsv
-#    Use the complete JSON output from the create command as the secret value
+#    Convert the output to this format for the secret:
+#    {
+#      "clientId": "YOUR_APP_ID_HERE",
+#      "clientSecret": "YOUR_PASSWORD_HERE",
+#      "tenantId": "YOUR_TENANT_ID_HERE"
+#    }
+#    Note: Map appId -> clientId, password -> clientSecret, tenant -> tenantId
 #
 # Usage:
 # 1. Add secrets to GitHub repository (Settings > Secrets and variables > Actions)
