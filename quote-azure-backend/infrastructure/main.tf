@@ -57,7 +57,7 @@ resource "azurerm_windows_function_app" "function_app" {
 
   site_config {
     application_stack {
-      dotnet_version = "v6.0"
+      dotnet_version = "v8.0"
     }
   }
 
@@ -83,6 +83,7 @@ resource "azurerm_application_insights" "app_insights" {
   name                = "quote-backend-ai"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  workspace_id        = azurerm_log_analytics_workspace.workspace.id
   application_type    = "web"
 
   tags = {
