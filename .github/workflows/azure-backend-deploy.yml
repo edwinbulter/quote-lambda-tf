@@ -68,16 +68,18 @@ jobs:
     - name: Get Function Keys
       run: |
         echo "Function App Keys:"
-        az functionapp function keys list --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --function-name quotes --output table
+        $keys = az functionapp function keys list --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --function-name quotes --output json | ConvertFrom-Json
+        echo "Default key: $($keys.default)"
+        echo "FUNCTION_KEY=$($keys.default)" >> $env:GITHUB_ENV
           
     - name: Test Deployment
       run: |
         echo "Testing deployed endpoints..."
         # Test health endpoint
-        curl -f "https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api/system/status" || exit 1
+        curl -f "https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api/system/status?code=${{ env.FUNCTION_KEY }}"; if ($LASTEXITCODE) { exit 1 }
         
         # Test quotes endpoint
-        curl -f "https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api/quotes" || exit 1
+        curl -f "https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api/quotes?code=${{ env.FUNCTION_KEY }}"; if ($LASTEXITCODE) { exit 1 }
         
         echo "✅ All endpoints responding successfully"
         
