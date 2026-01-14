@@ -8,9 +8,10 @@
 #    {
 #      "clientId": "YOUR_APP_ID_HERE",
 #      "clientSecret": "YOUR_PASSWORD_HERE",
-#      "tenantId": "YOUR_TENANT_ID_HERE"
+#      "tenantId": "YOUR_TENANT_ID_HERE",
+#      "subscriptionId": "YOUR_SUBSCRIPTION_ID_HERE"
 #    }
-#    Note: Map appId -> clientId, password -> clientSecret, tenant -> tenantId
+#    Note: Map appId -> clientId, password -> clientSecret, tenant -> tenantId, and add subscriptionId
 #
 # Usage:
 # 1. Add secrets to GitHub repository (Settings > Secrets and variables > Actions)
