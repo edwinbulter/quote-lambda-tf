@@ -12,6 +12,7 @@ var host = new HostBuilder()
         services.AddSingleton<IQuoteRepository, QuoteRepository>();
         services.AddSingleton<IUserActivityRepository, UserActivityRepository>();
         services.AddSingleton<IQuoteService, QuoteService>();
+        services.AddSingleton<IUserActivityService, UserActivityService>();
         services.AddSingleton<IZenQuotesService, ZenQuotesService>();
         
         // Add logging

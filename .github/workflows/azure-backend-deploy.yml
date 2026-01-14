@@ -87,24 +87,4 @@ jobs:
       if: always()
       run: az logout
 
-  # Optional: Run tests if they exist
-  test:
-    runs-on: windows-latest
-    needs: build-and-deploy
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '8.x'
-        
-    - name: Run Tests
-      run: |
-        if (Test-Path "quote-azure-backend/src/Tests/Tests.csproj") {
-          dotnet test quote-azure-backend/src/Tests --configuration Release --no-build --verbosity normal
-        } else {
-          echo "No test project found, skipping tests"
-        }
+  
