@@ -1,11 +1,15 @@
 # Build and Deploy Azure Backend
 #
 # Required GitHub Secrets:
-# 1. AZURE_CREDENTIALS - Service principal credentials for Azure authentication
-#    Create with: az ad sp create-for-rbac --name "github-actions-quote-backend" --role contributor --scopes /subscriptions/SUBSCRIPTION_ID --sdk-auth
-#
-# 2. AZURE_SUBSCRIPTION_ID - Azure subscription ID
+# 1. AZURE_CLIENT_ID - Application (client) ID from service principal
+# 2. AZURE_TENANT_ID - Directory (tenant) ID from service principal  
+# 3. AZURE_SUBSCRIPTION_ID - Azure subscription ID
 #    Get with: az account show --query id --output tsv
+# 4. AZURE_CLIENT_SECRET - Client secret (password) from service principal
+#
+# Create service principal with: az ad sp create-for-rbac --name "github-actions-quote-backend" --role contributor --scopes /subscriptions/SUBSCRIPTION_ID
+# Replace SUBSCRIPTION_ID with your actual subscription ID from: az account show --query id --output tsv
+# Use the appId, password, and tenant values from the JSON output for the secrets above
 #
 # Usage:
 # 1. Add secrets to GitHub repository (Settings > Secrets and variables > Actions)
@@ -46,7 +50,8 @@ jobs:
     - name: Login to Azure
       uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         
     - name: Deploy to Azure Functions
