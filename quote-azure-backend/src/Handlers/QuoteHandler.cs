@@ -46,26 +46,34 @@ namespace QuoteAzureBackend.Handlers
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/random")] HttpRequestData req,
             FunctionContext executionContext)
         {
-            _logger.LogInformation("Getting random quote");
-
             try
             {
-                var quote = await _quoteService.GetRandomQuoteAsync();
-                
-                // Record view if user is authenticated
-                var userId = GetUserFromRequest(req);
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    await _userActivityService.RecordViewAsync(userId, quote.Id);
-                }
+                _logger.LogInformation("Getting random quote");
 
-                var response = req.CreateResponse(HttpStatusCode.OK);
-                await response.WriteAsJsonAsync(quote);
-                return response;
+                try
+                {
+                    var quote = await _quoteService.GetRandomQuoteAsync();
+                    
+                    // Record view if user is authenticated
+                    var userId = GetUserFromRequest(req);
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        await _userActivityService.RecordViewAsync(userId, quote.Id);
+                    }
+
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(quote);
+                    return response;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting random quote");
+                    return req.CreateResponse(HttpStatusCode.InternalServerError);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting random quote");
+                _logger.LogError(ex, "Critical error in GetRandomQuote function");
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
         }

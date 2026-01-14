@@ -29,26 +29,16 @@ namespace QuoteAzureBackend.Services
 
         public async Task<Quote> GetRandomQuoteAsync()
         {
-            try
+            var quotes = await _repository.GetAllQuotesAsync();
+            if (quotes.Any())
             {
-                var quotes = await _repository.GetAllQuotesAsync();
-                if (quotes.Any())
-                {
-                    var random = new Random();
-                    var index = random.Next(quotes.Count);
-                    _logger.LogInformation("Returning random quote from {Count} local quotes", quotes.Count);
-                    return quotes[index];
-                }
-                
-                _logger.LogWarning("No local quotes found, falling back to ZenQuotes API");
-                // Fallback to ZenQuotes if no local quotes
-                return await _zenQuotesService.GetRandomQuoteAsync();
+                var random = new Random();
+                var index = random.Next(quotes.Count);
+                return quotes[index];
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting random quote");
-                throw;
-            }
+            
+            // Fallback to ZenQuotes if no local quotes
+            return await _zenQuotesService.GetRandomQuoteAsync();
         }
 
         public async Task<Quote> GetQuoteByIdAsync(int id)
