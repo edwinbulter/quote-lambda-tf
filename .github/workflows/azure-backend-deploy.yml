@@ -103,8 +103,8 @@ jobs:
         
     - name: Run Tests
       run: |
-        if [ -f "quote-azure-backend/src/Tests/Tests.csproj" ]; then
+        if (Test-Path "quote-azure-backend/src/Tests/Tests.csproj") {
           dotnet test quote-azure-backend/src/Tests --configuration Release --no-build --verbosity normal
-        else
+        } else {
           echo "No test project found, skipping tests"
-        fi
+        }
