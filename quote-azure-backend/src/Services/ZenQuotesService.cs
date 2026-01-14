@@ -27,10 +27,13 @@ namespace QuoteAzureBackend.Services
         {
             try
             {
+                _logger.LogInformation("Fetching random quote from ZenQuotes API");
                 var response = await _httpClient.GetAsync("random");
                 response.EnsureSuccessStatusCode();
                 
                 var content = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("ZenQuotes API response: {Content}", content);
+                
                 var zenQuotes = JsonSerializer.Deserialize<List<ZenQuoteResponse>>(content);
                 
                 if (zenQuotes?.Any() == true)
@@ -47,6 +50,7 @@ namespace QuoteAzureBackend.Services
                     };
                 }
                 
+                _logger.LogError("No quotes returned from ZenQuotes API. Response: {Content}", content);
                 throw new InvalidOperationException("No quotes returned from ZenQuotes API");
             }
             catch (Exception ex)
