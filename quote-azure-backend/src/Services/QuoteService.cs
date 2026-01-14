@@ -7,7 +7,7 @@ namespace QuoteAzureBackend.Services
     public interface IQuoteService
     {
         Task<Quote> GetRandomQuoteAsync();
-        Task<Quote> GetQuoteByIdAsync(int id);
+        Task<Quote?> GetQuoteByIdAsync(int id);
         Task<List<Quote>> GetAllQuotesAsync();
         Task<Quote> AddQuoteAsync(Quote quote);
         Task<bool> DeleteQuoteAsync(int id);
@@ -41,7 +41,7 @@ namespace QuoteAzureBackend.Services
             return await _zenQuotesService.GetRandomQuoteAsync();
         }
 
-        public async Task<Quote> GetQuoteByIdAsync(int id)
+        public async Task<Quote?> GetQuoteByIdAsync(int id)
         {
             return await _repository.GetQuoteByIdAsync(id);
         }

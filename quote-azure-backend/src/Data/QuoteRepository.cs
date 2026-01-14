@@ -18,7 +18,7 @@ namespace QuoteAzureBackend.Data
             }
         }
 
-        public async Task<Quote> GetQuoteByIdAsync(int id)
+        public async Task<Quote?> GetQuoteByIdAsync(int id)
         {
             return await Task.FromResult(_quotes.FirstOrDefault(q => q.Id == id));
         }
