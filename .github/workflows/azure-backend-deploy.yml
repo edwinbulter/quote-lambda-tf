@@ -63,19 +63,12 @@ jobs:
         
     - name: Update App Settings
       run: |
-        az functionapp config appsettings set \
-          --resource-group ${{ env.RESOURCE_GROUP }} \
-          --name ${{ env.FUNCTION_APP_NAME }} \
-          --settings "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated"
+        az functionapp config appsettings set --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --settings "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated"
           
     - name: Get Function Keys
       run: |
         echo "Function App Keys:"
-        az functionapp function keys list \
-          --resource-group ${{ env.RESOURCE_GROUP }} \
-          --name ${{ env.FUNCTION_APP_NAME }} \
-          --function-name quotes \
-          --output table
+        az functionapp function keys list --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --function-name quotes --output table
           
     - name: Test Deployment
       run: |
