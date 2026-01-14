@@ -15,7 +15,7 @@ GET https://quote-backend-function.azurewebsites.net/api/quotes?code={{FUNCTION_
 POST https://quote-backend-function.azurewebsites.net/api/quotes/zen?code={{FUNCTION_KEY}}
 
 ### Get random Quote
-GET https://quote-backend-function.azurewebsites.net/api/quote/random?code={{FUNCTION_KEY}}
+GET https://quote-backend-function.azurewebsites.net/api/quotes/random?code={{FUNCTION_KEY}}
 
 ### Get Quote by Id
 GET https://quote-backend-function.azurewebsites.net/api/quote/1?code={{FUNCTION_KEY}}
