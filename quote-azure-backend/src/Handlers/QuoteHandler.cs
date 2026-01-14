@@ -43,7 +43,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("GetRandomQuote")]
         public async Task<HttpResponseData> GetRandomQuoteAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/random")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quotes/random")] HttpRequestData req,
             FunctionContext executionContext)
         {
             try
