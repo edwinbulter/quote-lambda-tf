@@ -81,19 +81,24 @@ namespace QuoteAzureBackend.Services
                 });
             }
             
-            return quote ?? await _zenQuotesService.GetRandomQuoteAsync();
+            return quote;
         }
 
-        private async Task<Quote> GetRandomQuoteForUnauthenticatedUserAsync(HashSet<int> idsToExclude)
+        private async Task<Quote?> GetRandomQuoteForUnauthenticatedUserAsync(HashSet<int> idsToExclude)
         {
+            _logger.LogInformation("Getting random quote for unauthenticated user, excluding {Count} IDs", idsToExclude.Count);
+            
             var allQuotes = await _quoteRepository.GetAllQuotesAsync();
             int maxId = allQuotes.Any() ? allQuotes.Max(q => q.Id) : 0;
+            _logger.LogInformation("Max quote ID in database: {MaxId}", maxId);
             
             if (maxId < 5 || maxId <= idsToExclude.Count)
             {
+                _logger.LogInformation("Need to fetch more quotes (maxId={MaxId}, excludeCount={ExcludeCount})", maxId, idsToExclude.Count);
                 await FetchMoreQuotesIfNeededAsync();
                 allQuotes = await _quoteRepository.GetAllQuotesAsync();
                 maxId = allQuotes.Any() ? allQuotes.Max(q => q.Id) : 0;
+                _logger.LogInformation("After fetching, new max ID: {MaxId}", maxId);
             }
             
             var random = new Random();
@@ -114,7 +119,10 @@ namespace QuoteAzureBackend.Services
             
             var filteredQuotes = allQuotes.Where(q => !idsToExclude.Contains(q.Id)).ToList();
             if (!filteredQuotes.Any())
-                return await _zenQuotesService.GetRandomQuoteAsync();
+            {
+                _logger.LogWarning("No available quotes after excluding {Count} IDs", idsToExclude.Count);
+                return null;
+            }
             
             return filteredQuotes[random.Next(filteredQuotes.Count)];
         }
@@ -123,11 +131,17 @@ namespace QuoteAzureBackend.Services
         {
             try
             {
+                _logger.LogInformation("Fetching quotes from ZenQuotes API");
                 var fetchedQuotes = await _zenQuotesService.GetMultipleQuotesAsync(50);
+                _logger.LogInformation("Fetched {Count} quotes from ZenQuotes", fetchedQuotes?.Count ?? 0);
+                
                 var currentDatabaseQuotes = await _quoteRepository.GetAllQuotesAsync();
+                _logger.LogInformation("Current database has {Count} quotes", currentDatabaseQuotes.Count);
+                
                 var existingTexts = new HashSet<string>(currentDatabaseQuotes.Select(q => q.QuoteText));
                 int nextId = currentDatabaseQuotes.Any() ? currentDatabaseQuotes.Max(q => q.Id) + 1 : 1;
                 
+                int addedCount = 0;
                 foreach (var quote in fetchedQuotes)
                 {
                     if (!existingTexts.Contains(quote.QuoteText))
@@ -135,8 +149,11 @@ namespace QuoteAzureBackend.Services
                         quote.Id = nextId++;
                         await _quoteRepository.AddQuoteAsync(quote);
                         existingTexts.Add(quote.QuoteText);
+                        addedCount++;
                     }
                 }
+                
+                _logger.LogInformation("Added {Count} new quotes to database", addedCount);
             }
             catch (Exception ex)
             {

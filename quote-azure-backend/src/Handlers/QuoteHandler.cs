@@ -26,6 +26,12 @@ namespace QuoteAzureBackend.Handlers
                     var userId = GetUserFromRequest(req);
                     var quote = await quoteService.GetQuoteAsync(userId, new HashSet<int>());
                     
+                    if (quote == null)
+                    {
+                        _logger.LogWarning("No quotes available in database");
+                        return req.CreateResponse(HttpStatusCode.NotFound);
+                    }
+                    
                     // Record view if user is authenticated
                     if (!string.IsNullOrEmpty(userId))
                     {
@@ -215,6 +221,12 @@ namespace QuoteAzureBackend.Handlers
                 logger.LogInformation("Getting unique quote for user {UserId}, excluding {Count} IDs", userId, idsToExclude.Count);
 
                 var quote = await quoteService.GetQuoteAsync(userId, idsToExclude);
+                
+                if (quote == null)
+                {
+                    logger.LogWarning("No quotes available in database");
+                    return req.CreateResponse(HttpStatusCode.NotFound);
+                }
 
                 // Record view if user is authenticated
                 if (!string.IsNullOrEmpty(userId))
