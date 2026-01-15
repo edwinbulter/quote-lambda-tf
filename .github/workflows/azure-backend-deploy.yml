@@ -71,15 +71,15 @@ jobs:
         az functionapp function list --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --output table
         
         echo "Function App Keys (master key):"
-        $masterKey = az functionapp keys list --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --query masterKey --output tsv
+        masterKey=$(az functionapp keys list --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --query masterKey --output tsv)
         echo "Master key: $masterKey"
-        echo "FUNCTION_KEY=$masterKey" >> $env:GITHUB_ENV
+        echo "FUNCTION_KEY=$masterKey" >> $GITHUB_ENV
           
     - name: Test Deployment
       run: |
         echo "Testing deployed endpoints..."
         # Test the function app root first
-        curl -f "https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/"; if ($LASTEXITCODE) { exit 1 }
+        curl -f "https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/" || exit 1
         
         echo "✅ Function App is responding"
         
