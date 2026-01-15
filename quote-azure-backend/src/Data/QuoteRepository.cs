@@ -61,7 +61,7 @@ namespace QuoteAzureBackend.Data
             {
                 var quotes = new List<Quote>();
                 _logger.LogInformation("Querying quotes table with PartitionKey 'quotes'");
-                await foreach (var entity in _tableClient.QueryAsync<QuoteEntity>(filter: $"PartitionKey eq 'quotes' and RowKey ge '0'"))
+                await foreach (var entity in _tableClient.QueryAsync<QuoteEntity>(filter: $"PartitionKey eq 'quotes'"))
                 {
                     quotes.Add(entity.ToQuote());
                     _logger.LogDebug("Found quote with ID: {Id}", entity.RowKey);
