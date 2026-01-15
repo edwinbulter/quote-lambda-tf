@@ -148,7 +148,9 @@ namespace QuoteAzureBackend.Services
                 {
                     if (!existingTexts.Contains(quote.QuoteText))
                     {
+                        var originalId = quote.Id;
                         quote.Id = nextId++;
+                        _logger.LogInformation("Assigning new ID: {NewId} to quote (original ID: {OriginalId})", quote.Id, originalId);
                         await _quoteRepository.AddQuoteAsync(quote);
                         existingTexts.Add(quote.QuoteText);
                         addedCount++;

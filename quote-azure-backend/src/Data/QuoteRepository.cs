@@ -61,7 +61,7 @@ namespace QuoteAzureBackend.Data
             {
                 var quotes = new List<Quote>();
                 _logger.LogInformation("Querying quotes table with PartitionKey 'quotes'");
-                await foreach (var entity in _tableClient.QueryAsync<QuoteEntity>(filter: $"PartitionKey eq 'quotes'"))
+                await foreach (var entity in _tableClient.QueryAsync<QuoteEntity>(filter: $"PartitionKey eq 'quotes' and RowKey ge '0'"))
                 {
                     quotes.Add(entity.ToQuote());
                     _logger.LogDebug("Found quote with ID: {Id}", entity.RowKey);
@@ -82,8 +82,9 @@ namespace QuoteAzureBackend.Data
             {
                 _logger.LogInformation("Adding quote with ID: {Id} and text: {Text}", quote.Id, quote.QuoteText.Substring(0, Math.Min(50, quote.QuoteText.Length)));
                 var entity = new QuoteEntity(quote);
+                _logger.LogInformation("Creating QuoteEntity with RowKey: {RowKey}", entity.RowKey);
                 await _tableClient.AddEntityAsync(entity);
-                _logger.LogInformation("Successfully added quote with ID: {Id}", quote.Id);
+                _logger.LogInformation("Successfully added quote with ID: {Id}, RowKey: {RowKey}", quote.Id, entity.RowKey);
                 return entity.ToQuote();
             }
             catch (Exception ex)
