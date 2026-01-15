@@ -12,27 +12,6 @@ namespace QuoteAzureBackend.Handlers
         IQuoteService quoteService,
         IUserActivityService userActivityService)
     {
-        [Function("quotes")]
-        public async Task<HttpResponseData> GetQuotesAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quotes")] HttpRequestData req,
-            FunctionContext executionContext)
-        {
-            logger.LogInformation("Getting all quotes");
-
-            try
-            {
-                var quotes = await quoteService.GetAllQuotesAsync();
-                var response = req.CreateResponse(HttpStatusCode.OK);
-                await response.WriteAsJsonAsync(quotes);
-                return response;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error getting quotes");
-                return req.CreateResponse(HttpStatusCode.InternalServerError);
-            }
-        }
-
         [Function("GetRandomQuote")]
         public async Task<HttpResponseData> GetRandomQuoteAsync(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quotes/random")] HttpRequestData req,
@@ -44,13 +23,13 @@ namespace QuoteAzureBackend.Handlers
 
                 try
                 {
-                    var quote = await quoteService.GetRandomQuoteAsync();
+                    var userId = GetUserFromRequest(req);
+                    var quote = await quoteService.GetQuoteAsync(userId, new HashSet<int>());
                     
                     // Record view if user is authenticated
-                    var userId = GetUserFromRequest(req);
                     if (!string.IsNullOrEmpty(userId))
                     {
-                        await userActivityService.RecordViewAsync(userId, quote.Id);
+                        await quoteService.RecordViewAsync(userId, quote.Id);
                     }
 
                     var response = req.CreateResponse(HttpStatusCode.OK);
@@ -77,21 +56,15 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                logger.LogInformation("Getting quote by ID: {Id}", id);
+                var userId = GetUserFromRequest(req);
+                logger.LogInformation("Getting quote by ID: {Id} for user {UserId}", id, userId);
 
-                var quote = await quoteService.GetQuoteByIdAsync(id);
+                var quote = await quoteService.GetQuoteByIdAsync(userId, id);
                 if (quote == null)
                 {
                     var response = req.CreateResponse(HttpStatusCode.NotFound);
                     await response.WriteStringAsync("Quote not found");
                     return response;
-                }
-
-                // Record view if user is authenticated
-                var userId = GetUserFromRequest(req);
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    await userActivityService.RecordViewAsync(userId, quote.Id);
                 }
 
                 var successResponse = req.CreateResponse(HttpStatusCode.OK);
@@ -186,7 +159,7 @@ namespace QuoteAzureBackend.Handlers
 
                 logger.LogInformation("Getting liked quotes for user {UserId}", userId);
 
-                var quotes = await quoteService.GetLikedQuotesAsync(userId);
+                var quotes = await quoteService.GetLikedQuotesByUserAsync(userId);
 
                 var successResponse = req.CreateResponse(HttpStatusCode.OK);
                 await successResponse.WriteAsJsonAsync(quotes);
@@ -214,7 +187,7 @@ namespace QuoteAzureBackend.Handlers
                 // Record view if user is authenticated
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    await userActivityService.RecordViewAsync(userId, quote.Id);
+                    await quoteService.RecordViewAsync(userId, quote.Id);
                 }
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
@@ -246,7 +219,7 @@ namespace QuoteAzureBackend.Handlers
                 // Record view if user is authenticated
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    await userActivityService.RecordViewAsync(userId, quote.Id);
+                    await quoteService.RecordViewAsync(userId, quote.Id);
                 }
 
                 var response = req.CreateResponse(HttpStatusCode.OK);

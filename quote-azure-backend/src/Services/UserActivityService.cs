@@ -64,7 +64,7 @@ namespace QuoteAzureBackend.Services
                 
                 foreach (var quoteId in favoriteQuoteIds)
                 {
-                    var quote = await _quoteService.GetQuoteByIdAsync(quoteId);
+                    var quote = await _quoteService.GetQuoteByIdAsync(userId, quoteId);
                     if (quote != null)
                     {
                         quotes.Add(quote);
@@ -103,7 +103,7 @@ namespace QuoteAzureBackend.Services
                 
                 foreach (var quoteId in viewedQuoteIds)
                 {
-                    var quote = await _quoteService.GetQuoteByIdAsync(quoteId);
+                    var quote = await _quoteService.GetQuoteByIdAsync(userId, quoteId);
                     if (quote != null)
                     {
                         quotes.Add(quote);

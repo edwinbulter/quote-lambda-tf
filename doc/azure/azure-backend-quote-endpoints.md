@@ -44,12 +44,6 @@ https://quote-backend-function.azurewebsites.net/api
 - **Response**: `Quote` object
 - **Current Status**: ✅ Implemented
 
-#### GET /quotes
-- **Description**: Get all available quotes
-- **Authentication**: None
-- **Response**: `Quote[]` array
-- **Current Status**: ✅ Implemented
-
 ### 2. Like/Unlike Operations
 
 #### POST /quote/{id}/like

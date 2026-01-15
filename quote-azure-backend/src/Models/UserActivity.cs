@@ -35,13 +35,15 @@ namespace QuoteAzureBackend.Models
         [Required]
         public string UserId { get; set; } = string.Empty;
         
+        public int LastQuoteId { get; set; } = 0;
+        
         public string PreferredCategory { get; set; } = string.Empty;
         
         public int QuotesPerPage { get; set; } = 10;
         
         public bool EnableNotifications { get; set; } = true;
         
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
         
         public string PartitionKey => UserId;
         public string RowKey => "preferences";

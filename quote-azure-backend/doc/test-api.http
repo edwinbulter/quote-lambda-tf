@@ -8,9 +8,6 @@
 
 # This only works in Intellij and you need to set the environment. VS Code does not translate the {{FUNCTION_KEY}} variable.
 
-### Get all Quotes
-GET https://quote-backend-function.azurewebsites.net/api/quotes?code={{FUNCTION_KEY}}
-
 ### Get random Quote
 GET https://quote-backend-function.azurewebsites.net/api/quotes/random?code={{FUNCTION_KEY}}
 
