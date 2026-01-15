@@ -7,36 +7,28 @@ using System.Net;
 
 namespace QuoteAzureBackend.Handlers
 {
-    public class QuoteHandler
+    public class QuoteHandler(
+        ILogger<QuoteHandler> logger,
+        IQuoteService quoteService,
+        IUserActivityService userActivityService)
     {
-        private readonly ILogger<QuoteHandler> _logger;
-        private readonly IQuoteService _quoteService;
-        private readonly IUserActivityService _userActivityService;
-
-        public QuoteHandler(ILogger<QuoteHandler> logger, IQuoteService quoteService, IUserActivityService userActivityService)
-        {
-            _logger = logger;
-            _quoteService = quoteService;
-            _userActivityService = userActivityService;
-        }
-
         [Function("quotes")]
         public async Task<HttpResponseData> GetQuotesAsync(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quotes")] HttpRequestData req,
             FunctionContext executionContext)
         {
-            _logger.LogInformation("Getting all quotes");
+            logger.LogInformation("Getting all quotes");
 
             try
             {
-                var quotes = await _quoteService.GetAllQuotesAsync();
+                var quotes = await quoteService.GetAllQuotesAsync();
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(quotes);
                 return response;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting quotes");
+                logger.LogError(ex, "Error getting quotes");
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
         }
@@ -48,17 +40,17 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                _logger.LogInformation("Getting random quote");
+                logger.LogInformation("Getting random quote");
 
                 try
                 {
-                    var quote = await _quoteService.GetRandomQuoteAsync();
+                    var quote = await quoteService.GetRandomQuoteAsync();
                     
                     // Record view if user is authenticated
                     var userId = GetUserFromRequest(req);
                     if (!string.IsNullOrEmpty(userId))
                     {
-                        await _userActivityService.RecordViewAsync(userId, quote.Id);
+                        await userActivityService.RecordViewAsync(userId, quote.Id);
                     }
 
                     var response = req.CreateResponse(HttpStatusCode.OK);
@@ -67,38 +59,13 @@ namespace QuoteAzureBackend.Handlers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error getting random quote");
+                    logger.LogError(ex, "Error getting random quote");
                     return req.CreateResponse(HttpStatusCode.InternalServerError);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Critical error in GetRandomQuote function");
-                return req.CreateResponse(HttpStatusCode.InternalServerError);
-            }
-        }
-
-        [Function("GetZenQuotes")]
-        public async Task<HttpResponseData> GetZenQuotesAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "quotes/zen")] HttpRequestData req,
-            FunctionContext executionContext)
-        {
-            _logger.LogInformation("Fetching quotes from ZenQuotes API");
-
-            try
-            {
-                var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-                var count = string.IsNullOrEmpty(requestBody) ? 5 : int.Parse(requestBody);
-                
-                var quotes = await _quoteService.GetQuotesFromZenQuotesAsync(count);
-                
-                var response = req.CreateResponse(HttpStatusCode.OK);
-                await response.WriteAsJsonAsync(new { AddedQuotes = quotes.Count, Quotes = quotes });
-                return response;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching ZenQuotes");
+                logger.LogError(ex, "Critical error in GetRandomQuote function");
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
         }
@@ -106,25 +73,148 @@ namespace QuoteAzureBackend.Handlers
         [Function("GetQuoteById")]
         public async Task<HttpResponseData> GetQuoteByIdAsync(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/{id}")] HttpRequestData req,
-            int id,
-            FunctionContext executionContext)
+            FunctionContext executionContext, int id)
         {
-            _logger.LogInformation("Getting quote by ID: {QuoteId}", id);
-
             try
             {
-                var quote = await _quoteService.GetQuoteByIdAsync(id);
-                
+                logger.LogInformation("Getting quote by ID: {Id}", id);
+
+                var quote = await quoteService.GetQuoteByIdAsync(id);
                 if (quote == null)
                 {
-                    return req.CreateResponse(HttpStatusCode.NotFound);
+                    var response = req.CreateResponse(HttpStatusCode.NotFound);
+                    await response.WriteStringAsync("Quote not found");
+                    return response;
                 }
 
                 // Record view if user is authenticated
                 var userId = GetUserFromRequest(req);
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    await _userActivityService.RecordViewAsync(userId, quote.Id);
+                    await userActivityService.RecordViewAsync(userId, quote.Id);
+                }
+
+                var successResponse = req.CreateResponse(HttpStatusCode.OK);
+                await successResponse.WriteAsJsonAsync(quote);
+                return successResponse;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting quote by ID: {Id}", id);
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("LikeQuote")]
+        public async Task<HttpResponseData> LikeQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "quote/{id}/like")] HttpRequestData req,
+            FunctionContext executionContext, int id)
+        {
+            try
+            {
+                var userId = GetUserFromRequest(req);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    var response = req.CreateResponse(HttpStatusCode.Unauthorized);
+                    await response.WriteStringAsync("Authentication required");
+                    return response;
+                }
+
+                logger.LogInformation("User {UserId} liking quote {QuoteId}", userId, id);
+
+                var quote = await quoteService.LikeQuoteAsync(userId, id);
+                if (quote == null)
+                {
+                    var response = req.CreateResponse(HttpStatusCode.NotFound);
+                    await response.WriteStringAsync("Quote not found");
+                    return response;
+                }
+
+                var successResponse = req.CreateResponse(HttpStatusCode.OK);
+                await successResponse.WriteAsJsonAsync(quote);
+                return successResponse;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error liking quote {QuoteId}", id);
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("UnlikeQuote")]
+        public async Task<HttpResponseData> UnlikeQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "quote/{id}/unlike")] HttpRequestData req,
+            FunctionContext executionContext, int id)
+        {
+            try
+            {
+                var userId = GetUserFromRequest(req);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    var response = req.CreateResponse(HttpStatusCode.Unauthorized);
+                    await response.WriteStringAsync("Authentication required");
+                    return response;
+                }
+
+                logger.LogInformation("User {UserId} unliking quote {QuoteId}", userId, id);
+
+                await quoteService.UnlikeQuoteAsync(userId, id);
+                
+                return req.CreateResponse(HttpStatusCode.NoContent);;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error unliking quote {QuoteId}", id);
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("GetLikedQuotes")]
+        public async Task<HttpResponseData> GetLikedQuotesAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/liked")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            try
+            {
+                var userId = GetUserFromRequest(req);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    var response = req.CreateResponse(HttpStatusCode.Unauthorized);
+                    await response.WriteStringAsync("Authentication required");
+                    return response;
+                }
+
+                logger.LogInformation("Getting liked quotes for user {UserId}", userId);
+
+                var quotes = await quoteService.GetLikedQuotesAsync(userId);
+
+                var successResponse = req.CreateResponse(HttpStatusCode.OK);
+                await successResponse.WriteAsJsonAsync(quotes);
+                return successResponse;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting liked quotes");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("GetQuote")]
+        public async Task<HttpResponseData> GetQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            try
+            {
+                var userId = GetUserFromRequest(req);
+                logger.LogInformation("Getting quote for user {UserId}", userId);
+
+                var quote = await quoteService.GetQuoteAsync(userId, new HashSet<int>());
+
+                // Record view if user is authenticated
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    await userActivityService.RecordViewAsync(userId, quote.Id);
                 }
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
@@ -133,7 +223,39 @@ namespace QuoteAzureBackend.Handlers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting quote by ID");
+                logger.LogError(ex, "Error getting quote");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [Function("GetUniqueQuote")]
+        public async Task<HttpResponseData> GetUniqueQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "quote")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            try
+            {
+                var userId = GetUserFromRequest(req);
+                var requestBody = await req.ReadFromJsonAsync<int[]>();
+                var idsToExclude = new HashSet<int>(requestBody ?? Array.Empty<int>());
+
+                logger.LogInformation("Getting unique quote for user {UserId}, excluding {Count} IDs", userId, idsToExclude.Count);
+
+                var quote = await quoteService.GetQuoteAsync(userId, idsToExclude);
+
+                // Record view if user is authenticated
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    await userActivityService.RecordViewAsync(userId, quote.Id);
+                }
+
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(quote);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting unique quote");
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
         }

@@ -139,7 +139,7 @@ namespace QuoteAzureBackend.Handlers
             // This is a simplified version - implement proper JWT validation
             if (req.Headers.TryGetValues("X-User-Id", out var userIdValues))
             {
-                return userIdValues.FirstOrDefault();
+                return userIdValues.FirstOrDefault() ?? string.Empty;
             }
             return string.Empty;
         }
