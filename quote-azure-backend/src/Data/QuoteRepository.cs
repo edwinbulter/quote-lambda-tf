@@ -20,7 +20,7 @@ namespace QuoteAzureBackend.Data
             
             var tableClient = new TableClient(connectionString, "quotes");
             _tableClient = tableClient;
-            _logger = logger;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             
             // Create table if it doesn't exist
             _logger.LogInformation("Creating 'quotes' table if not exists");
