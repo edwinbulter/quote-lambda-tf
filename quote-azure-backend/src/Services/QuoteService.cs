@@ -6,7 +6,7 @@ namespace QuoteAzureBackend.Services
 {
     public interface IQuoteService
     {
-        Task<Quote> GetQuoteAsync(string? username, HashSet<int> idsToExclude);
+        Task<Quote?> GetQuoteAsync(string? username, HashSet<int> idsToExclude);
         Task<Quote?> GetQuoteByIdAsync(string? username, int quoteId);
         Task<Quote?> LikeQuoteAsync(string username, int quoteId);
         Task UnlikeQuoteAsync(string username, int quoteId);
@@ -41,7 +41,7 @@ namespace QuoteAzureBackend.Services
             _logger = logger;
         }
 
-        public async Task<Quote> GetQuoteAsync(string? username, HashSet<int> idsToExclude)
+        public async Task<Quote?> GetQuoteAsync(string? username, HashSet<int> idsToExclude)
         {
             if (!string.IsNullOrEmpty(username))
             {
@@ -50,7 +50,7 @@ namespace QuoteAzureBackend.Services
             return await GetRandomQuoteForUnauthenticatedUserAsync(idsToExclude);
         }
 
-        private async Task<Quote> GetNextSequentialQuoteAsync(string username)
+        private async Task<Quote?> GetNextSequentialQuoteAsync(string username)
         {
             _logger.LogInformation("Getting next sequential quote for user: {Username}", username);
             var userProgress = await _userActivityRepository.GetUserPreferencesAsync(username);
@@ -142,7 +142,9 @@ namespace QuoteAzureBackend.Services
                 int nextId = currentDatabaseQuotes.Any() ? currentDatabaseQuotes.Max(q => q.Id) + 1 : 1;
                 
                 int addedCount = 0;
-                foreach (var quote in fetchedQuotes)
+                if (fetchedQuotes != null)
+                {
+                    foreach (var quote in fetchedQuotes)
                 {
                     if (!existingTexts.Contains(quote.QuoteText))
                     {
@@ -151,6 +153,7 @@ namespace QuoteAzureBackend.Services
                         existingTexts.Add(quote.QuoteText);
                         addedCount++;
                     }
+                }
                 }
                 
                 _logger.LogInformation("Added {Count} new quotes to database", addedCount);
@@ -218,7 +221,7 @@ namespace QuoteAzureBackend.Services
             return likedQuotes;
         }
 
-        public async Task<int> GetLikeCountAsync(int quoteId) => 0;
+        public Task<int> GetLikeCountAsync(int quoteId) => Task.FromResult(0);
 
         public async Task<bool> HasUserLikedQuoteAsync(string username, int quoteId)
         {

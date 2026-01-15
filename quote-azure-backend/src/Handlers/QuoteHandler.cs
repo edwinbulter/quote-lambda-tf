@@ -9,8 +9,7 @@ namespace QuoteAzureBackend.Handlers
 {
     public class QuoteHandler(
         ILogger<QuoteHandler> logger,
-        IQuoteService quoteService,
-        IUserActivityService userActivityService)
+        IQuoteService quoteService)
     {
         [Function("GetRandomQuote")]
         public async Task<HttpResponseData> GetRandomQuoteAsync(
@@ -28,7 +27,7 @@ namespace QuoteAzureBackend.Handlers
                     
                     if (quote == null)
                     {
-                        _logger.LogWarning("No quotes available in database");
+                        logger.LogWarning("No quotes available in database");
                         return req.CreateResponse(HttpStatusCode.NotFound);
                     }
                     
@@ -189,6 +188,12 @@ namespace QuoteAzureBackend.Handlers
                 logger.LogInformation("Getting quote for user {UserId}", userId);
 
                 var quote = await quoteService.GetQuoteAsync(userId, new HashSet<int>());
+                
+                if (quote == null)
+                {
+                    logger.LogWarning("No quotes available in database");
+                    return req.CreateResponse(HttpStatusCode.NotFound);
+                }
 
                 // Record view if user is authenticated
                 if (!string.IsNullOrEmpty(userId))
