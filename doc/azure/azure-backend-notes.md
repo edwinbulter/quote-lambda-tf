@@ -1,4 +1,5 @@
 
+## Logging
 
 View Live tail logging:
 ```shell
@@ -26,3 +27,28 @@ Search for a trace in Azure portal:
 3. Search for "Getting all quotes"
 4. Click on a search result and you can expand the trace
 
+## View azure table storage
+
+### By Azure CLI
+1. Get your-connection-string by copying the entire output of this command:
+   ```shell
+   az storage account show-connection-string \
+     --resource-group quote-backend-rg \
+     --name $(az storage account list --resource-group quote-backend-rg --query "[?contains(name, 'qbtst')].name" --output tsv) \
+     --query "connectionString" \
+     --output tsv
+   ```
+2. List tables
+   ```shell
+   az storage table list --account-name "qbtst*" --connection-string "your-connection-string"
+   ```
+3. Query table data
+   ```shell
+   az storage entity query --table-name quotes --account-name "qbtst*" --connection-string "your-connection-string"
+   ```
+   
+### By Microsoft Azure Storage Explorer
+Download it from https://azure.microsoft.com/en-us/products/storage/storage-explorer/  
+Copy it in ~/Applications  
+Request the connection string (see CLI command above)  
+Use the connection option in Microsoft Azure Storage Explorer where you can connect with the connection-string  

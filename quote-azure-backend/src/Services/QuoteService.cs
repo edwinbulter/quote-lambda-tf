@@ -58,7 +58,30 @@ namespace QuoteAzureBackend.Services
 
         public async Task<List<Quote>> GetAllQuotesAsync()
         {
-            return await _repository.GetAllQuotesAsync();
+            var quotes = await _repository.GetAllQuotesAsync();
+            
+            // If no quotes in repository, fetch from ZenQuotes and populate
+            if (!quotes.Any())
+            {
+                _logger.LogInformation("No quotes found in repository, fetching from ZenQuotes API");
+                try
+                {
+                    var zenQuotes = await _zenQuotesService.GetMultipleQuotesAsync(5);
+                    foreach (var zenQuote in zenQuotes)
+                    {
+                        var addedQuote = await _repository.AddQuoteAsync(zenQuote);
+                        quotes.Add(addedQuote);
+                    }
+                    _logger.LogInformation("Added {Count} quotes from ZenQuotes to repository", quotes.Count);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error fetching quotes from ZenQuotes API");
+                    // Return empty list if ZenQuotes fails
+                }
+            }
+            
+            return quotes;
         }
 
         public async Task<Quote> AddQuoteAsync(Quote quote)
