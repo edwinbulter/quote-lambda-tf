@@ -52,3 +52,7 @@ Download it from https://azure.microsoft.com/en-us/products/storage/storage-expl
 Copy it in ~/Applications  
 Request the connection string (see CLI command above)  
 Use the connection option in Microsoft Azure Storage Explorer where you can connect with the connection-string  
+
+## Setup Azure infrastructure
+See README.md in the infrastructure folder
+

@@ -19,12 +19,14 @@ namespace QuoteAzureBackend.Services
             _configuration = configuration;
             _logger = logger;
             
-            var tenantId = _configuration["AzureAdB2C:TenantId"];
-            var clientId = _configuration["AzureAdB2C:ClientId"];
+            var instance = _configuration["AzureAd:Instance"];
+            var domain = _configuration["AzureAd:Domain"];
+            var tenantId = _configuration["AzureAd:TenantId"];
+            var clientId = _configuration["AzureAd:ClientId"];
             
             _tokenValidationParameters = new TokenValidationParameters
             {
-                ValidIssuer = $"https://sts.windows.net/{tenantId}/",
+                ValidIssuer = $"{instance}{tenantId}/v2.0",
                 ValidAudiences = new[] { clientId },
                 ValidateIssuer = true,
                 ValidateAudience = true,
@@ -33,7 +35,7 @@ namespace QuoteAzureBackend.Services
             };
         }
 
-        public async Task<UserInfo> ValidateTokenAsync(string token)
+        public Task<UserInfo> ValidateTokenAsync(string token)
         {
             try
             {
@@ -58,12 +60,12 @@ namespace QuoteAzureBackend.Services
                 }
 
                 _logger.LogInformation("Successfully validated token for user: {ObjectId}", userInfo.ObjectId);
-                return userInfo;
+                return Task.FromResult(userInfo);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to validate token");
-                return new UserInfo { IsAuthenticated = false };
+                return Task.FromResult(new UserInfo { IsAuthenticated = false });
             }
         }
 

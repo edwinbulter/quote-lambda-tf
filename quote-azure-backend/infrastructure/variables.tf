@@ -21,3 +21,27 @@ variable "storage_account_name" {
   type        = string
   default     = "quotebackendstorage"
 }
+
+variable "azure_ad_client_secret" {
+  description = "Azure AD client secret"
+  type        = string
+  sensitive   = true
+}
+
+variable "azure_ad_domain" {
+  description = "Azure AD domain"
+  type        = string
+  default     = "edwinbulteroutlook.onmicrosoft.com"
+}
+
+variable "azure_ad_instance" {
+  description = "Azure AD instance URL"
+  type        = string
+  default     = "https://login.microsoftonline.com/"
+}
+
+variable "table_storage_account_name" {
+  description = "Table storage account name"
+  type        = string
+  default     = "qbtstk9asli"
+}

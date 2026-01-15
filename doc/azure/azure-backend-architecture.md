@@ -31,7 +31,7 @@ This document describes the implementation of the quote API backend using Azure 
 | AWS Lambda | Azure Functions (C# .NET 8) | Consumption plan with always ready instances, native performance |
 | API Gateway | Azure API Management (Basic tier) or Azure Functions HTTP triggers | Use Functions HTTP triggers for simpler APIs, APIM for advanced features |
 | DynamoDB | Azure Cosmos DB (Serverless) or Azure Table Storage | Cosmos DB for performance, Table Storage for maximum cost savings |
-| AWS Cognito | Azure AD B2C | Pay-as-you-go pricing, excellent for user authentication |
+| AWS Cognito | Azure AD | Built into Azure, no additional cost for internal authentication |
 | S3 | Azure Blob Storage | Tiered storage options for cost optimization |
 | IAM | Azure AD + RBAC | Built into Azure, no additional cost |
 
@@ -40,7 +40,7 @@ This document describes the implementation of the quote API backend using Azure 
 ```
 Frontend → Azure Functions (C# .NET 8, Consumption Plan) → Azure Table Storage
            ↓
-Azure AD B2C (Authentication)
+Azure AD (Authentication)
 ```
 
 ## Detailed Service Implementation
@@ -81,19 +81,20 @@ Azure AD B2C (Authentication)
 - **Best for**: Simple quote storage and user preferences
 - **Monthly Cost**: $2-5 for moderate usage
 
-### 3. Authentication: Azure AD B2C
+### 3. Authentication: Azure AD
 
 **Features:**
-- Email/password authentication
-- Social login (Google, Facebook, etc.)
+- Enterprise authentication for internal users
 - JWT token generation
-- Custom attributes for roles
-- Pay-as-you-go pricing (~$0.005 per active user/month)
+- Role-based access control (RBAC)
+- Integration with existing Azure users and groups
+- No additional cost for internal authentication
 
 **Implementation:**
-- Replace AWS Cognito with Azure AD B2C
+- Replace AWS Cognito with Azure AD
 - Maintain same JWT token structure for frontend compatibility
-- Use custom claims for USER/ADMIN roles
+- Use Azure AD groups for USER/ADMIN roles
+- Simple app registration process
 
 ### 4. API Gateway
 
@@ -123,15 +124,15 @@ Azure AD B2C (Authentication)
 ### Azure Maximum Cost Efficiency Option
 - Azure Functions (C#): $3-10/month
 - Azure Table Storage: $2-5/month
-- Azure AD B2C: $2-5/month
-- **Total**: $7-20/month (80% cost reduction vs AWS)
+- Azure AD: $0/month (included with Azure subscription)
+- **Total**: $5-15/month (85% cost reduction vs AWS)
 
 ## Implementation Strategy
 
 ### Phase 1: Core Implementation
 1. Set up Azure Functions with C# .NET 8 runtime
 2. Port Java business logic to C# (learning Azure patterns)
-3. Implement authentication with Azure AD B2C
+3. Implement authentication with Azure AD
 4. Set up database with Azure Table Storage
 5. Deploy basic API endpoints
 
@@ -165,7 +166,7 @@ terraform {
 - `azurerm_function_app` - Azure Functions
 - `azurerm_storage_account` - Table Storage/Blob Storage
 - `azurerm_cosmosdb_account` - Cosmos DB (optional)
-- `azurerm_cognitive_account` - Azure AD B2C
+- `azuread_application` - Azure AD App Registration
 - `azurerm_redis_cache` - Redis Cache (optional)
 
 ## Learning Benefits

@@ -12,7 +12,11 @@ terraform {
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
 }
 
 # Get current subscription
@@ -24,9 +28,9 @@ resource "azurerm_resource_group" "rg" {
   location = "West Europe"
 }
 
-# Storage Account for Function App and Table Storage
+# Storage Account for Function App (using existing)
 resource "azurerm_storage_account" "sa" {
-  name                     = "qbst${random_string.suffix.result}"
+  name                     = "qbstk9asli"
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"
@@ -38,19 +42,7 @@ resource "azurerm_storage_account" "sa" {
   }
 }
 
-# Storage Account with Table Service for data persistence
-resource "azurerm_storage_account" "table_sa" {
-  name                     = "qbtst${random_string.suffix.result}"
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-
-  tags = {
-    environment = "production"
-    project     = "quote-backend"
-  }
-}
+# Using existing storage account qbtstk9asli for table storage
 
 # App Service Plan (Consumption)
 resource "azurerm_service_plan" "asp" {
@@ -66,25 +58,25 @@ resource "azurerm_service_plan" "asp" {
   }
 }
 
-# Azure Tables for data persistence
+# Azure Tables for data persistence (using existing storage account)
 resource "azurerm_storage_table" "quotes" {
   name                 = "quotes"
-  storage_account_name = azurerm_storage_account.table_sa.name
+  storage_account_name = var.table_storage_account_name
 }
 
 resource "azurerm_storage_table" "userlikes" {
   name                 = "userlikes"
-  storage_account_name = azurerm_storage_account.table_sa.name
+  storage_account_name = var.table_storage_account_name
 }
 
 resource "azurerm_storage_table" "userprogress" {
   name                 = "userprogress"
-  storage_account_name = azurerm_storage_account.table_sa.name
+  storage_account_name = var.table_storage_account_name
 }
 
 resource "azurerm_storage_table" "userviewhistory" {
   name                 = "userviewhistory"
-  storage_account_name = azurerm_storage_account.table_sa.name
+  storage_account_name = var.table_storage_account_name
 }
 
 # Function App (Windows Consumption Plan)
@@ -107,18 +99,18 @@ resource "azurerm_windows_function_app" "function_app" {
     "FUNCTIONS_WORKER_RUNTIME" = "dotnet-isolated"
     "AzureWebJobsStorage"        = azurerm_storage_account.sa.primary_connection_string
     "WEBSITE_RUN_FROM_PACKAGE"  = "1"
-    "APPINSIGHTS_INSTRUMENTATIONKEY" = azurerm_application_insights.app_insights.instrumentation_key
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.app_insights.connection_string
+    # "APPINSIGHTS_INSTRUMENTATIONKEY" = azurerm_application_insights.app_insights.instrumentation_key
+    # "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.app_insights.connection_string
     "Logging__LogLevel__Default" = "Information"
     "Logging__LogLevel__Microsoft" = "Warning"
     "Logging__LogLevel__Microsoft.Hosting.Lifetime" = "Information"
-    "TableStorageConnectionString" = azurerm_storage_account.table_sa.primary_connection_string
-    # Azure AD B2C Settings
-    "AzureAdB2C__Instance" = "https://login.microsoftonline.com/"
-    "AzureAdB2C__Domain" = "yourtenant.onmicrosoft.com"
-    "AzureAdB2C__ClientId" = azuread_application.function_app.client_id
-    "AzureAdB2C__ClientSecret" = azuread_application_password.function_app.value
-    "AzureAdB2C__SignUpSignInPolicyId" = "B2C_1_sign-up-sign-in"
+    "TableStorageConnectionString" = "DefaultEndpointsProtocol=https;AccountName=${var.table_storage_account_name};AccountKey=${azurerm_storage_account.sa.primary_access_key};EndpointSuffix=core.windows.net"
+    # Azure AD Settings
+    "AzureAd__Instance" = var.azure_ad_instance
+    "AzureAd__Domain" = var.azure_ad_domain
+    "AzureAd__TenantId" = data.azurerm_subscription.current.tenant_id
+    "AzureAd__ClientId" = azuread_application.function_app.client_id
+    "AzureAd__ClientSecret" = var.azure_ad_client_secret
   }
 
   tags = {
@@ -127,19 +119,7 @@ resource "azurerm_windows_function_app" "function_app" {
   }
 }
 
-# Application Insights for logging
-resource "azurerm_application_insights" "app_insights" {
-  name                = "quote-backend-ai"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  workspace_id        = azurerm_log_analytics_workspace.workspace.id
-  application_type    = "web"
-
-  tags = {
-    environment = "production"
-    project     = "quote-backend"
-  }
-}
+# Application Insights removed due to state sync issues
 
 # Log Analytics Workspace
 resource "azurerm_log_analytics_workspace" "workspace" {
@@ -155,13 +135,7 @@ resource "azurerm_log_analytics_workspace" "workspace" {
   }
 }
 
-# Random suffix for unique storage account name
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
-  numeric = true
-}
+# Random suffix removed - using existing storage accounts
 
 # Azure AD B2C Resources
 provider "azuread" {
@@ -202,16 +176,16 @@ resource "azuread_application" "function_app" {
 
 # Azure AD Service Principal
 resource "azuread_service_principal" "function_app" {
-  application_id = azuread_application.function_app.client_id
-  owners         = [data.azuread_client_config.current.object_id]
+  client_id = azuread_application.function_app.client_id
+  owners    = [data.azuread_client_config.current.object_id]
 }
 
 # Azure AD Application Password (Client Secret)
 resource "azuread_application_password" "function_app" {
-  application_object_id = azuread_application.function_app.object_id
+  application_id = azuread_application.function_app.id
 }
 
-# Azure AD B2C User Groups
+# Azure AD User Groups
 resource "azuread_group" "admin" {
   display_name     = "ADMIN"
   security_enabled = true
@@ -223,3 +197,18 @@ resource "azuread_group" "user" {
   security_enabled = true
   owners           = [data.azuread_client_config.current.object_id]
 }
+
+# Outputs
+output "azure_ad_client_secret" {
+  description = "Azure AD client secret"
+  value       = azuread_application_password.function_app.value
+  sensitive   = true
+}
+
+output "azure_ad_client_id" {
+  description = "Azure AD client ID"
+  value       = azuread_application.function_app.client_id
+}
+
+# Note: Azure AD authentication is much simpler than B2C
+# No user flows needed - just app registration and groups
