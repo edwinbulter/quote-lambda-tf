@@ -5,6 +5,9 @@ using Microsoft.Extensions.Hosting;
 using QuoteAzureBackend.Handlers;
 using QuoteAzureBackend.Services;
 using QuoteAzureBackend.Data;
+using QuoteAzureBackend.Middleware;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
@@ -22,6 +25,10 @@ var host = new HostBuilder()
         services.AddSingleton<IQuoteService, QuoteService>();
         services.AddSingleton<IZenQuotesService, ZenQuotesService>();
         services.AddSingleton<IUserActivityService, UserActivityService>();
+        
+        // Register authentication services
+        services.AddSingleton<IAuthenticationService, AuthenticationService>();
+        services.AddSingleton<JwtAuthenticationMiddleware>();
         
         // Add logging
         services.AddLogging();

@@ -2,14 +2,17 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Models.Auth;
 using QuoteAzureBackend.Services;
+using QuoteAzureBackend.Middleware;
 using System.Net;
 
 namespace QuoteAzureBackend.Handlers
 {
     public class QuoteHandler(
         ILogger<QuoteHandler> logger,
-        IQuoteService quoteService)
+        IQuoteService quoteService,
+        JwtAuthenticationMiddleware authMiddleware)
     {
         [Function("GetRandomQuote")]
         public async Task<HttpResponseData> GetRandomQuoteAsync(
@@ -22,7 +25,7 @@ namespace QuoteAzureBackend.Handlers
 
                 try
                 {
-                    var userId = GetUserFromRequest(req);
+                    var userId = await GetUserFromRequestAsync(req);
                     var quote = await quoteService.GetQuoteAsync(userId, new HashSet<int>());
                     
                     if (quote == null)
@@ -61,7 +64,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                var userId = GetUserFromRequest(req);
+                var userId = await GetUserFromRequestAsync(req);
                 logger.LogInformation("Getting quote by ID: {Id} for user {UserId}", id, userId);
 
                 var quote = await quoteService.GetQuoteByIdAsync(userId, id);
@@ -90,7 +93,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                var userId = GetUserFromRequest(req);
+                var userId = await GetUserFromRequestAsync(req);
                 if (string.IsNullOrEmpty(userId))
                 {
                     var response = req.CreateResponse(HttpStatusCode.Unauthorized);
@@ -126,7 +129,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                var userId = GetUserFromRequest(req);
+                var userId = await GetUserFromRequestAsync(req);
                 if (string.IsNullOrEmpty(userId))
                 {
                     var response = req.CreateResponse(HttpStatusCode.Unauthorized);
@@ -154,7 +157,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                var userId = GetUserFromRequest(req);
+                var userId = await GetUserFromRequestAsync(req);
                 if (string.IsNullOrEmpty(userId))
                 {
                     var response = req.CreateResponse(HttpStatusCode.Unauthorized);
@@ -184,7 +187,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                var userId = GetUserFromRequest(req);
+                var userId = await GetUserFromRequestAsync(req);
                 logger.LogInformation("Getting quote for user {UserId}", userId);
 
                 var quote = await quoteService.GetQuoteAsync(userId, new HashSet<int>());
@@ -219,7 +222,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                var userId = GetUserFromRequest(req);
+                var userId = await GetUserFromRequestAsync(req);
                 var requestBody = await req.ReadFromJsonAsync<int[]>();
                 var idsToExclude = new HashSet<int>(requestBody ?? Array.Empty<int>());
 
@@ -250,15 +253,17 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
-        private string GetUserFromRequest(HttpRequestData req)
+        private async Task<string> GetUserFromRequestAsync(HttpRequestData req)
         {
-            // Extract user ID from JWT token or headers
-            // This is a simplified version - implement proper JWT validation
-            if (req.Headers.TryGetValues("X-User-Id", out var userIdValues))
+            try
             {
-                return userIdValues.FirstOrDefault() ?? string.Empty;
+                var userInfo = await authMiddleware.AuthenticateAsync(req);
+                return userInfo?.ObjectId ?? string.Empty;
             }
-            return string.Empty;
+            catch
+            {
+                return string.Empty;
+            }
         }
     }
 }

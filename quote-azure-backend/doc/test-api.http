@@ -35,3 +35,9 @@ GET https://quote-backend-function.azurewebsites.net/api/quote/liked?code={{FUNC
 
 ### System Status
 GET https://quote-backend-function.azurewebsites.net/api/system/status?code={{FUNCTION_KEY}}
+
+### Get tables test
+GET https://quote-backend-function.azurewebsites.net/api/test/tables
+
+### Get table test
+GET https://quote-backend-function.azurewebsites.net/api/test/table

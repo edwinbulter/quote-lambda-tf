@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -11,10 +15,13 @@ provider "azurerm" {
   features {}
 }
 
+# Get current subscription
+data "azurerm_subscription" "current" {}
+
 # Resource Group
 resource "azurerm_resource_group" "rg" {
   name     = "quote-backend-rg"
-  location = var.location
+  location = "West Europe"
 }
 
 # Storage Account for Function App and Table Storage
@@ -106,6 +113,12 @@ resource "azurerm_windows_function_app" "function_app" {
     "Logging__LogLevel__Microsoft" = "Warning"
     "Logging__LogLevel__Microsoft.Hosting.Lifetime" = "Information"
     "TableStorageConnectionString" = azurerm_storage_account.table_sa.primary_connection_string
+    # Azure AD B2C Settings
+    "AzureAdB2C__Instance" = "https://login.microsoftonline.com/"
+    "AzureAdB2C__Domain" = "yourtenant.onmicrosoft.com"
+    "AzureAdB2C__ClientId" = azuread_application.function_app.client_id
+    "AzureAdB2C__ClientSecret" = azuread_application_password.function_app.value
+    "AzureAdB2C__SignUpSignInPolicyId" = "B2C_1_sign-up-sign-in"
   }
 
   tags = {
@@ -148,4 +161,65 @@ resource "random_string" "suffix" {
   special = false
   upper   = false
   numeric = true
+}
+
+# Azure AD B2C Resources
+provider "azuread" {
+  tenant_id = data.azurerm_subscription.current.tenant_id
+}
+
+# Azure AD B2C Directory (using existing tenant)
+data "azuread_client_config" "current" {}
+
+# Azure AD Application for Function App
+resource "azuread_application" "function_app" {
+  display_name = "quote-backend-function-app"
+  owners       = [data.azuread_client_config.current.object_id]
+
+  web {
+    implicit_grant {
+      access_token_issuance_enabled = false
+      id_token_issuance_enabled     = true
+    }
+  }
+
+  required_resource_access {
+    resource_app_id = "00000003-0000-0000-c000-000000000000" # Microsoft Graph
+    resource_access {
+      id   = "e1fe6dd8-ba31-4d61-89e7-88639da4633d" # User.Read
+      type = "Scope"
+    }
+    resource_access {
+      id   = "b340eb25-3d91-4169-bbdf-9c51564af439" # User.Read.All
+      type = "Scope"
+    }
+    resource_access {
+      id   = "5792c5b5-0199-40b6-9c85-c800336b8c2c" # GroupMember.Read.All
+      type = "Scope"
+    }
+  }
+}
+
+# Azure AD Service Principal
+resource "azuread_service_principal" "function_app" {
+  application_id = azuread_application.function_app.client_id
+  owners         = [data.azuread_client_config.current.object_id]
+}
+
+# Azure AD Application Password (Client Secret)
+resource "azuread_application_password" "function_app" {
+  application_object_id = azuread_application.function_app.object_id
+}
+
+# Azure AD B2C User Groups
+resource "azuread_group" "admin" {
+  display_name     = "ADMIN"
+  security_enabled = true
+  owners           = [data.azuread_client_config.current.object_id]
+}
+
+resource "azuread_group" "user" {
+  display_name     = "USER"
+  security_enabled = true
+  owners           = [data.azuread_client_config.current.object_id]
 }
