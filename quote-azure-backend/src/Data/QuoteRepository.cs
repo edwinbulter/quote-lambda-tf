@@ -15,12 +15,26 @@ namespace QuoteAzureBackend.Data
         public QuoteRepository(IConfiguration configuration, ILogger<QuoteRepository> logger)
         {
             var connectionString = configuration["TableStorageConnectionString"];
+            logger?.LogInformation("Table storage connection string: {ConnectionString}", 
+                string.IsNullOrEmpty(connectionString) ? "NULL or EMPTY" : "PRESENT");
+            
             var tableClient = new TableClient(connectionString, "quotes");
             _tableClient = tableClient;
             _logger = logger;
             
             // Create table if it doesn't exist
-            _tableClient.CreateIfNotExists();
+            _logger.LogInformation("Creating 'quotes' table if not exists");
+            try
+            {
+                var response = _tableClient.CreateIfNotExists();
+                _logger.LogInformation("Table creation response: {Response}", response?.Value?.Name ?? "null");
+                _logger.LogInformation("Table client initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create table");
+                throw;
+            }
         }
 
         public async Task<Quote?> GetQuoteByIdAsync(int id)
@@ -46,10 +60,13 @@ namespace QuoteAzureBackend.Data
             try
             {
                 var quotes = new List<Quote>();
+                _logger.LogInformation("Querying quotes table with PartitionKey 'quotes'");
                 await foreach (var entity in _tableClient.QueryAsync<QuoteEntity>(filter: $"PartitionKey eq 'quotes'"))
                 {
                     quotes.Add(entity.ToQuote());
+                    _logger.LogDebug("Found quote with ID: {Id}", entity.RowKey);
                 }
+                _logger.LogInformation("Retrieved {Count} quotes from table", quotes.Count);
                 return quotes;
             }
             catch (Exception ex)
@@ -63,13 +80,15 @@ namespace QuoteAzureBackend.Data
         {
             try
             {
+                _logger.LogInformation("Adding quote with ID: {Id} and text: {Text}", quote.Id, quote.QuoteText.Substring(0, Math.Min(50, quote.QuoteText.Length)));
                 var entity = new QuoteEntity(quote);
                 await _tableClient.AddEntityAsync(entity);
+                _logger.LogInformation("Successfully added quote with ID: {Id}", quote.Id);
                 return entity.ToQuote();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding quote");
+                _logger.LogError(ex, "Error adding quote with ID: {Id}", quote.Id);
                 throw;
             }
         }
