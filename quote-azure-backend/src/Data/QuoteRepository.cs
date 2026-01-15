@@ -1,71 +1,114 @@
+using Azure;
+using Azure.Data.Tables;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Data.Entities;
 
 namespace QuoteAzureBackend.Data
 {
     public class QuoteRepository : IQuoteRepository
     {
+        private readonly TableClient _tableClient;
         private readonly ILogger<QuoteRepository> _logger;
-        private static readonly List<Quote> _quotes = new List<Quote>();
 
-        public QuoteRepository(ILogger<QuoteRepository> logger)
+        public QuoteRepository(IConfiguration configuration, ILogger<QuoteRepository> logger)
         {
+            var connectionString = configuration["TableStorageConnectionString"];
+            var tableClient = new TableClient(connectionString, "quotes");
+            _tableClient = tableClient;
             _logger = logger;
-            // Initialize with sample data if empty
-            if (!_quotes.Any())
-            {
-                InitializeSampleQuotes();
-            }
+            
+            // Create table if it doesn't exist
+            _tableClient.CreateIfNotExists();
         }
 
         public async Task<Quote?> GetQuoteByIdAsync(int id)
         {
-            return await Task.FromResult(_quotes.FirstOrDefault(q => q.Id == id));
+            try
+            {
+                var response = await _tableClient.GetEntityAsync<QuoteEntity>("quotes", id.ToString());
+                return response.Value?.ToQuote();
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting quote by ID: {Id}", id);
+                throw;
+            }
         }
 
         public async Task<List<Quote>> GetAllQuotesAsync()
         {
-            return await Task.FromResult(_quotes.ToList());
+            try
+            {
+                var quotes = new List<Quote>();
+                await foreach (var entity in _tableClient.QueryAsync<QuoteEntity>(filter: $"PartitionKey eq 'quotes'"))
+                {
+                    quotes.Add(entity.ToQuote());
+                }
+                return quotes;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all quotes");
+                throw;
+            }
         }
 
         public async Task<Quote> AddQuoteAsync(Quote quote)
         {
-            if (quote.Id == 0)
+            try
             {
-                quote.Id = Math.Abs(DateTime.UtcNow.GetHashCode());
+                var entity = new QuoteEntity(quote);
+                await _tableClient.AddEntityAsync(entity);
+                return entity.ToQuote();
             }
-            
-            _quotes.Add(quote);
-            _logger.LogInformation("Added quote with ID: {QuoteId}", quote.Id);
-            
-            return await Task.FromResult(quote);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding quote");
+                throw;
+            }
         }
 
         public async Task<bool> DeleteQuoteAsync(int id)
         {
-            var quote = _quotes.FirstOrDefault(q => q.Id == id);
-            if (quote != null)
+            try
             {
-                _quotes.Remove(quote);
-                _logger.LogInformation("Deleted quote with ID: {QuoteId}", id);
-                return await Task.FromResult(true);
+                await _tableClient.DeleteEntityAsync("quotes", id.ToString());
+                return true;
             }
-            
-            return await Task.FromResult(false);
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting quote: {Id}", id);
+                throw;
+            }
         }
 
-        private void InitializeSampleQuotes()
+        public async Task<bool> UpdateQuoteAsync(Quote quote)
         {
-            var sampleQuotes = new[]
+            try
             {
-                new Quote { Id = 1, QuoteText = "The only way to do great work is to love what you do.", Author = "Steve Jobs", LikeCount = 0, CreatedAt = DateTime.UtcNow, Source = "Sample" },
-                new Quote { Id = 2, QuoteText = "Innovation distinguishes between a leader and a follower.", Author = "Steve Jobs", LikeCount = 0, CreatedAt = DateTime.UtcNow, Source = "Sample" },
-                new Quote { Id = 3, QuoteText = "Life is what happens when you're busy making other plans.", Author = "John Lennon", LikeCount = 0, CreatedAt = DateTime.UtcNow, Source = "Sample" },
-                new Quote { Id = 4, QuoteText = "The future belongs to those who believe in the beauty of their dreams.", Author = "Eleanor Roosevelt", LikeCount = 0, CreatedAt = DateTime.UtcNow, Source = "Sample" },
-                new Quote { Id = 5, QuoteText = "It is during our darkest moments that we must focus to see the light.", Author = "Aristotle", LikeCount = 0, CreatedAt = DateTime.UtcNow, Source = "Sample" }
-            };
-
-            _quotes.AddRange(sampleQuotes);
+                var entity = new QuoteEntity(quote);
+                await _tableClient.UpdateEntityAsync(entity, ETag.All);
+                return true;
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating quote: {Id}", quote.Id);
+                throw;
+            }
         }
     }
 }

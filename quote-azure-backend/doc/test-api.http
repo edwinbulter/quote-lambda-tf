@@ -11,17 +11,30 @@
 ### Get all Quotes
 GET https://quote-backend-function.azurewebsites.net/api/quotes?code={{FUNCTION_KEY}}
 
-### Get zen Quotes
-POST https://quote-backend-function.azurewebsites.net/api/quotes/zen?code={{FUNCTION_KEY}}
-
 ### Get random Quote
 GET https://quote-backend-function.azurewebsites.net/api/quotes/random?code={{FUNCTION_KEY}}
 
 ### Get Quote by Id
 GET https://quote-backend-function.azurewebsites.net/api/quote/1?code={{FUNCTION_KEY}}
 
+### Get Quote (unauthenticated random)
+GET https://quote-backend-function.azurewebsites.net/api/quote?code={{FUNCTION_KEY}}
+
+### Get Unique Quote (with ID exclusion)
+POST https://quote-backend-function.azurewebsites.net/api/quote?code={{FUNCTION_KEY}}
+Content-Type: application/json
+
+[1, 2, 3]
+
 ### Like Quote
-POST https://quote-backend-function.azurewebsites.net/api/quotes/1/like?code={{FUNCTION_KEY}}
+POST https://quote-backend-function.azurewebsites.net/api/quote/1/like?code={{FUNCTION_KEY}}
+Content-Type: application/json
+
+### Unlike Quote
+DELETE https://quote-backend-function.azurewebsites.net/api/quote/1/unlike?code={{FUNCTION_KEY}}
+
+### Get Liked Quotes
+GET https://quote-backend-function.azurewebsites.net/api/quote/liked?code={{FUNCTION_KEY}}
 
 ### System Status
 GET https://quote-backend-function.azurewebsites.net/api/system/status?code={{FUNCTION_KEY}}

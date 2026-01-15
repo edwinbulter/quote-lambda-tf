@@ -8,5 +8,6 @@ namespace QuoteAzureBackend.Data
         Task<List<Quote>> GetAllQuotesAsync();
         Task<Quote> AddQuoteAsync(Quote quote);
         Task<bool> DeleteQuoteAsync(int id);
+        Task<bool> UpdateQuoteAsync(Quote quote);
     }
 }

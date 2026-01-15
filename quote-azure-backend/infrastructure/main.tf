@@ -17,10 +17,24 @@ resource "azurerm_resource_group" "rg" {
   location = var.location
 }
 
-# Storage Account for Function App
+# Storage Account for Function App and Table Storage
 resource "azurerm_storage_account" "sa" {
   name                     = "qbst${random_string.suffix.result}"
-  resource_group_name    = azurerm_resource_group.rg.name
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+
+  tags = {
+    environment = "production"
+    project     = "quote-backend"
+  }
+}
+
+# Storage Account with Table Service for data persistence
+resource "azurerm_storage_account" "table_sa" {
+  name                     = "qbtst${random_string.suffix.result}"
+  resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
@@ -43,6 +57,27 @@ resource "azurerm_service_plan" "asp" {
     environment = "production"
     project     = "quote-backend"
   }
+}
+
+# Azure Tables for data persistence
+resource "azurerm_storage_table" "quotes" {
+  name                 = "quotes"
+  storage_account_name = azurerm_storage_account.table_sa.name
+}
+
+resource "azurerm_storage_table" "userlikes" {
+  name                 = "userlikes"
+  storage_account_name = azurerm_storage_account.table_sa.name
+}
+
+resource "azurerm_storage_table" "userprogress" {
+  name                 = "userprogress"
+  storage_account_name = azurerm_storage_account.table_sa.name
+}
+
+resource "azurerm_storage_table" "userviewhistory" {
+  name                 = "userviewhistory"
+  storage_account_name = azurerm_storage_account.table_sa.name
 }
 
 # Function App (Windows Consumption Plan)
@@ -70,6 +105,7 @@ resource "azurerm_windows_function_app" "function_app" {
     "Logging__LogLevel__Default" = "Information"
     "Logging__LogLevel__Microsoft" = "Warning"
     "Logging__LogLevel__Microsoft.Hosting.Lifetime" = "Information"
+    "TableStorageConnectionString" = azurerm_storage_account.table_sa.primary_connection_string
   }
 
   tags = {

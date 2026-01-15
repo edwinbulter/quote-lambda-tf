@@ -11,5 +11,10 @@ namespace QuoteAzureBackend.Data
         Task<List<int>> GetUserViewHistoryQuoteIdsAsync(string userId, int limit);
         Task<UserPreferences?> GetUserPreferencesAsync(string userId);
         Task<bool> UpdateUserPreferencesAsync(UserPreferences preferences);
+        
+        // New methods for Table Storage implementation
+        Task<bool> AddUserLikeAsync(string userId, int quoteId);
+        Task<bool> RemoveUserLikeAsync(string userId, int quoteId);
+        Task<List<int>> GetUserLikedQuoteIdsAsync(string userId);
     }
 }

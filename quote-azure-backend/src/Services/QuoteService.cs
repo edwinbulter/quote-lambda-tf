@@ -1,6 +1,8 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using QuoteAzureBackend.Models;
 using QuoteAzureBackend.Data;
+using QuoteAzureBackend.Data.Entities;
 
 namespace QuoteAzureBackend.Services
 {
@@ -25,12 +27,14 @@ namespace QuoteAzureBackend.Services
         private readonly IQuoteRepository _repository;
         private readonly IZenQuotesService _zenQuotesService;
         private readonly ILogger<QuoteService> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
-        public QuoteService(IQuoteRepository repository, IZenQuotesService zenQuotesService, ILogger<QuoteService> logger)
+        public QuoteService(IQuoteRepository repository, IZenQuotesService zenQuotesService, ILogger<QuoteService> logger, IServiceProvider serviceProvider)
         {
             _repository = repository;
             _zenQuotesService = zenQuotesService;
             _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<Quote> GetRandomQuoteAsync()
@@ -115,9 +119,16 @@ namespace QuoteAzureBackend.Services
                 return null;
             }
 
-            // In a real implementation, you would store this in a database
-            // For now, we'll just increment the like count
+            // Add user like to Table Storage
+            var userActivityRepo = _serviceProvider.GetRequiredService<IUserActivityRepository>();
+            if (userActivityRepo != null)
+            {
+                await userActivityRepo.AddUserLikeAsync(userId, quoteId);
+            }
+
+            // Increment like count
             quote.LikeCount++;
+            await _repository.UpdateQuoteAsync(quote);
             
             _logger.LogInformation("User {UserId} liked quote {QuoteId}", userId, quoteId);
             return quote;
@@ -131,11 +142,18 @@ namespace QuoteAzureBackend.Services
                 return;
             }
 
-            // In a real implementation, you would remove this from a database
-            // For now, we'll just decrement the like count if it's greater than 0
+            // Remove user like from Table Storage
+            var userActivityRepo = _serviceProvider.GetRequiredService<IUserActivityRepository>();
+            if (userActivityRepo != null)
+            {
+                await userActivityRepo.RemoveUserLikeAsync(userId, quoteId);
+            }
+
+            // Decrement like count if it's greater than 0
             if (quote.LikeCount > 0)
             {
                 quote.LikeCount--;
+                await _repository.UpdateQuoteAsync(quote);
             }
             
             _logger.LogInformation("User {UserId} unliked quote {QuoteId}", userId, quoteId);
@@ -143,10 +161,23 @@ namespace QuoteAzureBackend.Services
 
         public async Task<List<Quote>> GetLikedQuotesAsync(string userId)
         {
-            // In a real implementation, you would fetch this from a database
-            // For now, we'll return quotes with likes as a placeholder
-            var allQuotes = await _repository.GetAllQuotesAsync();
-            var likedQuotes = allQuotes.Where(q => q.LikeCount > 0).ToList();
+            var userActivityRepo = _serviceProvider.GetRequiredService<IUserActivityRepository>();
+            if (userActivityRepo == null)
+            {
+                return new List<Quote>();
+            }
+
+            var likedQuoteIds = await userActivityRepo.GetUserLikedQuoteIdsAsync(userId);
+            var likedQuotes = new List<Quote>();
+
+            foreach (var quoteId in likedQuoteIds)
+            {
+                var quote = await _repository.GetQuoteByIdAsync(quoteId);
+                if (quote != null)
+                {
+                    likedQuotes.Add(quote);
+                }
+            }
             
             _logger.LogInformation("Returning {Count} liked quotes for user {UserId}", likedQuotes.Count, userId);
             return likedQuotes;
