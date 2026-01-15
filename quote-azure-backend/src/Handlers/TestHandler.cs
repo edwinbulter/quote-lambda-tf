@@ -21,7 +21,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("TestTableStorage")]
         public async Task<HttpResponseData> TestTableStorageAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "test/table")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "test/table")] HttpRequestData req,
             FunctionContext executionContext)
         {
             try
@@ -77,7 +77,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("ListTables")]
         public async Task<HttpResponseData> ListTablesAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "test/tables")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "test/tables")] HttpRequestData req,
             FunctionContext executionContext)
         {
             try
