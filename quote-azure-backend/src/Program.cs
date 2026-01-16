@@ -35,6 +35,7 @@ var host = new HostBuilder()
         services.AddSingleton<IQuoteService, QuoteService>();
         services.AddSingleton<IZenQuotesService, ZenQuotesService>();
         services.AddSingleton<IUserActivityService, UserActivityService>();
+        services.AddSingleton<IQuoteManagementService, QuoteManagementService>();
         
         // Register authentication services
         services.AddSingleton<IAuthenticationService, AuthenticationService>();

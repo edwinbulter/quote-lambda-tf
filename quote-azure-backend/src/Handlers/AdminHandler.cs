@@ -4,7 +4,9 @@ using Microsoft.Extensions.Logging;
 using QuoteAzureBackend.Models.Admin;
 using QuoteAzureBackend.Services;
 using QuoteAzureBackend.Data;
+using QuoteAzureBackend.Models;
 using System.Net;
+using System.Text.Json;
 
 namespace QuoteAzureBackend.Handlers
 {
@@ -163,6 +165,96 @@ namespace QuoteAzureBackend.Handlers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting stats");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Internal server error");
+                return errorResponse;
+            }
+        }
+
+        [Function("AdminDeleteQuote")]
+        public async Task<HttpResponseData> AdminDeleteQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "admin/quotes/{id}")] HttpRequestData req,
+            int id)
+        {
+            try
+            {
+                if (!await IsCurrentUserAdmin(req))
+                {
+                    var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
+                    await forbiddenResponse.WriteStringAsync("Admin access required");
+                    return forbiddenResponse;
+                }
+
+                var currentUserId = req.Headers.TryGetValues("X-User-ObjectId", out var values) 
+                    ? values.FirstOrDefault() ?? "system"
+                    : "system";
+
+                var success = await _adminService.DeleteQuoteAsync(id, currentUserId);
+                
+                if (success)
+                {
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(new { message = "Quote deleted successfully" });
+                    return response;
+                }
+
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Quote not found");
+                return notFoundResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting quote");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Internal server error");
+                return errorResponse;
+            }
+        }
+
+        [Function("AdminUpdateQuote")]
+        public async Task<HttpResponseData> AdminUpdateQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/quotes/{id}")] HttpRequestData req,
+            int id)
+        {
+            try
+            {
+                if (!await IsCurrentUserAdmin(req))
+                {
+                    var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
+                    await forbiddenResponse.WriteStringAsync("Admin access required");
+                    return forbiddenResponse;
+                }
+
+                var requestBody = await req.ReadAsStringAsync();
+                var quoteUpdate = JsonSerializer.Deserialize<Quote>(requestBody ?? "{}");
+                
+                if (quoteUpdate == null)
+                {
+                    var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    await badRequestResponse.WriteStringAsync("Invalid quote data");
+                    return badRequestResponse;
+                }
+
+                var currentUserId = req.Headers.TryGetValues("X-User-ObjectId", out var values) 
+                    ? values.FirstOrDefault() ?? "system"
+                    : "system";
+
+                var updatedQuote = await _adminService.UpdateQuoteAsync(id, quoteUpdate, currentUserId);
+                
+                if (updatedQuote != null)
+                {
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(updatedQuote);
+                    return response;
+                }
+
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Quote not found");
+                return notFoundResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating quote");
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Internal server error");
                 return errorResponse;
