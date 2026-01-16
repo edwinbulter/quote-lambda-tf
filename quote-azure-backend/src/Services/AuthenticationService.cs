@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using QuoteAzureBackend.Models;
 using QuoteAzureBackend.Models.Auth;
+using QuoteAzureBackend.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text.Json;
@@ -13,11 +15,13 @@ namespace QuoteAzureBackend.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthenticationService> _logger;
         private readonly TokenValidationParameters _tokenValidationParameters;
+        private readonly IUserRoleRepository _userRoleRepository;
 
-        public AuthenticationService(IConfiguration configuration, ILogger<AuthenticationService> logger)
+        public AuthenticationService(IConfiguration configuration, ILogger<AuthenticationService> logger, IUserRoleRepository userRoleRepository)
         {
             _configuration = configuration;
             _logger = logger;
+            _userRoleRepository = userRoleRepository;
             
             var instance = _configuration["AzureAd:Instance"];
             var domain = _configuration["AzureAd:Domain"];
@@ -52,11 +56,16 @@ namespace QuoteAzureBackend.Services
                     IsAuthenticated = true
                 };
 
-                // Parse groups from token
+                // Note: Groups not available in Azure AD Free plan
+                // Using individual user assignments instead
                 var groupsClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "groups");
                 if (groupsClaim != null)
                 {
                     userInfo.Groups = JsonSerializer.Deserialize<List<string>>(groupsClaim.Value) ?? new List<string>();
+                }
+                else
+                {
+                    userInfo.Groups = new List<string>(); // No groups in free plan
                 }
 
                 _logger.LogInformation("Successfully validated token for user: {ObjectId}", userInfo.ObjectId);
@@ -71,9 +80,13 @@ namespace QuoteAzureBackend.Services
 
         public Task<bool> IsUserInGroupAsync(string objectId, string groupName)
         {
-            // TODO: Implement Microsoft Graph API call to check group membership
-            // For now, return false
-            _logger.LogWarning("Group membership check not implemented for user: {ObjectId}, group: {GroupName}", objectId, groupName);
+            // Note: Azure AD Free plan doesn't support group claims
+            // Use database-based role management instead
+            // See: doc/database-user-roles.md for implementation
+            
+            _logger.LogWarning("Group membership check called but database roles not implemented. User: {ObjectId}, Group: {GroupName}", 
+                objectId, groupName);
+            
             return Task.FromResult(false);
         }
 

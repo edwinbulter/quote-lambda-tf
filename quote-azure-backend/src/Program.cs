@@ -2,11 +2,13 @@ using Microsoft.Azure.Functions.Worker.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using QuoteAzureBackend.Handlers;
 using QuoteAzureBackend.Services;
 using QuoteAzureBackend.Data;
 using QuoteAzureBackend.Middleware;
 using Microsoft.IdentityModel.Tokens;
+using Azure.Data.Tables;
 using System.Text;
 
 var host = new HostBuilder()
@@ -17,9 +19,17 @@ var host = new HostBuilder()
         // Register HttpClient
         services.AddHttpClient();
         
+        // Register Table Storage client
+        services.AddSingleton(sp => {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+            var connectionString = configuration["TableStorageConnectionString"];
+            return new TableServiceClient(connectionString);
+        });
+        
         // Register repositories
         services.AddSingleton<IQuoteRepository, QuoteRepository>();
         services.AddSingleton<IUserActivityRepository, UserActivityRepository>();
+        services.AddSingleton<IUserRoleRepository, UserRoleRepository>();
         
         // Register services
         services.AddSingleton<IQuoteService, QuoteService>();

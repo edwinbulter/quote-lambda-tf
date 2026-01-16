@@ -63,6 +63,10 @@ yarn-error.log*
 terraform.tfvars
 *.tfvars
 
+# Application settings with secrets
+**/appsettings.json
+appsettings.*.json
+
 # AWS SAM
 .aws-sam/
 samconfig.toml

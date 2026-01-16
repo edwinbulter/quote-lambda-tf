@@ -56,3 +56,15 @@ Use the connection option in Microsoft Azure Storage Explorer where you can conn
 ## Setup Azure infrastructure
 See README.md in the infrastructure folder
 
+
+## Authentication with Azure AD
+
+Azure AD (Windows Azure Active Directory):  
+- supports only admin-managed users
+
+Azure AD B2C:
+- self-service registration
+- Social login (Google, Facebook, etc.)
+- Upgrade to Premium P1
+- Cost: ~$6/user/month
+

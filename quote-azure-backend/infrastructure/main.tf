@@ -42,7 +42,11 @@ resource "azurerm_storage_account" "sa" {
   }
 }
 
-# Using existing storage account qbtstk9asli for table storage
+# User Roles Table for database-based role management
+resource "azurerm_storage_table" "user_roles" {
+  name                 = "UserRoles"
+  storage_account_name = azurerm_storage_account.sa.name
+}
 
 # App Service Plan (Consumption)
 resource "azurerm_service_plan" "asp" {

@@ -17,3 +17,8 @@ output "function_app_name" {
   description = "The name of the Function App"
   value       = azurerm_windows_function_app.function_app.name
 }
+
+output "user_roles_table_name" {
+  description = "The name of the UserRoles table"
+  value       = azurerm_storage_table.user_roles.name
+}
