@@ -40,6 +40,9 @@ var host = new HostBuilder()
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<JwtAuthenticationMiddleware>();
         
+        // Register admin services
+        services.AddSingleton<IAdminService, AdminService>();
+        
         // Add logging
         services.AddLogging();
     })
