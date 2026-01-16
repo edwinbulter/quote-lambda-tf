@@ -7,18 +7,18 @@ using QuoteAzureBackend.Services;
 using System.Net;
 using System.Text.Json;
 
-namespace QuoteAzureBackend.Api
+namespace QuoteAzureBackend.Handlers
 {
-    public class UserRoleController
+    public class UserRoleHandler
     {
         private readonly IUserRoleRepository _userRoleRepository;
         private readonly IAuthenticationService _authService;
-        private readonly ILogger<UserRoleController> _logger;
+        private readonly ILogger<UserRoleHandler> _logger;
 
-        public UserRoleController(
+        public UserRoleHandler(
             IUserRoleRepository userRoleRepository,
             IAuthenticationService authService,
-            ILogger<UserRoleController> logger)
+            ILogger<UserRoleHandler> logger)
         {
             _userRoleRepository = userRoleRepository;
             _authService = authService;
