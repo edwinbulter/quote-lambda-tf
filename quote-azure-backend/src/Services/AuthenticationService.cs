@@ -78,21 +78,29 @@ namespace QuoteAzureBackend.Services
             }
         }
 
-        public Task<bool> IsUserInGroupAsync(string objectId, string groupName)
+        public async Task<bool> IsUserInGroupAsync(string objectId, string groupName)
         {
-            // Note: Azure AD Free plan doesn't support group claims
-            // Use database-based role management instead
-            // See: doc/database-user-roles.md for implementation
-            
-            _logger.LogWarning("Group membership check called but database roles not implemented. User: {ObjectId}, Group: {GroupName}", 
-                objectId, groupName);
-            
-            return Task.FromResult(false);
+            try
+            {
+                // Use database-based role management
+                var isInRole = await _userRoleRepository.IsUserInRoleAsync(objectId, groupName);
+                
+                _logger.LogInformation("Checked group membership for user {ObjectId}, group {GroupName}, result: {IsInRole}", 
+                    objectId, groupName, isInRole);
+                
+                return isInRole;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking group membership for user {ObjectId}, group {GroupName}", 
+                    objectId, groupName);
+                return false;
+            }
         }
 
-        public Task<bool> IsAdminAsync(string objectId)
+        public async Task<bool> IsAdminAsync(string objectId)
         {
-            return IsUserInGroupAsync(objectId, "ADMIN");
+            return await IsUserInGroupAsync(objectId, "ADMIN");
         }
     }
 }

@@ -23,11 +23,6 @@ grant_type=password
     client.global.set("access_token", response.body.access_token);
 %}
 
-### Get random Quote
-GET https://quote-backend-function.azurewebsites.net/api/quotes/random?code={{master_key}}
-
-
-
 ### ============================================
 ### PUBLIC ENDPOINTS (No authentication required)
 ### ============================================
