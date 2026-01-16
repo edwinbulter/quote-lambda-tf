@@ -1,0 +1,201 @@
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using QuoteAzureBackend.Data;
+using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Services;
+using System.Net;
+using System.Text.Json;
+
+namespace QuoteAzureBackend.Api
+{
+    public class UserRoleController
+    {
+        private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IAuthenticationService _authService;
+        private readonly ILogger<UserRoleController> _logger;
+
+        public UserRoleController(
+            IUserRoleRepository userRoleRepository,
+            IAuthenticationService authService,
+            ILogger<UserRoleController> logger)
+        {
+            _userRoleRepository = userRoleRepository;
+            _authService = authService;
+            _logger = logger;
+        }
+
+        private async Task<bool> IsCurrentUserAdmin(HttpRequestData req)
+        {
+            var objectId = req.Headers.TryGetValues("X-User-ObjectId", out var values) 
+                ? values.FirstOrDefault() 
+                : null;
+            
+            if (string.IsNullOrEmpty(objectId))
+            {
+                return false;
+            }
+
+            return await _authService.IsAdminAsync(objectId);
+        }
+
+        [Function("GetAllUsers")]
+        public async Task<HttpResponseData> GetAllUsers(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/userrole")] HttpRequestData req)
+        {
+            if (!await IsCurrentUserAdmin(req))
+            {
+                var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
+                await forbiddenResponse.WriteStringAsync("Admin access required");
+                return forbiddenResponse;
+            }
+
+            try
+            {
+                var users = await _userRoleRepository.GetAllUsersAsync();
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(users);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all users");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Internal server error");
+                return errorResponse;
+            }
+        }
+
+        [Function("AssignRole")]
+        public async Task<HttpResponseData> AssignRole(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/userrole/{objectId}/role")] HttpRequestData req,
+            string objectId)
+        {
+            if (!await IsCurrentUserAdmin(req))
+            {
+                var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
+                await forbiddenResponse.WriteStringAsync("Admin access required");
+                return forbiddenResponse;
+            }
+
+            try
+            {
+                var requestBody = await req.ReadAsStringAsync();
+                var request = JsonSerializer.Deserialize<AssignRoleRequest>(requestBody ?? "{}");
+
+                if (request == null || string.IsNullOrWhiteSpace(request.Role) || 
+                    !request.Role.Equals("USER", StringComparison.OrdinalIgnoreCase) && 
+                    !request.Role.Equals("ADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    await badRequestResponse.WriteStringAsync("Role must be 'USER' or 'ADMIN'");
+                    return badRequestResponse;
+                }
+
+                var currentUserId = req.Headers.TryGetValues("X-User-ObjectId", out var values) 
+                    ? values.FirstOrDefault() ?? "system"
+                    : "system";
+
+                var success = await _userRoleRepository.AssignRoleAsync(
+                    objectId, 
+                    request.Email ?? objectId, 
+                    request.Role, 
+                    currentUserId);
+
+                if (success)
+                {
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(new { message = $"Role {request.Role} assigned successfully" });
+                    return response;
+                }
+
+                var failResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await failResponse.WriteStringAsync("Failed to assign role");
+                return failResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error assigning role {Role} to user {ObjectId}", "unknown", objectId);
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Internal server error");
+                return errorResponse;
+            }
+        }
+
+        [Function("RemoveRole")]
+        public async Task<HttpResponseData> RemoveRole(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "admin/userrole/{objectId}/role")] HttpRequestData req,
+            string objectId)
+        {
+            if (!await IsCurrentUserAdmin(req))
+            {
+                var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
+                await forbiddenResponse.WriteStringAsync("Admin access required");
+                return forbiddenResponse;
+            }
+
+            try
+            {
+                var success = await _userRoleRepository.RemoveRoleAsync(objectId);
+                if (success)
+                {
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(new { message = "Role removed successfully" });
+                    return response;
+                }
+
+                var failResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await failResponse.WriteStringAsync("Failed to remove role");
+                return failResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing role for user {ObjectId}", objectId);
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Internal server error");
+                return errorResponse;
+            }
+        }
+
+        [Function("GetUserRole")]
+        public async Task<HttpResponseData> GetUserRole(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/userrole/{objectId}/role")] HttpRequestData req,
+            string objectId)
+        {
+            if (!await IsCurrentUserAdmin(req))
+            {
+                var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
+                await forbiddenResponse.WriteStringAsync("Admin access required");
+                return forbiddenResponse;
+            }
+
+            try
+            {
+                var userRole = await _userRoleRepository.GetUserRoleAsync(objectId);
+                if (userRole == null)
+                {
+                    var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                    await notFoundResponse.WriteStringAsync("User role not found");
+                    return notFoundResponse;
+                }
+
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(userRole);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting role for user {ObjectId}", objectId);
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Internal server error");
+                return errorResponse;
+            }
+        }
+    }
+
+    public class AssignRoleRequest
+    {
+        public string Role { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+    }
+}
