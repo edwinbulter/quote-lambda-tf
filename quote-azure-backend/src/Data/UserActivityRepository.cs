@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using QuoteAzureBackend.Models;
 using QuoteAzureBackend.Data.Entities;
+using System.Linq;
 
 namespace QuoteAzureBackend.Data
 {
@@ -94,6 +95,27 @@ namespace QuoteAzureBackend.Data
                 {
                     likes.Add(entity);
                 }
+                
+                // First, fix any likes that don't have an order (Order = 0)
+                var likesWithoutOrder = likes.Where(l => l.Order == 0).ToList();
+                if (likesWithoutOrder.Any())
+                {
+                    var maxOrder = likes.Where(l => l.Order > 0).DefaultIfEmpty().Max(l => l?.Order ?? 0);
+                    foreach (var like in likesWithoutOrder)
+                    {
+                        maxOrder++;
+                        like.Order = maxOrder;
+                        await UpdateUserLikeOrderAsync(userId, like.QuoteId, maxOrder);
+                        _logger.LogInformation("Fixed missing order for user {UserId}, quote {QuoteId} to {Order}", userId, like.QuoteId, maxOrder);
+                    }
+                    // Refresh the list
+                    likes.Clear();
+                    await foreach (var entity in _likesTableClient.QueryAsync<UserLikeEntity>(filter: $"PartitionKey eq '{userId}'"))
+                    {
+                        likes.Add(entity);
+                    }
+                }
+                
                 return likes.OrderBy(l => l.Order).ToList();
             }
             catch (Exception ex)

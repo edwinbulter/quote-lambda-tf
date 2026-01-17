@@ -298,16 +298,18 @@ namespace QuoteAzureBackend.Handlers
 
                 // Parse request body to get new order
                 var requestBody = await req.ReadFromJsonAsync<ReorderRequest>();
-                if (requestBody == null || requestBody.Order <= 0)
+                var newOrder = requestBody?.Order > 0 ? requestBody.Order : requestBody?.newPosition;
+                
+                if (requestBody == null || newOrder <= 0)
                 {
                     var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
                     await badRequestResponse.WriteStringAsync("Order must be a positive integer");
                     return badRequestResponse;
                 }
 
-                await quoteService.ReorderLikedQuoteAsync(userId, id, requestBody.Order);
+                await quoteService.ReorderLikedQuoteAsync(userId, id, newOrder!.Value);
 
-                logger.LogInformation("Successfully reordered quote {QuoteId} to position {Order} for user {UserId}", id, requestBody.Order, userId);
+                logger.LogInformation("Successfully reordered quote {QuoteId} to position {Order} for user {UserId}", id, newOrder.Value, userId);
 
                 var response = req.CreateResponse(HttpStatusCode.NoContent);
                 return response;
@@ -336,5 +338,6 @@ namespace QuoteAzureBackend.Handlers
     public class ReorderRequest
     {
         public int Order { get; set; }
+        public int newPosition { get; set; }
     }
 }

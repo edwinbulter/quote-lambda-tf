@@ -121,7 +121,7 @@ Authorization: Bearer {{authToken}}
 DELETE {{baseUrl}}/api/quote/1/unlike?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
-### 10. Get All Liked Quotes (should be empty now)
+### 10. Get All Liked Quotes
 GET {{baseUrl}}/api/quote/liked?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
@@ -156,7 +156,7 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "newPosition": 1
+  "newPosition": 6
 }
 
 ### 17. Move Quote ID 1 to position 2
