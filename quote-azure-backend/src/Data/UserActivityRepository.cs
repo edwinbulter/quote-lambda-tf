@@ -10,7 +10,6 @@ namespace QuoteAzureBackend.Data
     public class UserActivityRepository : IUserActivityRepository
     {
         private readonly TableClient _likesTableClient;
-        private readonly TableClient _viewHistoryTableClient;
         private readonly TableClient _progressTableClient;
         private readonly ILogger<UserActivityRepository> _logger;
 
@@ -18,13 +17,11 @@ namespace QuoteAzureBackend.Data
         {
             var connectionString = configuration["TableStorageConnectionString"];
             _likesTableClient = new TableClient(connectionString, "userlikes");
-            _viewHistoryTableClient = new TableClient(connectionString, "userviewhistory");
             _progressTableClient = new TableClient(connectionString, "userprogress");
             _logger = logger;
             
             // Create tables if they don't exist
             _likesTableClient.CreateIfNotExists();
-            _viewHistoryTableClient.CreateIfNotExists();
             _progressTableClient.CreateIfNotExists();
         }
 
@@ -83,36 +80,31 @@ namespace QuoteAzureBackend.Data
 
         public async Task<bool> RecordViewAsync(UserViewHistory viewHistory)
         {
-            try
-            {
-                var entity = new UserViewHistoryEntity(viewHistory.UserId, viewHistory.QuoteId);
-                await _viewHistoryTableClient.AddEntityAsync(entity);
-                _logger.LogInformation("Recorded view for user {UserId}, quote {QuoteId}", viewHistory.UserId, viewHistory.QuoteId);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error recording view");
-                return false;
-            }
+            // No longer needed - view tracking is handled by the progress table
+            // Keeping method for interface compatibility
+            _logger.LogDebug("RecordViewAsync called - views are tracked via progress table");
+            return true;
         }
 
         public async Task<List<int>> GetUserViewHistoryQuoteIdsAsync(string userId, int limit)
         {
             try
             {
+                // Get viewed quotes from progress table (quotes 1 to lastQuoteId)
                 var viewedQuoteIds = new List<int>();
-                var query = _viewHistoryTableClient.QueryAsync<UserViewHistoryEntity>(filter: $"PartitionKey eq '{userId}'");
+                var progress = await GetUserPreferencesAsync(userId);
                 
-                var count = 0;
-                await foreach (var entity in query)
+                if (progress != null && progress.LastQuoteId > 0)
                 {
-                    if (count >= limit) break;
-                    viewedQuoteIds.Add(entity.QuoteId);
-                    count++;
+                    // Return quotes 1 through lastQuoteId
+                    var startId = Math.Max(1, progress.LastQuoteId - limit + 1);
+                    for (int i = startId; i <= progress.LastQuoteId; i++)
+                    {
+                        viewedQuoteIds.Add(i);
+                    }
                 }
                 
-                return viewedQuoteIds.OrderByDescending(id => id).ToList();
+                return viewedQuoteIds;
             }
             catch (Exception ex)
             {
