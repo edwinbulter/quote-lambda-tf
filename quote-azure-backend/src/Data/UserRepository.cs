@@ -27,9 +27,9 @@ namespace QuoteAzureBackend.Data
 
         public async Task<User> CreateAsync(User user)
         {
-            var entity = new TableEntity(user.Id, user.Email)
+            var entity = new TableEntity(user.Id, user.Username)
             {
-                ["Username"] = user.Username,
+                ["Email"] = user.Email,
                 ["PasswordHash"] = user.PasswordHash,
                 ["Role"] = user.Role,
                 ["CreatedAt"] = user.CreatedAt,
@@ -85,7 +85,7 @@ namespace QuoteAzureBackend.Data
             try
             {
                 TableEntity? entity = null;
-                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"RowKey eq '{email}'"))
+                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"Email eq '{email}'"))
                 {
                     entity = e;
                     break;
@@ -142,7 +142,7 @@ namespace QuoteAzureBackend.Data
             try
             {
                 TableEntity? entity = null;
-                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"RowKey eq '{email}'"))
+                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"Email eq '{email}'"))
                 {
                     entity = e;
                     break;
@@ -162,7 +162,7 @@ namespace QuoteAzureBackend.Data
             try
             {
                 TableEntity? entity = null;
-                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"Username eq '{username}'"))
+                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"RowKey eq '{username}'"))
                 {
                     entity = e;
                     break;
@@ -179,9 +179,9 @@ namespace QuoteAzureBackend.Data
 
         public async Task<User> UpdateAsync(User user)
         {
-            var entity = new TableEntity(user.Id, user.Email)
+            var entity = new TableEntity(user.Id, user.Username)
             {
-                ["Username"] = user.Username,
+                ["Email"] = user.Email,
                 ["PasswordHash"] = user.PasswordHash,
                 ["Role"] = user.Role,
                 ["CreatedAt"] = user.CreatedAt,
@@ -210,7 +210,7 @@ namespace QuoteAzureBackend.Data
             try
             {
                 TableEntity? entity = null;
-                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"Username eq '{username}'"))
+                await foreach (var e in _tableClient.QueryAsync<TableEntity>(filter: $"RowKey eq '{username}'"))
                 {
                     entity = e;
                     break;
@@ -229,8 +229,8 @@ namespace QuoteAzureBackend.Data
             return new User
             {
                 Id = entity.PartitionKey,
-                Email = entity.RowKey,
-                Username = entity.GetString("Username") ?? string.Empty,
+                Username = entity.RowKey,
+                Email = entity.GetString("Email") ?? string.Empty,
                 PasswordHash = entity.GetString("PasswordHash") ?? string.Empty,
                 Role = entity.GetString("Role") ?? "User",
                 CreatedAt = entity.GetDateTime("CreatedAt") ?? DateTime.UtcNow,

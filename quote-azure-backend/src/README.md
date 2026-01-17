@@ -248,3 +248,14 @@ After initial deployment, create these default users:
 - **Test User**: `user@example.com` / `User123!`
 
 ⚠️ **Important**: Change default passwords immediately after first login!
+
+#### Storage Schema
+
+Users are stored in Azure Table Storage with the following schema:
+
+- **Table Name**: `Users`
+- **PartitionKey**: User ID (GUID)
+- **RowKey**: Username (unique identifier)
+- **Properties**: Email, PasswordHash, Role, CreatedAt, UpdatedAt, IsActive
+
+**Note**: Username is used as RowKey for better performance on username lookups and to ensure uniqueness.

@@ -10,7 +10,7 @@ output "resource_group_name" {
 
 output "storage_account_name" {
   description = "The name of the Storage Account"
-  value       = azurerm_storage_account.sa.name
+  value       = data.azurerm_storage_account.table_storage.name
 }
 
 output "function_app_name" {

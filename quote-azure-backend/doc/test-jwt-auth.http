@@ -38,7 +38,8 @@ Content-Type: application/json
 }
 
 > {%
-client.global.set("authToken", response.body.token);
+const responseBody = JSON.parse(response.body);
+client.global.set("authToken", responseBody.token);
 %}
 
 ### 0.2b Login to get JWT token (using username)
@@ -51,7 +52,8 @@ Content-Type: application/json
 }
 
 > {%
-client.global.set("authToken", response.body.token);
+    const responseBody = JSON.parse(response.body);
+    client.global.set("authToken", responseBody.token);
 %}
 
 ### 0.3 Login as admin to get admin JWT token
@@ -59,12 +61,13 @@ POST {{baseUrl}}/api/auth/login?code={{master_key}}
 Content-Type: application/json
 
 {
-  "email": "{{admin_email}}",
+  "loginIdentifier": "{{admin_email}}",
   "password": "{{admin_password}}"
 }
 
 > {%
-client.global.set("adminToken", response.body.token);
+const responseBody = JSON.parse(response.body);
+client.global.set("adminToken", responseBody.token);
 %}
 
 ### ============================================
