@@ -199,6 +199,28 @@ az functionapp config appsettings set \
 4. **Use HTTPS** for all API calls
 5. **Set reasonable token expiration** (default: 24 hours)
 
+#### Login Options
+
+The login endpoint supports both email and username via the `loginIdentifier` field:
+
+**Option 1: Login with Email**
+```json
+{
+  "loginIdentifier": "user@example.com",
+  "password": "User123!"
+}
+```
+
+**Option 2: Login with Username**
+```json
+{
+  "loginIdentifier": "username",
+  "password": "User123!"
+}
+```
+
+The system automatically detects if the input is an email (contains @) or username.
+
 #### Default Users
 
 After initial deployment, create these default users:

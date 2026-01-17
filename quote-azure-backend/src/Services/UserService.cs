@@ -66,12 +66,25 @@ namespace QuoteAzureBackend.Services
 
         public async Task<string> LoginAsync(LoginRequest request)
         {
-            // Find user by email
-            var user = await _userRepository.GetByEmailAsync(request.Email);
+            // Try to find user by email first, then by username
+            User? user = null;
+            bool isEmailLogin = false;
+            
+            // Check if the input looks like an email
+            if (request.LoginIdentifier.Contains("@"))
+            {
+                user = await _userRepository.GetByEmailAsync(request.LoginIdentifier);
+                isEmailLogin = true;
+            }
+            else
+            {
+                // Try to find by username
+                user = await _userRepository.GetByUsernameAsync(request.LoginIdentifier);
+            }
             
             if (user == null)
             {
-                throw new InvalidOperationException("Invalid email or password");
+                throw new InvalidOperationException("Invalid email/username or password");
             }
 
             // Check if user is active
@@ -85,12 +98,20 @@ namespace QuoteAzureBackend.Services
             
             if (result == PasswordVerificationResult.Failed)
             {
-                throw new InvalidOperationException("Invalid email or password");
+                throw new InvalidOperationException("Invalid email/username or password");
             }
 
             // Generate JWT token
             var token = _jwtService.GenerateToken(user);
-            _logger.LogInformation("User logged in successfully with email: {Email}", request.Email);
+            
+            if (isEmailLogin)
+            {
+                _logger.LogInformation("User logged in successfully with email: {Email}", request.LoginIdentifier);
+            }
+            else
+            {
+                _logger.LogInformation("User logged in successfully with username: {Username}", request.LoginIdentifier);
+            }
             
             return token;
         }
