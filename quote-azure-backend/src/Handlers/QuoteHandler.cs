@@ -258,7 +258,7 @@ namespace QuoteAzureBackend.Handlers
             try
             {
                 var userInfo = await authMiddleware.AuthenticateAsync(req);
-                return userInfo?.ObjectId ?? string.Empty;
+                return userInfo?.DisplayName ?? string.Empty; // DisplayName contains the username
             }
             catch
             {
