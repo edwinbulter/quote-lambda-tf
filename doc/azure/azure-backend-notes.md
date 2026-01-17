@@ -68,3 +68,14 @@ Azure AD B2C:
 - Upgrade to Premium P1
 - Cost: ~$6/user/month
 
+
+## Implementation plan
+
+Since Azure AD is broken:
+
+- Start with JWT implementation
+- Remove Azure AD completely
+- Get a working system as soon as possible
+- Add API Gateway once JWT is working so rest calls can be done without the master_key
+
+

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using QuoteAzureBackend.Data;
 using QuoteAzureBackend.Models;
 using QuoteAzureBackend.Services;
+using QuoteAzureBackend.Middleware;
 using System.Net;
 using System.Text.Json;
 
@@ -13,30 +14,34 @@ namespace QuoteAzureBackend.Handlers
     {
         private readonly IUserRoleRepository _userRoleRepository;
         private readonly IAuthenticationService _authService;
+        private readonly JwtAuthenticationMiddleware _authMiddleware;
+        private readonly IUserService _userService;
         private readonly ILogger<UserRoleHandler> _logger;
 
         public UserRoleHandler(
             IUserRoleRepository userRoleRepository,
             IAuthenticationService authService,
+            JwtAuthenticationMiddleware authMiddleware,
+            IUserService userService,
             ILogger<UserRoleHandler> logger)
         {
             _userRoleRepository = userRoleRepository;
             _authService = authService;
+            _authMiddleware = authMiddleware;
+            _userService = userService;
             _logger = logger;
         }
 
         private async Task<bool> IsCurrentUserAdmin(HttpRequestData req)
         {
-            var objectId = req.Headers.TryGetValues("X-User-ObjectId", out var values) 
-                ? values.FirstOrDefault() 
-                : null;
+            var user = await _authMiddleware.GetUserFromRequestAsync(req);
             
-            if (string.IsNullOrEmpty(objectId))
+            if (user == null)
             {
                 return false;
             }
 
-            return await _authService.IsAdminAsync(objectId);
+            return await _userService.IsAdminAsync(user.Id);
         }
 
         [Function("GetAllUsers")]

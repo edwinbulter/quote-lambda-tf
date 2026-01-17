@@ -93,3 +93,114 @@ src/
 - **host.json**: Azure Functions runtime configuration
 - **local.settings.json**: Local development settings (API keys, connection strings)
 - **Program.cs**: Dependency injection setup and service registration
+
+### Self-Hosted JWT Authentication Settings
+
+The application now supports self-hosted JWT authentication. These settings are automatically configured during deployment when using the GitHub Actions workflow.
+
+#### Automated Configuration via GitHub Secrets
+
+When deploying with the `.github/workflows/azure-backend-deploy.yml` workflow, the JWT settings are automatically added to the Azure Function App's Application Settings from GitHub Secrets. No manual configuration is required.
+
+**Required GitHub Secrets:**
+The workflow file documents all required secrets at the top of the file. See `.github/workflows/azure-backend-deploy.yml` for detailed instructions on:
+- Secret names and formats
+- How to generate secure values
+- Example commands for creating secrets
+
+| Setting | GitHub Secret Name | Description | How to Find/Generate |
+|---------|-------------------|-------------|----------------------|
+| `Jwt:Key` | `JWT_KEY` | Secret key for signing JWT tokens | Generate a secure random string (minimum 256 bits) |
+| `Jwt:Issuer` | `JWT_ISSUER` | Token issuer identifier | Usually your application name or URL |
+| `Jwt:Audience` | `JWT_AUDIENCE` | Token audience identifier | Usually your application name or user group |
+| `TableStorageConnectionString` | `TABLE_STORAGE_CONNECTION_STRING` | Azure Table Storage connection string | Get from Azure Storage account |
+
+#### Setting Values
+
+**1. Jwt:Key (Secret Key)**
+```bash
+# Generate a secure key (256 bits minimum)
+openssl rand -base64 32
+# Or using PowerShell:
+Add-Type -AssemblyName System.Web; [System.Web.Security.Membership]::GeneratePassword(32, 4)
+```
+- **Important**: Use a different key for production than development
+- **Security**: Store this securely in Azure Key Vault for production
+
+**2. Jwt:Issuer**
+- **Development**: `"quote-azure-backend"`
+- **Production**: `"https://your-function-app.azurewebsites.net"` or your custom domain
+
+**3. Jwt:Audience**
+- **Development**: `"quote-azure-backend-users"`
+- **Production**: `"quote-azure-backend-users"` or your specific user group
+
+#### Deployment Workflow
+
+**GitHub Actions Automation:**
+The `.github/workflows/azure-backend-deploy.yml` workflow handles the complete deployment process:
+
+1. **Builds** the application with .NET 8
+2. **Deploys** to Azure Functions
+3. **Automatically configures** all JWT settings from GitHub Secrets
+4. **Tests** the deployment
+5. **Provides guidance** for creating default users
+
+**Manual Configuration (Alternative):**
+If not using the GitHub workflow, you must manually configure the settings in Azure Portal:
+1. Navigate to Function App → Configuration → Application settings
+2. Add each setting from the table above
+3. Restart the Function App
+
+#### Configuration Examples
+
+**Local Development (local.settings.json):**
+```json
+{
+  "Values": {
+    "Jwt:Key": "YOUR_GENERATED_SECRET_KEY_HERE",
+    "Jwt:Issuer": "quote-azure-backend",
+    "Jwt:Audience": "quote-azure-backend-users"
+  }
+}
+```
+
+**Production (Automated via GitHub Actions):**
+When using the `.github/workflows/azure-backend-deploy.yml` workflow:
+1. Add secrets to GitHub repository (Settings → Secrets and variables → Actions)
+2. Run the workflow
+3. Settings are automatically configured in Azure Function App
+
+**Production (Manual - Alternative):**
+If not using GitHub Actions:
+1. Navigate to Function App → Configuration → Application settings
+2. Add the following settings:
+   - `Jwt:Key`: Your production secret key
+   - `Jwt:Issuer`: `https://your-function-app.azurewebsites.net`
+   - `Jwt:Audience`: `quote-azure-backend-users`
+
+**Production (Azure CLI - Alternative):**
+```bash
+az functionapp config appsettings set \
+  --resource-group quote-backend-rg \
+  --name quote-backend-function \
+  --settings "Jwt:Key=YOUR_PRODUCTION_KEY" \
+             "Jwt:Issuer=https://quote-backend-function.azurewebsites.net" \
+             "Jwt:Audience=quote-azure-backend-users"
+```
+
+#### Security Best Practices
+
+1. **Use different keys** for each environment (dev/staging/prod)
+2. **Store secrets in Azure Key Vault** for production
+3. **Rotate keys periodically** (every 90 days recommended)
+4. **Use HTTPS** for all API calls
+5. **Set reasonable token expiration** (default: 24 hours)
+
+#### Default Users
+
+After initial deployment, create these default users:
+- **Admin**: `admin@quote-backend.local` / `Admin123!`
+- **Test User**: `user@example.com` / `User123!`
+
+⚠️ **Important**: Change default passwords immediately after first login!

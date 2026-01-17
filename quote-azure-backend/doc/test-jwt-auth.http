@@ -1,0 +1,230 @@
+### JWT Authentication Testing
+
+### Environment variables needed in http-client.env.json:
+### {
+###   "dev": {
+###     "baseUrl": "http://localhost:7071",
+###     "prod": {
+###       "baseUrl": "https://quote-backend-function.azurewebsites.net"
+###     },
+###     "user_email": "user@example.com",
+###     "user_password": "User123!",
+###     "admin_email": "admin@quote-backend.local",
+###     "admin_password": "Admin123!",
+###     "master_key": "get-from-azure-portal"
+###   }
+### }
+### 
+### Get master key with: az functionapp keys list --resource-group quote-backend-rg --name quote-backend-function --query "masterKey"
+
+### 0.1 Register user (for testing)
+POST {{baseUrl}}/api/auth/register?code={{master_key}}
+Content-Type: application/json
+
+{
+  "email": "{{user_email}}",
+  "username": "testuser",
+  "password": "{{user_password}}",
+  "confirmPassword": "{{user_password}}"
+}
+
+### 0.2 Login to get JWT token
+POST {{baseUrl}}/api/auth/login?code={{master_key}}
+Content-Type: application/json
+
+{
+  "email": "{{user_email}}",
+  "password": "{{user_password}}"
+}
+
+> {%
+client.global.set("authToken", response.body.token);
+%}
+
+### 0.3 Login as admin to get admin JWT token
+POST {{baseUrl}}/api/auth/login?code={{master_key}}
+Content-Type: application/json
+
+{
+  "email": "{{admin_email}}",
+  "password": "{{admin_password}}"
+}
+
+> {%
+client.global.set("adminToken", response.body.token);
+%}
+
+### ============================================
+### PUBLIC ENDPOINTS (No authentication required)
+### ============================================
+
+### 1. GET Random Quote (unauthenticated - no view recording)
+GET {{baseUrl}}/api/quotes/random?code={{master_key}}
+
+### 2. POST Quote with exclusions (unauthenticated)
+POST {{baseUrl}}/api/quote?code={{master_key}}
+Content-Type: application/json
+
+[
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+  41, 42, 43, 44, 45, 46, 47, 48, 49, 50
+]
+
+### 3. Get All Liked Quotes (public endpoint)
+GET {{baseUrl}}/api/quote/liked?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### AUTHENTICATED ENDPOINTS
+### ============================================
+
+### 4. GET Quote with authentication (records view)
+GET {{baseUrl}}/api/quote?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 5. GET View History (authenticated)
+GET {{baseUrl}}/api/quote/history?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 6. GET Quote with authentication (second request)
+GET {{baseUrl}}/api/quote?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 7. GET View History (second request)
+GET {{baseUrl}}/api/quote/history?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### LIKE/UNLIKE ENDPOINTS
+### ============================================
+
+### 8. Like Quote ID 79
+POST {{baseUrl}}/api/quote/79/like?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 9. Unlike Quote ID 79
+DELETE {{baseUrl}}/api/quote/79/unlike?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 10. Get All Liked Quotes (should be empty now)
+GET {{baseUrl}}/api/quote/liked?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 11. GET View History (after unlike)
+GET {{baseUrl}}/api/quote/history?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### ============================================
+### ERROR TESTING
+### ============================================
+
+### 12. GET View History without token (should return 401)
+GET {{baseUrl}}/api/quote/history?code={{master_key}}
+
+### 13. Like Quote without token (should return 401)
+POST {{baseUrl}}/api/quote/1/like?code={{master_key}}
+Content-Type: application/json
+
+### 14. Unlike Quote without token (should return 401)
+DELETE {{baseUrl}}/api/quote/1/unlike?code={{master_key}}
+
+### 15. Get All Liked Quotes without token (should return 401)
+GET {{baseUrl}}/api/quote/liked?code={{master_key}}
+
+### ============================================
+### REORDER ENDPOINTS
+### ============================================
+
+### 16. Move Quote ID 3 to position 1
+PUT {{baseUrl}}/api/quote/3/reorder?code={{master_key}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPosition": 1
+}
+
+### 17. Move Quote ID 1 to position 2
+PUT {{baseUrl}}/api/quote/1/reorder?code={{master_key}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPosition": 2
+}
+
+### 18. Move Quote ID 79 to position 3
+PUT {{baseUrl}}/api/quote/79/reorder?code={{master_key}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPosition": 3
+}
+
+### 19. Move Quote ID 61 to position 4
+PUT {{baseUrl}}/api/quote/61/reorder?code={{master_key}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPosition": 4
+}
+
+### ============================================
+### USER MANAGEMENT ENDPOINTS (Admin only)
+### ============================================
+
+### 20. Get all users (admin only)
+GET {{baseUrl}}/api/admin/users?code={{master_key}}
+Authorization: Bearer {{adminToken}}
+
+### 21. Get user by ID (admin only)
+GET {{baseUrl}}/api/admin/users/{{authToken}}?code={{master_key}}
+Authorization: Bearer {{adminToken}}
+
+### 22. Update user role (admin only)
+PUT {{baseUrl}}/api/admin/users/role?code={{master_key}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "userId": "USER_ID_HERE",
+  "newRole": "Admin"
+}
+
+### ============================================
+### PASSWORD MANAGEMENT
+### ============================================
+
+### 23. Change password
+POST {{baseUrl}}/api/auth/change-password?code={{master_key}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{user_password}}",
+  "newPassword": "NewUser123!",
+  "confirmNewPassword": "NewUser123!"
+}
+
+### ============================================
+### ERROR TESTING - ADMIN ENDPOINTS
+### ============================================
+
+### 24. Get all users with regular user token (should return 403)
+GET {{baseUrl}}/api/admin/users?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 25. Update user role with regular user token (should return 403)
+PUT {{baseUrl}}/api/admin/users/role?code={{master_key}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "userId": "SOME_USER_ID",
+  "newRole": "Admin"
+}

@@ -13,10 +13,27 @@
 #    }
 #    Note: Map appId -> clientId, password -> clientSecret, tenant -> tenantId, and add subscriptionId
 #
+# 2. JWT_KEY - Secret key for signing JWT tokens (minimum 256 bits)
+#    Generate with: openssl rand -base64 32
+#    Or PowerShell: Add-Type -AssemblyName System.Web; [System.Web.Security.Membership]::GeneratePassword(32, 4)
+#    IMPORTANT: Use a different key for production than development
+#
+# 3. JWT_ISSUER - Token issuer identifier
+#    Production: "https://quote-backend-function.azurewebsites.net"
+#    Development: "quote-azure-backend"
+#
+# 4. JWT_AUDIENCE - Token audience identifier
+#    Production: "quote-azure-backend-users"
+#    Development: "quote-azure-backend-users"
+#
+# 5. TABLE_STORAGE_CONNECTION_STRING - Azure Table Storage connection string
+#    Format: "DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net"
+#
 # Usage:
-# 1. Add secrets to GitHub repository (Settings > Secrets and variables > Actions)
+# 1. Add all secrets to GitHub repository (Settings > Secrets and variables > Actions)
 # 2. Go to Actions tab > "Build and Deploy Azure Backend" > "Run workflow"
 # 3. Run workflow (deploys to production only)
+# 4. After deployment, create default users via API or AdminUserSeeder
 
 name: Build and Deploy Azure Backend
 
@@ -63,7 +80,12 @@ jobs:
         
     - name: Update App Settings
       run: |
-        az functionapp config appsettings set --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --settings "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated"
+        az functionapp config appsettings set --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.FUNCTION_APP_NAME }} --settings \
+          "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
+          "Jwt:Key=${{ secrets.JWT_KEY }}" \
+          "Jwt:Issuer=${{ secrets.JWT_ISSUER }}" \
+          "Jwt:Audience=${{ secrets.JWT_AUDIENCE }}" \
+          "TableStorageConnectionString=${{ secrets.TABLE_STORAGE_CONNECTION_STRING }}"
           
     - name: Get Function Keys
       run: |
@@ -82,6 +104,19 @@ jobs:
         curl -f "https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/" || exit 1
         
         echo "✅ Function App is responding"
+        
+    - name: Create Default Users (Optional)
+      run: |
+        echo "📝 Default users can be created via the AdminUserSeeder or API endpoints:"
+        echo "   Admin: admin@quote-backend.local / Admin123!"
+        echo "   Test User: user@example.com / User123!"
+        echo ""
+        echo "To create users via API:"
+        echo "1. Register admin: POST https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api/auth/register"
+        echo "2. Login to get token: POST https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api/auth/login"
+        echo "3. Use token for authenticated requests"
+        echo ""
+        echo "⚠️  Remember to change default passwords after first login!"
         
     - name: Logout from Azure
       if: always()
