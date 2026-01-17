@@ -20,7 +20,7 @@ namespace QuoteAzureBackend.Data
     {
         private readonly TableClient _tableClient;
         private readonly ILogger<UserRoleRepository> _logger;
-        private const string TableName = "UserRoles";
+        private const string TableName = "userroles";
 
         public UserRoleRepository(TableServiceClient tableServiceClient, ILogger<UserRoleRepository> logger)
         {

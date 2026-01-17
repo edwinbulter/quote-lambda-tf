@@ -10,15 +10,18 @@ namespace QuoteAzureBackend.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly IUserRoleRepository _userRoleRepository;
         private readonly ILogger<AdminUserSeeder> _logger;
 
         public AdminUserSeeder(
             IUserRepository userRepository,
             IPasswordHasher<User> passwordHasher,
+            IUserRoleRepository userRoleRepository,
             ILogger<AdminUserSeeder> logger)
         {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
+            _userRoleRepository = userRoleRepository;
             _logger = logger;
         }
 
@@ -53,7 +56,16 @@ namespace QuoteAzureBackend.Services
                 // Save admin user
                 await _userRepository.CreateAsync(adminUser);
 
+                // Assign ADMIN role in userroles table
+                await _userRoleRepository.AssignRoleAsync(
+                    adminUser.Id,
+                    adminUser.Email,
+                    "ADMIN",
+                    "system"
+                );
+
                 _logger.LogInformation("Admin user created successfully with email: admin@quote-backend.local");
+                _logger.LogInformation("Admin role assigned in userroles table");
                 _logger.LogInformation("Default admin password: Admin123!");
                 _logger.LogWarning("Please change the default admin password after first login!");
             }
@@ -95,7 +107,16 @@ namespace QuoteAzureBackend.Services
                 // Save test user
                 await _userRepository.CreateAsync(testUser);
 
+                // Assign USER role in userroles table
+                await _userRoleRepository.AssignRoleAsync(
+                    testUser.Id,
+                    testUser.Email,
+                    "USER",
+                    "system"
+                );
+
                 _logger.LogInformation("Test user created successfully with email: user@example.com");
+                _logger.LogInformation("User role assigned in userroles table");
                 _logger.LogInformation("Default test password: User123!");
             }
             catch (Exception ex)

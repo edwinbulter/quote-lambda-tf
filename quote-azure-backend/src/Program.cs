@@ -53,6 +53,9 @@ var host = new HostBuilder()
         // Register admin services
         services.AddSingleton<IAdminService, AdminService>();
         
+        // Register admin user seeder
+        services.AddSingleton<AdminUserSeeder>();
+        
         // Add logging
         services.AddLogging();
     })

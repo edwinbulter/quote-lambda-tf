@@ -78,12 +78,12 @@ namespace QuoteAzureBackend.Data
             }
         }
 
-        public async Task<bool> RecordViewAsync(UserViewHistory viewHistory)
+        public Task<bool> RecordViewAsync(UserViewHistory viewHistory)
         {
             // No longer needed - view tracking is handled by the progress table
             // Keeping method for interface compatibility
             _logger.LogDebug("RecordViewAsync called - views are tracked via progress table");
-            return true;
+            return Task.FromResult(true);
         }
 
         public async Task<List<int>> GetUserViewHistoryQuoteIdsAsync(string userId, int limit)

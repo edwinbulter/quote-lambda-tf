@@ -16,6 +16,7 @@ namespace QuoteAzureBackend.Handlers
         private readonly IAuthenticationService _authService;
         private readonly JwtAuthenticationMiddleware _authMiddleware;
         private readonly IUserService _userService;
+        private readonly AdminUserSeeder _adminUserSeeder;
         private readonly ILogger<UserRoleHandler> _logger;
 
         public UserRoleHandler(
@@ -23,12 +24,14 @@ namespace QuoteAzureBackend.Handlers
             IAuthenticationService authService,
             JwtAuthenticationMiddleware authMiddleware,
             IUserService userService,
+            AdminUserSeeder adminUserSeeder,
             ILogger<UserRoleHandler> logger)
         {
             _userRoleRepository = userRoleRepository;
             _authService = authService;
             _authMiddleware = authMiddleware;
             _userService = userService;
+            _adminUserSeeder = adminUserSeeder;
             _logger = logger;
         }
 
@@ -193,6 +196,36 @@ namespace QuoteAzureBackend.Handlers
                 _logger.LogError(ex, "Error getting role for user {ObjectId}", objectId);
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Internal server error");
+                return errorResponse;
+            }
+        }
+
+        [Function("seed-users")]
+        public async Task<HttpResponseData> SeedUsersAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "seed-users")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            try
+            {
+                _logger.LogInformation("Starting user seeding process");
+                
+                // Seed admin user
+                await _adminUserSeeder.SeedAdminUserAsync();
+                
+                // Seed test user
+                await _adminUserSeeder.SeedTestUserAsync();
+                
+                _logger.LogInformation("User seeding completed successfully");
+                
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteStringAsync("Users seeded successfully");
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error seeding users");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Error seeding users");
                 return errorResponse;
             }
         }

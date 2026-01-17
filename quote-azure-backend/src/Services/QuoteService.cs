@@ -344,7 +344,7 @@ namespace QuoteAzureBackend.Services
             return viewedQuotes;
         }
 
-        public async Task<bool> RecordViewAsync(string userId, int quoteId)
+        public Task<bool> RecordViewAsync(string userId, int quoteId)
         {
             try
             {
@@ -352,12 +352,12 @@ namespace QuoteAzureBackend.Services
                 // But in C#, the progress is already updated in GetNextSequentialQuoteAsync
                 // So we don't need to do anything here, but we keep the method for compatibility
                 _logger.LogDebug("RecordViewAsync called for user {UserId}, quote {QuoteId} - progress already tracked", userId, quoteId);
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error recording view for user {UserId}, quote {QuoteId}", userId, quoteId);
-                return false;
+                return Task.FromResult(false);
             }
         }
 
