@@ -41,19 +41,12 @@
 ### 2. Set up http-client.env.json with your secrets
 ### 3. The token must include "cognito:username" claim
 
-@baseUrl = {{baseUrl}}
-@authToken = {{authToken}}
-@cognitoClientId = {{cognitoClientId}}
-@cognitoRegion = {{cognitoRegion}}
-@testUsername = {{testUsername}}
-@testPassword = {{testPassword}}
-
 ### ============================================
 ### AUTHENTICATION - Get JWT Token
 ### ============================================
 
 ### 0. Get JWT Token from Cognito
-# This will return an IdToken that you should copy and use as {{authToken}}
+# This will return an IdToken that you should copy and use as {{accessToken}}
 # Uses testUsername and testPassword from http-client.env.json
 POST https://cognito-idp.{{cognitoRegion}}.amazonaws.com/
 Content-Type: application/x-amz-json-1.1
@@ -67,6 +60,40 @@ X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth
     "PASSWORD": "{{testPassword}}"
   }
 }
+
+#> {%
+#    // In IntelliJ HTTP Client, the response content might be in a different location
+#    // Let's try various approaches to access the actual response content
+#
+#    // The response object shows metadata, but the actual content is elsewhere
+#    // Try accessing the response content that's shown in the response file
+#    try {
+#        // Method 1: Check if there's a global variable with the response
+#        if (typeof responseText !== 'undefined') {
+#            const responseBody = JSON.parse(responseText);
+#            //client.global.set("authToken", responseBody.AuthenticationResult.AccessToken);
+#            console.log("Token set via responseText global");
+#        }
+#        // Method 2: Check if the response content is in a special property
+#        else if (typeof responseBody !== 'undefined') {
+#            //client.global.set("authToken", responseBody.AuthenticationResult.AccessToken);
+#            console.log("Token set via responseBody global");
+#        }
+#        // Method 3: Try accessing the response as it appears in the file
+#        else {
+#            // Since we can see the actual JSON in the response file,
+#            // let's manually extract the token from the known response structure
+#            console.log("Response object doesn't contain the actual content");
+#            console.log("This appears to be a limitation of IntelliJ HTTP Client response handlers");
+#            console.log("You may need to manually copy the token from the response");
+#
+#            // As a workaround, let's at least log what we expect to find
+#            console.log("Expected token location: response.AuthenticationResult.AccessToken");
+#        }
+#    } catch (e) {
+#        console.log("Error accessing response:", e.message);
+#    }
+#%}
 
 ### ============================================
 ### PUBLIC ENDPOINTS (No authentication required)
@@ -83,7 +110,7 @@ Content-Type: application/json
 
 ### 3. Get All Liked Quotes (public endpoint)
 GET {{baseUrl}}/quote/liked
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 
 ### ============================================
 ### USER VIEWS ENDPOINTS (NEW - Require authentication)
@@ -91,20 +118,16 @@ Authorization: Bearer {{authToken}}
 
 ### 4. GET Random Quote (authenticated - will record view)
 GET {{baseUrl}}/quote
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 
-### 5. GET View History (requires authentication) - NEW ENDPOINT
+### 5. GET View History (requires authentication) - NEW ENDPOINT https://sy5vvqbh93.execute-api.eu-central-1.amazonaws.com/api/v1/quote/viewed
 # Returns all quotes viewed by the authenticated user in chronological order
-GET {{baseUrl}}/quote/history
-Authorization: Bearer {{authToken}}
+GET {{baseUrl}}/quote/viewed
+Authorization: Bearer {{accessToken}}
 
-### 6. GET Another Quote (authenticated - will record another view)
-GET {{baseUrl}}/quote
-Authorization: Bearer {{authToken}}
-
-### 7. GET View History Again (shows all viewed quotes)
+### 7. GET history (deprecated: is not used in the frontend)
 GET {{baseUrl}}/quote/history
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 
 ### ============================================
 ### LIKE/UNLIKE ENDPOINTS (Require authentication)
@@ -112,23 +135,19 @@ Authorization: Bearer {{authToken}}
 
 ### 8. Like a Quote (requires authentication)
 POST {{baseUrl}}/quote/79/like
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 ### 9. Unlike a Quote (requires authentication)
 DELETE {{baseUrl}}/quote/79/unlike
-Authorization: Bearer {{authToken}}
-
-### 10. Get All Quotes Liked by Current User (requires authentication)
-GET {{baseUrl}}/quote/liked
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 
 ### 11. Get view history (should be empty for new user)
-GET {{baseUrl}}/quote/history
-Authorization: Bearer {{authToken}}
+GET {{baseUrl}}/quote/viewed
+Authorization: Bearer {{accessToken}}
 
 ### 12. Try to get view history without authentication (should return 403)
-GET {{baseUrl}}/quote/history
+GET {{baseUrl}}/quote/viewed
 
 ### 13. Try to like without authentication (should return 403)
 POST {{baseUrl}}/quote/1/like
@@ -139,14 +158,14 @@ DELETE {{baseUrl}}/quote/1/unlike
 
 ### 15. Get liked quotes (should be in order 1, 2, 3)
 GET {{baseUrl}}/quote/liked
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 
 ### 16. Reorder quote 3 to position 1 (moving up)
 # Play to see what it does:
 # - gives the quote with given id the position of the contents
 # - the original quote and following quotes are moved 1 up. The quotes with lower order number stay in their original place.
 PUT {{baseUrl}}/quote/3/reorder
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -155,7 +174,7 @@ Content-Type: application/json
 
 ### 17. Try to reorder with invalid order (0 or negative - should return 400)
 PUT {{baseUrl}}/quote/1/reorder
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -164,7 +183,7 @@ Content-Type: application/json
 
 ### 18. Try to reorder with invalid order (negative - should return 400)
 PUT {{baseUrl}}/quote/79/reorder
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -173,7 +192,7 @@ Content-Type: application/json
 
 ### 19. Try to reorder a quote that user hasn't liked (should be ignored)
 PUT {{baseUrl}}/quote/61/reorder
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {

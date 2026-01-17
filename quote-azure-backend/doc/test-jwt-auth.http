@@ -17,12 +17,16 @@
 ### 
 ### Get master key with: az functionapp keys list --resource-group quote-backend-rg --name quote-backend-function --query "masterKey"
 
+### 0.0 Seed users (run once to create admin and test users)
+POST {{baseUrl}}/api/seed-users?code={{master_key}}
+Content-Type: application/json
+
 ### 0.1 Register user (for testing)
 POST {{baseUrl}}/api/auth/register?code={{master_key}}
 Content-Type: application/json
 
 {
-  "email": "code.bulter@gmail.com",
+  "email": "user-1@outlook.com",
   "username": "user-1",
   "password": "Hello-user-1",
   "confirmPassword": "Hello-user-1"
@@ -33,7 +37,7 @@ POST {{baseUrl}}/api/auth/login?code={{master_key}}
 Content-Type: application/json
 
 {
-  "loginIdentifier": "code.bulter@gmail.com",
+  "loginIdentifier": "user-1@outlook.com",
   "password": "Hello-user-1"
 }
 
@@ -47,8 +51,8 @@ POST {{baseUrl}}/api/auth/login?code={{master_key}}
 Content-Type: application/json
 
 {
-  "loginIdentifier": "user-1",
-  "password": "Hello-user-1"
+  "loginIdentifier": "{{username-user}}",
+  "password": "{{password-user}}"
 }
 
 > {%
@@ -61,8 +65,8 @@ POST {{baseUrl}}/api/auth/login?code={{master_key}}
 Content-Type: application/json
 
 {
-  "loginIdentifier": "{{admin_email}}",
-  "password": "{{admin_password}}"
+  "loginIdentifier": "{{username-admin}}",
+  "password": "{{password-admin}}"
 }
 
 > {%
@@ -102,35 +106,27 @@ GET {{baseUrl}}/api/quote?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### 5. GET View History (authenticated)
-GET {{baseUrl}}/api/quote/history?code={{master_key}}
-Authorization: Bearer {{authToken}}
-
-### 6. GET Quote with authentication (second request)
-GET {{baseUrl}}/api/quote?code={{master_key}}
-Authorization: Bearer {{authToken}}
-
-### 7. GET View History (second request)
-GET {{baseUrl}}/api/quote/history?code={{master_key}}
+GET {{baseUrl}}/api/quote/viewed?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### ============================================
 ### LIKE/UNLIKE ENDPOINTS
 ### ============================================
 
-### 8. Like Quote ID 79
-POST {{baseUrl}}/api/quote/79/like?code={{master_key}}
+### 8. Like Quote
+POST {{baseUrl}}/api/quote/9/like?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
-### 9. Unlike Quote ID 79
-DELETE {{baseUrl}}/api/quote/79/unlike?code={{master_key}}
+### 9. Unlike Quote
+DELETE {{baseUrl}}/api/quote/1/unlike?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### 10. Get All Liked Quotes (should be empty now)
 GET {{baseUrl}}/api/quote/liked?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
-### 11. GET View History (after unlike)
-GET {{baseUrl}}/api/quote/history?code={{master_key}}
+### 11. GET View History for user
+GET {{baseUrl}}/api/quote/viewed?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### ============================================
@@ -138,7 +134,7 @@ Authorization: Bearer {{authToken}}
 ### ============================================
 
 ### 12. GET View History without token (should return 401)
-GET {{baseUrl}}/api/quote/history?code={{master_key}}
+GET {{baseUrl}}/api/quote/viewed?code={{master_key}}
 
 ### 13. Like Quote without token (should return 401)
 POST {{baseUrl}}/api/quote/1/like?code={{master_key}}
@@ -155,7 +151,7 @@ GET {{baseUrl}}/api/quote/liked?code={{master_key}}
 ### ============================================
 
 ### 16. Move Quote ID 3 to position 1
-PUT {{baseUrl}}/api/quote/3/reorder?code={{master_key}}
+PUT {{baseUrl}}/api/quote/9/reorder?code={{master_key}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
