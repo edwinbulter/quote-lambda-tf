@@ -142,14 +142,82 @@ namespace QuoteAzureBackend.Data
 
         public async Task<UserPreferences?> GetUserPreferencesAsync(string userId)
         {
-            // Not implemented in Table Storage version yet
-            return await Task.FromResult<UserPreferences?>(null);
+            try
+            {
+                TableEntity? entity = null;
+                
+                await foreach (var e in _progressTableClient.QueryAsync<TableEntity>(filter: $"PartitionKey eq '{userId}'"))
+                {
+                    entity = e;
+                    break;
+                }
+                
+                if (entity == null)
+                {
+                    return null;
+                }
+                
+                return new UserPreferences
+                {
+                    UserId = entity.PartitionKey,
+                    LastQuoteId = entity.ContainsKey("LastQuoteId") ? entity.GetInt32("LastQuoteId") ?? 0 : 0,
+                    UpdatedAt = entity.ContainsKey("UpdatedAt") ? entity.GetDateTime("UpdatedAt") ?? DateTime.UtcNow : DateTime.UtcNow
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user preferences for {UserId}", userId);
+                return null;
+            }
         }
 
         public async Task<bool> UpdateUserPreferencesAsync(UserPreferences preferences)
         {
-            // Not implemented in Table Storage version yet
-            return await Task.FromResult(false);
+            try
+            {
+                var entity = new TableEntity(preferences.UserId, preferences.UserId)
+                {
+                    ["LastQuoteId"] = preferences.LastQuoteId,
+                    ["UpdatedAt"] = preferences.UpdatedAt
+                };
+                
+                await _progressTableClient.UpsertEntityAsync(entity);
+                _logger.LogInformation("Updated user preferences for {UserId}, LastQuoteId: {LastQuoteId}", preferences.UserId, preferences.LastQuoteId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating user preferences for {UserId}", preferences.UserId);
+                return false;
+            }
+        }
+
+        // UserProgress-like methods to match Java implementation
+        public async Task<UserPreferences?> GetUserProgressAsync(string userId)
+        {
+            // Same as GetUserPreferencesAsync - just a different name for clarity
+            return await GetUserPreferencesAsync(userId);
+        }
+
+        public async Task<bool> UpdateLastQuoteIdAsync(string userId, int quoteId)
+        {
+            try
+            {
+                var entity = new TableEntity(userId, userId)
+                {
+                    ["LastQuoteId"] = quoteId,
+                    ["UpdatedAt"] = DateTime.UtcNow
+                };
+                
+                await _progressTableClient.UpsertEntityAsync(entity);
+                _logger.LogInformation("Updated user {UserId} progress to lastQuoteId={LastQuoteId}", userId, quoteId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating last quote ID for {UserId}", userId);
+                return false;
+            }
         }
     }
 }

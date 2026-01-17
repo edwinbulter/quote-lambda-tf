@@ -53,32 +53,52 @@ namespace QuoteAzureBackend.Services
         private async Task<Quote?> GetNextSequentialQuoteAsync(string username)
         {
             _logger.LogInformation("Getting next sequential quote for user: {Username}", username);
-            var userProgress = await _userActivityRepository.GetUserPreferencesAsync(username);
-            int nextQuoteId = (userProgress == null || userProgress.LastQuoteId == 0) ? 1 : userProgress.LastQuoteId + 1;
             
+            // Get user's current progress (matching Java implementation)
+            var userProgress = await _userActivityRepository.GetUserProgressAsync(username);
+            int nextQuoteId;
+            
+            if (userProgress == null)
+            {
+                // New user - start with quote ID 1
+                nextQuoteId = 1;
+                _logger.LogInformation("New user {Username} starting with quote ID: {NextQuoteId}", username, nextQuoteId);
+            }
+            else
+            {
+                // Existing user - get next quote
+                nextQuoteId = userProgress.LastQuoteId + 1;
+                _logger.LogInformation("User {Username} progress: lastQuoteId={LastQuoteId}, nextQuoteId={NextQuoteId}", 
+                    username, userProgress.LastQuoteId, nextQuoteId);
+            }
+            
+            // Check if we need to fetch more quotes
             var allQuotes = await _quoteRepository.GetAllQuotesAsync();
             int maxId = allQuotes.Any() ? allQuotes.Max(q => q.Id) : 0;
             
             if (nextQuoteId > maxId)
             {
+                _logger.LogInformation("Next quote ID {NextQuoteId} exceeds max ID {MaxId}, fetching more quotes", 
+                    nextQuoteId, maxId);
                 await FetchMoreQuotesIfNeededAsync();
                 allQuotes = await _quoteRepository.GetAllQuotesAsync();
+                maxId = allQuotes.Any() ? allQuotes.Max(q => q.Id) : 0;
             }
             
+            // Get the quote
             var quote = await _quoteRepository.GetQuoteByIdAsync(nextQuoteId);
             if (quote == null)
             {
+                _logger.LogWarning("Quote with ID {NextQuoteId} not found, finding next available quote", nextQuoteId);
                 quote = await FindNextAvailableQuoteAsync(nextQuoteId);
             }
             
             if (quote != null)
             {
-                await _userActivityRepository.UpdateUserPreferencesAsync(new UserPreferences
-                {
-                    UserId = username,
-                    LastQuoteId = quote.Id,
-                    UpdatedAt = DateTime.UtcNow
-                });
+                // Update user progress (matching Java implementation)
+                await _userActivityRepository.UpdateLastQuoteIdAsync(username, quote.Id);
+                _logger.LogInformation("Updated user {Username} progress to lastQuoteId={LastQuoteId}", 
+                    username, quote.Id);
             }
             
             return quote;

@@ -12,6 +12,10 @@ namespace QuoteAzureBackend.Data
         Task<UserPreferences?> GetUserPreferencesAsync(string userId);
         Task<bool> UpdateUserPreferencesAsync(UserPreferences preferences);
         
+        // UserProgress-like methods to match Java implementation
+        Task<UserPreferences?> GetUserProgressAsync(string userId);
+        Task<bool> UpdateLastQuoteIdAsync(string userId, int quoteId);
+        
         // New methods for Table Storage implementation
         Task<bool> AddUserLikeAsync(string userId, int quoteId);
         Task<bool> RemoveUserLikeAsync(string userId, int quoteId);
