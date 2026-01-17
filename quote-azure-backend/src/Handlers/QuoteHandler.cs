@@ -89,7 +89,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("GetQuoteById")]
         public async Task<HttpResponseData> GetQuoteByIdAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/{id}")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/{id:int}")] HttpRequestData req,
             FunctionContext executionContext, int id)
         {
             try
@@ -118,7 +118,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("LikeQuote")]
         public async Task<HttpResponseData> LikeQuoteAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "quote/{id}/like")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "quote/{id:int}/like")] HttpRequestData req,
             FunctionContext executionContext, int id)
         {
             try
@@ -154,7 +154,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("UnlikeQuote")]
         public async Task<HttpResponseData> UnlikeQuoteAsync(
-            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "quote/{id}/unlike")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "quote/{id:int}/unlike")] HttpRequestData req,
             FunctionContext executionContext, int id)
         {
             try
