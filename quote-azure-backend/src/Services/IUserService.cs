@@ -13,5 +13,6 @@ namespace QuoteAzureBackend.Services
         Task<IEnumerable<User>> GetAllUsersAsync(string adminId);
         Task<bool> IsUserInRoleAsync(string userId, string role);
         Task<bool> IsAdminAsync(string userId);
+        Task<bool> UnregisterAsync(string userId, string password);
     }
 }

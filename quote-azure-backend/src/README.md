@@ -221,6 +221,26 @@ The login endpoint supports both email and username via the `loginIdentifier` fi
 
 The system automatically detects if the input is an email (contains @) or username.
 
+#### Unregister (Delete Account)
+
+Users can delete their account and all associated data:
+
+```http
+DELETE /api/auth/unregister
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "password": "UserPassword123!"
+}
+```
+
+**Security Features:**
+- Requires password confirmation
+- Requires valid JWT token
+- Cannot delete admin users (protection)
+- Deletes user and all related data
+
 #### Default Users
 
 After initial deployment, create these default users:

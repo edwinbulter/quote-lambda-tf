@@ -22,19 +22,32 @@ POST {{baseUrl}}/api/auth/register?code={{master_key}}
 Content-Type: application/json
 
 {
-  "email": "{{user_email}}",
-  "username": "testuser",
-  "password": "{{user_password}}",
-  "confirmPassword": "{{user_password}}"
+  "email": "code.bulter@gmail.com",
+  "username": "user-1",
+  "password": "Hello-user-1",
+  "confirmPassword": "Hello-user-1"
 }
 
-### 0.2 Login to get JWT token
+### 0.2 Login to get JWT token (using email)
 POST {{baseUrl}}/api/auth/login?code={{master_key}}
 Content-Type: application/json
 
 {
-  "email": "{{user_email}}",
-  "password": "{{user_password}}"
+  "loginIdentifier": "code.bulter@gmail.com",
+  "password": "Hello-user-1"
+}
+
+> {%
+client.global.set("authToken", response.body.token);
+%}
+
+### 0.2b Login to get JWT token (using username)
+POST {{baseUrl}}/api/auth/login?code={{master_key}}
+Content-Type: application/json
+
+{
+  "loginIdentifier": "user-1",
+  "password": "Hello-user-1"
 }
 
 > {%
@@ -209,6 +222,15 @@ Content-Type: application/json
   "currentPassword": "{{user_password}}",
   "newPassword": "NewUser123!",
   "confirmNewPassword": "NewUser123!"
+}
+
+### 23. Unregister user (delete account and all data)
+DELETE {{baseUrl}}/api/auth/unregister?code={{master_key}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "password": "Hello-user-1"
 }
 
 ### ============================================

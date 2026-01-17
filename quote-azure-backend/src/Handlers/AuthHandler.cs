@@ -224,5 +224,62 @@ namespace QuoteAzureBackend.Handlers
             // Simple validation - in a real app, use DataAnnotations validation
             return new List<string>();
         }
+
+        [Function("Unregister")]
+        public async Task<HttpResponseData> Unregister(
+            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "auth/unregister")] HttpRequestData req)
+        {
+            try
+            {
+                // Authenticate user
+                var user = await _authMiddleware.GetUserFromRequestAsync(req);
+                if (user == null)
+                {
+                    return _authMiddleware.CreateUnauthorizedResponse(req);
+                }
+
+                var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var unregisterRequest = JsonSerializer.Deserialize<UnregisterRequest>(requestBody, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (unregisterRequest == null)
+                {
+                    return CreateBadRequestResponse(req, "Invalid request body");
+                }
+
+                // Validate request
+                var errors = GetValidationErrors(unregisterRequest);
+                if (errors.Any())
+                {
+                    return CreateBadRequestResponse(req, string.Join(", ", errors));
+                }
+
+                // Unregister user (this will delete the user and all their data)
+                var success = await _userService.UnregisterAsync(user.Id, unregisterRequest.Password);
+
+                if (success)
+                {
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteStringAsync("User unregistered successfully");
+                    return response;
+                }
+                else
+                {
+                    return CreateErrorResponse(req, "Failed to unregister user");
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Unregister failed: {Message}", ex.Message);
+                return CreateBadRequestResponse(req, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unregistering user");
+                return CreateErrorResponse(req, "An error occurred while unregistering user");
+            }
+        }
     }
 }

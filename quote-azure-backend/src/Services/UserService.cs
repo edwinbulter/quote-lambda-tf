@@ -221,5 +221,46 @@ namespace QuoteAzureBackend.Services
         {
             return await IsUserInRoleAsync(userId, "Admin");
         }
+
+        public async Task<bool> UnregisterAsync(string userId, string password)
+        {
+            try
+            {
+                // Get user to verify password
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new InvalidOperationException("User not found");
+                }
+
+                // Verify password for security
+                var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+                if (result == PasswordVerificationResult.Failed)
+                {
+                    throw new InvalidOperationException("Invalid password");
+                }
+
+                // Prevent deletion of admin users (self-protection)
+                if (user.Role == "Admin")
+                {
+                    throw new InvalidOperationException("Cannot delete admin users");
+                }
+
+                // Delete user from repository (this will delete the user entity)
+                var userDeleted = await _userRepository.DeleteAsync(userId);
+                if (!userDeleted)
+                {
+                    throw new InvalidOperationException("Failed to delete user");
+                }
+
+                _logger.LogInformation("User unregistered successfully: {UserId}", userId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unregistering user: {UserId}", userId);
+                throw;
+            }
+        }
     }
 }
