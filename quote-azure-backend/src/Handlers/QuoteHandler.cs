@@ -249,6 +249,36 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
+        [Function("GetViewedQuotes")]
+        public async Task<HttpResponseData> GetViewedQuotesAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "quote/viewed")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            try
+            {
+                var userId = await GetUserFromRequestAsync(req);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                    await unauthorizedResponse.WriteStringAsync("Authentication required");
+                    return unauthorizedResponse;
+                }
+
+                logger.LogInformation("Getting viewed quotes for user {UserId}", userId);
+
+                var viewedQuotes = await quoteService.GetViewedQuotesAsync(userId);
+                
+                var successResponse = req.CreateResponse(HttpStatusCode.OK);
+                await successResponse.WriteAsJsonAsync(viewedQuotes);
+                return successResponse;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting viewed quotes");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
         private async Task<string> GetUserFromRequestAsync(HttpRequestData req)
         {
             try
