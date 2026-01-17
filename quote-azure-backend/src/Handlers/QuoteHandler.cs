@@ -279,6 +279,46 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
+        [Function("ReorderQuote")]
+        public async Task<HttpResponseData> ReorderQuoteAsync(
+            [HttpTrigger(AuthorizationLevel.Function, "put", Route = "quote/{id:int}/reorder")] HttpRequestData req,
+            FunctionContext executionContext, int id)
+        {
+            try
+            {
+                var userId = await GetUserFromRequestAsync(req);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                    await unauthorizedResponse.WriteStringAsync("Authentication required");
+                    return unauthorizedResponse;
+                }
+
+                logger.LogInformation("User {UserId} reordering quote {QuoteId}", userId, id);
+
+                // Parse request body to get new order
+                var requestBody = await req.ReadFromJsonAsync<ReorderRequest>();
+                if (requestBody == null || requestBody.Order <= 0)
+                {
+                    var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    await badRequestResponse.WriteStringAsync("Order must be a positive integer");
+                    return badRequestResponse;
+                }
+
+                await quoteService.ReorderLikedQuoteAsync(userId, id, requestBody.Order);
+
+                logger.LogInformation("Successfully reordered quote {QuoteId} to position {Order} for user {UserId}", id, requestBody.Order, userId);
+
+                var response = req.CreateResponse(HttpStatusCode.NoContent);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error reordering quote {QuoteId}", id);
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
         private async Task<string> GetUserFromRequestAsync(HttpRequestData req)
         {
             try
@@ -291,5 +331,10 @@ namespace QuoteAzureBackend.Handlers
                 return string.Empty;
             }
         }
+    }
+
+    public class ReorderRequest
+    {
+        public int Order { get; set; }
     }
 }

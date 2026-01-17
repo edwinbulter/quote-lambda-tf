@@ -232,11 +232,11 @@ namespace QuoteAzureBackend.Services
 
         public async Task<List<Quote>> GetLikedQuotesByUserAsync(string username)
         {
-            var likedQuoteIds = await _userActivityRepository.GetUserLikedQuoteIdsAsync(username);
+            var allLikes = await _userActivityRepository.GetAllUserLikesAsync(username);
             var likedQuotes = new List<Quote>();
-            foreach (var quoteId in likedQuoteIds)
+            foreach (var like in allLikes.OrderBy(l => l.Order))
             {
-                var quote = await _quoteRepository.GetQuoteByIdAsync(quoteId);
+                var quote = await _quoteRepository.GetQuoteByIdAsync(like.QuoteId);
                 if (quote != null)
                     likedQuotes.Add(quote);
             }
@@ -364,7 +364,49 @@ namespace QuoteAzureBackend.Services
         
         public async Task ReorderLikedQuoteAsync(string username, int quoteId, int newOrder)
         {
-            await Task.CompletedTask;
+            var allLikes = await _userActivityRepository.GetAllUserLikesAsync(username);
+            
+            // Find the like to move
+            var likeToMove = allLikes.FirstOrDefault(l => l.QuoteId == quoteId);
+            
+            if (likeToMove == null)
+            {
+                _logger.LogWarning("Quote {QuoteId} not found in user {Username}'s likes", quoteId, username);
+                return;
+            }
+            
+            int oldOrder = likeToMove.Order > 0 ? likeToMove.Order : allLikes.IndexOf(likeToMove) + 1;
+            
+            if (oldOrder == newOrder)
+            {
+                return; // No change needed
+            }
+            
+            // Update orders for affected likes
+            if (newOrder > oldOrder)
+            {
+                // Moving down: decrement orders between oldOrder and newOrder
+                var likesToUpdate = allLikes.Where(l => l.Order > oldOrder && l.Order <= newOrder);
+                foreach (var like in likesToUpdate)
+                {
+                    await _userActivityRepository.UpdateUserLikeOrderAsync(username, like.QuoteId, like.Order - 1);
+                }
+            }
+            else
+            {
+                // Moving up: increment orders between newOrder and oldOrder
+                var likesToUpdate = allLikes.Where(l => l.Order >= newOrder && l.Order < oldOrder);
+                foreach (var like in likesToUpdate)
+                {
+                    await _userActivityRepository.UpdateUserLikeOrderAsync(username, like.QuoteId, like.Order + 1);
+                }
+            }
+            
+            // Set the moved item to new order
+            await _userActivityRepository.UpdateUserLikeOrderAsync(username, quoteId, newOrder);
+            
+            _logger.LogInformation("Reordered quote {QuoteId} for user {Username} from order {OldOrder} to {NewOrder}", 
+                quoteId, username, oldOrder, newOrder);
         }
 
         public async Task ResetUserProgressAsync(string username)

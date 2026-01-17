@@ -29,9 +29,16 @@ namespace QuoteAzureBackend.Data
         {
             try
             {
-                var entity = new UserLikeEntity(userId, quoteId);
+                // Get current max order for this user
+                var allLikes = await GetAllUserLikesAsync(userId);
+                int nextOrder = allLikes.Count + 1;
+                
+                var entity = new UserLikeEntity(userId, quoteId)
+                {
+                    Order = nextOrder
+                };
                 await _likesTableClient.AddEntityAsync(entity);
-                _logger.LogInformation("Added like for user {UserId}, quote {QuoteId}", userId, quoteId);
+                _logger.LogInformation("Added like for user {UserId}, quote {QuoteId} with order {Order}", userId, quoteId, nextOrder);
                 return true;
             }
             catch (Exception ex)
@@ -73,8 +80,46 @@ namespace QuoteAzureBackend.Data
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting user liked quotes");
+                _logger.LogError(ex, "Error getting user liked quote IDs");
                 return new List<int>();
+            }
+        }
+
+        public async Task<List<UserLikeEntity>> GetAllUserLikesAsync(string userId)
+        {
+            try
+            {
+                var likes = new List<UserLikeEntity>();
+                await foreach (var entity in _likesTableClient.QueryAsync<UserLikeEntity>(filter: $"PartitionKey eq '{userId}'"))
+                {
+                    likes.Add(entity);
+                }
+                return likes.OrderBy(l => l.Order).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all user likes");
+                return new List<UserLikeEntity>();
+            }
+        }
+
+        public async Task<bool> UpdateUserLikeOrderAsync(string userId, int quoteId, int newOrder)
+        {
+            try
+            {
+                var entity = new UserLikeEntity(userId, quoteId)
+                {
+                    Order = newOrder,
+                    ETag = ETag.All
+                };
+                await _likesTableClient.UpdateEntityAsync(entity, new ETag("*"), TableUpdateMode.Replace);
+                _logger.LogInformation("Updated order for user {UserId}, quote {QuoteId} to {Order}", userId, quoteId, newOrder);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating user like order");
+                return false;
             }
         }
 

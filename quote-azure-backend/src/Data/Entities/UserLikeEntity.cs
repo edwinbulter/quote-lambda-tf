@@ -12,6 +12,7 @@ namespace QuoteAzureBackend.Data.Entities
 
         public string UserId { get; set; } = string.Empty;
         public int QuoteId { get; set; }
+        public int Order { get; set; }
         public DateTime LikedAt { get; set; }
 
         public UserLikeEntity() { }

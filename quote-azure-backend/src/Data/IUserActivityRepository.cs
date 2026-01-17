@@ -1,4 +1,5 @@
 using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Data.Entities;
 
 namespace QuoteAzureBackend.Data
 {
@@ -20,5 +21,7 @@ namespace QuoteAzureBackend.Data
         Task<bool> AddUserLikeAsync(string userId, int quoteId);
         Task<bool> RemoveUserLikeAsync(string userId, int quoteId);
         Task<List<int>> GetUserLikedQuoteIdsAsync(string userId);
+        Task<List<UserLikeEntity>> GetAllUserLikesAsync(string userId);
+        Task<bool> UpdateUserLikeOrderAsync(string userId, int quoteId, int newOrder);
     }
 }
