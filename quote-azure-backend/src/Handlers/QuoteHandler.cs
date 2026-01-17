@@ -198,11 +198,7 @@ namespace QuoteAzureBackend.Handlers
                     return req.CreateResponse(HttpStatusCode.NotFound);
                 }
 
-                // Record view if user is authenticated
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    await quoteService.RecordViewAsync(userId, quote.Id);
-                }
+                // View is automatically tracked in GetNextSequentialQuoteAsync for authenticated users
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(quote);

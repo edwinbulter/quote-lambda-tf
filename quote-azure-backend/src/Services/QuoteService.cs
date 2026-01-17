@@ -17,7 +17,7 @@ namespace QuoteAzureBackend.Services
         Task<Quote?> GetNextQuoteAsync(string username, int currentQuoteId);
         Task<UserProgress?> GetUserProgressAsync(string username);
         Task<List<Quote>> GetViewedQuotesAsync(string username);
-        Task RecordViewAsync(string username, int quoteId);
+        Task<bool> RecordViewAsync(string username, int quoteId);
         Task ReorderLikedQuoteAsync(string username, int quoteId, int newOrder);
         Task ResetUserProgressAsync(string username);
     }
@@ -311,33 +311,57 @@ namespace QuoteAzureBackend.Services
 
         public async Task<List<Quote>> GetViewedQuotesAsync(string username)
         {
-            if (string.IsNullOrEmpty(username)) return new List<Quote>();
-            var userProgress = await _userActivityRepository.GetUserPreferencesAsync(username);
-            if (userProgress == null || userProgress.LastQuoteId == 0) return new List<Quote>();
+            // Return quotes 1 to lastQuoteId using the sequential system (matching Java implementation)
+            _logger.LogInformation("Getting viewed quotes for user: {Username}", username);
+            
+            if (string.IsNullOrEmpty(username))
+            {
+                return new List<Quote>();
+            }
+            
+            var progress = await _userActivityRepository.GetUserProgressAsync(username);
+            if (progress == null || progress.LastQuoteId <= 0)
+            {
+                _logger.LogInformation("User {Username} has no progress or hasn't viewed any quotes", username);
+                return new List<Quote>();
+            }
             
             var viewedQuotes = new List<Quote>();
-            for (int id = 1; id <= userProgress.LastQuoteId; id++)
+            for (int i = 1; i <= progress.LastQuoteId; i++)
             {
-                var quote = await _quoteRepository.GetQuoteByIdAsync(id);
+                var quote = await _quoteRepository.GetQuoteByIdAsync(i);
                 if (quote != null)
+                {
                     viewedQuotes.Add(quote);
+                }
+                else
+                {
+                    _logger.LogWarning("Quote with ID {QuoteId} not found while getting viewed quotes for user {Username}", i, username);
+                }
             }
+            
+            _logger.LogInformation("Retrieved {Count} viewed quotes for user {Username}", viewedQuotes.Count, username);
             return viewedQuotes;
         }
 
-        public async Task RecordViewAsync(string username, int quoteId)
+        public async Task<bool> RecordViewAsync(string userId, int quoteId)
         {
-            if (!string.IsNullOrEmpty(username))
+            try
             {
-                await _userActivityRepository.UpdateUserPreferencesAsync(new UserPreferences
-                {
-                    UserId = username,
-                    LastQuoteId = quoteId,
-                    UpdatedAt = DateTime.UtcNow
-                });
+                // In the Java version, this updates the user progress
+                // But in C#, the progress is already updated in GetNextSequentialQuoteAsync
+                // So we don't need to do anything here, but we keep the method for compatibility
+                _logger.LogDebug("RecordViewAsync called for user {UserId}, quote {QuoteId} - progress already tracked", userId, quoteId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error recording view for user {UserId}, quote {QuoteId}", userId, quoteId);
+                return false;
             }
         }
 
+        
         public async Task ReorderLikedQuoteAsync(string username, int quoteId, int newOrder)
         {
             await Task.CompletedTask;

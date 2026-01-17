@@ -251,11 +251,25 @@ After initial deployment, create these default users:
 
 #### Storage Schema
 
-Users are stored in Azure Table Storage with the following schema:
+All tables follow lowercase naming convention for consistency:
 
-- **Table Name**: `Users`
+**Users Table**:
+- **Table Name**: `users`
 - **PartitionKey**: User ID (GUID)
 - **RowKey**: Username (unique identifier)
 - **Properties**: Email, PasswordHash, Role, CreatedAt, UpdatedAt, IsActive
 
-**Note**: Username is used as RowKey for better performance on username lookups and to ensure uniqueness.
+**Other Tables**:
+- `quotes` - Quote data
+- `userlikes` - User likes
+- `userprogress` - User progress tracking
+- `userroles` - User roles
+
+**User Progress Tracking**:
+- **Table Name**: `userprogress`
+- **PartitionKey**: Username
+- **RowKey**: Username
+- **Properties**: LastQuoteId, UpdatedAt
+- **Purpose**: Tracks which quotes the user has viewed (quotes 1 through LastQuoteId)
+
+**Note**: Username is used as RowKey for better performance on username lookups and to ensure uniqueness. User view history is derived from the progress table rather than storing individual view records.

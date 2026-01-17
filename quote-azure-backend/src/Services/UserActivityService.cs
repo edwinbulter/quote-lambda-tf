@@ -98,19 +98,17 @@ namespace QuoteAzureBackend.Services
         {
             try
             {
-                var viewedQuoteIds = await _repository.GetUserViewHistoryQuoteIdsAsync(userId, limit);
-                var quotes = new List<Quote>();
+                // Use the sequential progress system instead of view history table (matching Java implementation)
+                var viewedQuotes = await _quoteService.GetViewedQuotesAsync(userId);
                 
-                foreach (var quoteId in viewedQuoteIds)
+                // Apply limit if specified
+                if (limit > 0 && viewedQuotes.Count > limit)
                 {
-                    var quote = await _quoteService.GetQuoteByIdAsync(userId, quoteId);
-                    if (quote != null)
-                    {
-                        quotes.Add(quote);
-                    }
+                    // Return the most recent quotes (last 'limit' quotes)
+                    viewedQuotes = viewedQuotes.Skip(viewedQuotes.Count - limit).ToList();
                 }
                 
-                return quotes;
+                return viewedQuotes;
             }
             catch (Exception ex)
             {

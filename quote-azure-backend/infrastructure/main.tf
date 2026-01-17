@@ -38,7 +38,7 @@ data "azurerm_storage_account" "table_storage" {
 
 # User Roles Table for database-based role management
 resource "azurerm_storage_table" "user_roles" {
-  name                 = "UserRoles"
+  name                 = "userroles"
   storage_account_name = var.table_storage_account_name
 }
 
@@ -69,11 +69,6 @@ resource "azurerm_storage_table" "userlikes" {
 
 resource "azurerm_storage_table" "userprogress" {
   name                 = "userprogress"
-  storage_account_name = var.table_storage_account_name
-}
-
-resource "azurerm_storage_table" "userviewhistory" {
-  name                 = "userviewhistory"
   storage_account_name = var.table_storage_account_name
 }
 

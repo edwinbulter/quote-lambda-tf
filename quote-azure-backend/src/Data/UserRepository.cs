@@ -18,7 +18,7 @@ namespace QuoteAzureBackend.Data
         {
             // Uses the SAME storage account as other tables (qbtstk9asli)
             var connectionString = config["TableStorageConnectionString"];
-            var tableName = "Users"; // New table for JWT authentication
+            var tableName = "users"; // New table for JWT authentication
             
             _tableClient = new TableClient(connectionString, tableName);
             _tableClient.CreateIfNotExists(); // Auto-creates the Users table
