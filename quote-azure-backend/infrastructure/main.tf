@@ -127,6 +127,14 @@ resource "azurerm_windows_function_app" "function_app" {
     environment = "production"
     project     = "quote-backend"
   }
+
+  lifecycle {
+    ignore_changes = [
+      app_settings["Jwt:Key"],
+      app_settings["Jwt:Issuer"],
+      app_settings["Jwt:Audience"]
+    ]
+  }
 }
 
 # Application Insights

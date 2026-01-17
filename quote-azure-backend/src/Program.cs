@@ -44,6 +44,9 @@ var host = new HostBuilder()
         services.AddSingleton<IUserService, UserService>();
         services.AddSingleton<JwtAuthenticationMiddleware>();
         
+        // Register password hasher for JWT authentication
+        services.AddSingleton<IPasswordHasher<QuoteAzureBackend.Models.User>, PasswordHasher<QuoteAzureBackend.Models.User>>();
+        
         // Keep existing authentication service for backward compatibility
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
         

@@ -171,6 +171,8 @@ When using the `.github/workflows/azure-backend-deploy.yml` workflow:
 2. Run the workflow
 3. Settings are automatically configured in Azure Function App
 
+**Important**: Terraform is configured to ignore JWT settings via `lifecycle` block, so they won't be removed when running `terraform apply` after initial deployment.
+
 **Production (Manual - Alternative):**
 If not using GitHub Actions:
 1. Navigate to Function App → Configuration → Application settings
