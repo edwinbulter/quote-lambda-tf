@@ -22,60 +22,7 @@ namespace QuoteAzureBackend.Handlers
             _logger = logger;
         }
 
-        [Function("GetAllUsers")]
-        public async Task<HttpResponseData> GetAllUsers(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/users")] HttpRequestData req,
-            FunctionContext context)
-        {
-            _logger.LogInformation("Processing get all users request");
-
-            try
-            {
-                // Authenticate and authorize user
-                var user = await _authMiddleware.GetUserFromRequestAsync(req);
-                if (user == null)
-                {
-                    return _authMiddleware.CreateUnauthorizedResponse(req);
-                }
-
-                // Check if user is admin
-                if (!await _userService.IsAdminAsync(user.Id))
-                {
-                    return _authMiddleware.CreateForbiddenResponse(req);
-                }
-
-                // Get all users
-                var users = await _userService.GetAllUsersAsync(user.Id);
-
-                var response = req.CreateResponse(HttpStatusCode.OK);
-                response.Headers.Add("Content-Type", "application/json");
-                
-                var usersResponse = users.Select(u => new
-                {
-                    id = u.Id,
-                    email = u.Email,
-                    username = u.Username,
-                    role = u.Role,
-                    isActive = u.IsActive,
-                    createdAt = u.CreatedAt,
-                    updatedAt = u.UpdatedAt
-                });
-
-                await response.WriteStringAsync(JsonSerializer.Serialize(usersResponse));
-                return response;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Access denied to get all users");
-                return _authMiddleware.CreateForbiddenResponse(req);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving all users");
-                return CreateErrorResponse(req, "An error occurred while retrieving users");
-            }
-        }
-
+        
         [Function("UpdateUserRole")]
         public async Task<HttpResponseData> UpdateUserRole(
             [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/users/role")] HttpRequestData req,

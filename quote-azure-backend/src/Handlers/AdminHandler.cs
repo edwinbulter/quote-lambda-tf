@@ -1,10 +1,10 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using QuoteAzureBackend.Models.Admin;
 using QuoteAzureBackend.Services;
 using QuoteAzureBackend.Data;
 using QuoteAzureBackend.Models;
+using QuoteAzureBackend.Middleware;
 using System.Net;
 using System.Text.Json;
 
@@ -13,40 +13,40 @@ namespace QuoteAzureBackend.Handlers
     public class AdminHandler
     {
         private readonly IAdminService _adminService;
-        private readonly IAuthenticationService _authService;
+        private readonly IUserService _userService;
+        private readonly JwtAuthenticationMiddleware _authMiddleware;
         private readonly ILogger<AdminHandler> _logger;
 
-        public AdminHandler(
-            IAdminService adminService,
-            IAuthenticationService authService,
-            ILogger<AdminHandler> logger)
+        public AdminHandler(IAdminService adminService, IUserService userService, JwtAuthenticationMiddleware authMiddleware, ILogger<AdminHandler> logger)
         {
             _adminService = adminService;
-            _authService = authService;
+            _userService = userService;
+            _authMiddleware = authMiddleware;
             _logger = logger;
         }
 
-        private async Task<bool> IsCurrentUserAdmin(HttpRequestData req)
+        private async Task<bool> IsCurrentUserAdminViaMiddleware(HttpRequestData req)
         {
-            var objectId = req.Headers.TryGetValues("X-User-ObjectId", out var values) 
-                ? values.FirstOrDefault() 
-                : null;
+            var user = await _authMiddleware.GetUserFromRequestAsync(req);
             
-            if (string.IsNullOrEmpty(objectId))
+            if (user == null)
             {
                 return false;
             }
 
-            return await _authService.IsAdminAsync(objectId);
+            return await _userService.IsAdminAsync(user.Id);
         }
 
-        [Function("AdminListUsers")]
-        public async Task<HttpResponseData> AdminListUsersAsync(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/users")] HttpRequestData req)
+        
+        [Function("GetAllUsersAlternative")]
+        public async Task<HttpResponseData> GetAllUsersAlternative(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users/all")] HttpRequestData req)
         {
+            _logger.LogInformation("Processing get all users request");
+
             try
             {
-                if (!await IsCurrentUserAdmin(req))
+                if (!await IsCurrentUserAdminViaMiddleware(req))
                 {
                     var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
                     await forbiddenResponse.WriteStringAsync("Admin access required");
@@ -68,13 +68,14 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
+        
         [Function("AdminGetQuotes")]
         public async Task<HttpResponseData> AdminGetQuotesAsync(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/quotes")] HttpRequestData req)
         {
             try
             {
-                if (!await IsCurrentUserAdmin(req))
+                if (!await IsCurrentUserAdminViaMiddleware(req))
                 {
                     var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
                     await forbiddenResponse.WriteStringAsync("Admin access required");
@@ -111,7 +112,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                if (!await IsCurrentUserAdmin(req))
+                if (!await IsCurrentUserAdminViaMiddleware(req))
                 {
                     var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
                     await forbiddenResponse.WriteStringAsync("Admin access required");
@@ -143,7 +144,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                if (!await IsCurrentUserAdmin(req))
+                if (!await IsCurrentUserAdminViaMiddleware(req))
                 {
                     var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
                     await forbiddenResponse.WriteStringAsync("Admin access required");
@@ -178,7 +179,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                if (!await IsCurrentUserAdmin(req))
+                if (!await IsCurrentUserAdminViaMiddleware(req))
                 {
                     var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
                     await forbiddenResponse.WriteStringAsync("Admin access required");
@@ -218,7 +219,7 @@ namespace QuoteAzureBackend.Handlers
         {
             try
             {
-                if (!await IsCurrentUserAdmin(req))
+                if (!await IsCurrentUserAdminViaMiddleware(req))
                 {
                     var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
                     await forbiddenResponse.WriteStringAsync("Admin access required");

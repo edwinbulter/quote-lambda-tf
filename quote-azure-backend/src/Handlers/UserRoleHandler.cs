@@ -47,7 +47,7 @@ namespace QuoteAzureBackend.Handlers
             return await _userService.IsAdminAsync(user.Id);
         }
 
-        [Function("GetAllUsers")]
+        [Function("GetAllUserRoles")]
         public async Task<HttpResponseData> GetAllUsers(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/userrole")] HttpRequestData req)
         {

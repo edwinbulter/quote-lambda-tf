@@ -191,7 +191,7 @@ Content-Type: application/json
 ### ============================================
 
 ### 20. Get all users (admin only)
-GET {{baseUrl}}/api/admin/users?code={{master_key}}
+GET {{baseUrl}}/api/users/all?code={{master_key}}
 Authorization: Bearer {{adminToken}}
 
 ### 21. Get user by ID (admin only)
