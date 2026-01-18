@@ -98,12 +98,6 @@ resource "azurerm_windows_function_app" "function_app" {
     "Logging__LogLevel__Microsoft" = "Warning"
     "Logging__LogLevel__Microsoft.Hosting.Lifetime" = "Information"
     "TableStorageConnectionString" = "DefaultEndpointsProtocol=https;AccountName=${var.table_storage_account_name};AccountKey=${data.azurerm_storage_account.table_storage.primary_access_key};EndpointSuffix=core.windows.net"
-    # Azure AD Settings
-    "AzureAd__Instance" = var.azure_ad_instance
-    "AzureAd__Domain" = var.azure_ad_domain
-    "AzureAd__TenantId" = data.azurerm_subscription.current.tenant_id
-    "AzureAd__ClientId" = azuread_application.function_app.client_id
-    "AzureAd__ClientSecret" = var.azure_ad_client_secret
   }
 
   tags = {
@@ -151,101 +145,7 @@ resource "azurerm_log_analytics_workspace" "workspace" {
 
 # Random suffix removed - using existing storage accounts
 
-# Azure AD B2C Resources
-provider "azuread" {
-  tenant_id = data.azurerm_subscription.current.tenant_id
-}
-
-# Azure AD B2C Directory (using existing tenant)
-data "azuread_client_config" "current" {}
-
-# Microsoft Graph Service Principal (for admin consent)
-data "azuread_service_principal" "graph" {
-  display_name = "Microsoft Graph"
-}
-
-# Azure AD Application for Function App
-resource "azuread_application" "function_app" {
-  display_name = "quote-backend-function-app"
-  owners       = [data.azuread_client_config.current.object_id]
-  identifier_uris = ["api://2a7ffc65-94da-4c58-9d06-06f0fc45962a"]
-
-  web {
-    implicit_grant {
-      access_token_issuance_enabled = false
-      id_token_issuance_enabled     = true
-    }
-  }
-
-  required_resource_access {
-    resource_app_id = "00000003-0000-0000-c000-000000000000" # Microsoft Graph
-    resource_access {
-      id   = "e1fe6dd8-ba31-4d61-89e7-88639da4633d" # User.Read
-      type = "Scope"
-    }
-    resource_access {
-      id   = "b340eb25-3d91-4169-bbdf-9c51564af439" # User.Read.All
-      type = "Scope"
-    }
-    resource_access {
-      id   = "5792c5b5-0199-40b6-9c85-c800336b8c2c" # GroupMember.Read.All
-      type = "Scope"
-    }
-  }
-}
-
-# Azure AD Service Principal
-resource "azuread_service_principal" "function_app" {
-  client_id = azuread_application.function_app.client_id
-  owners    = [data.azuread_client_config.current.object_id]
-}
-
-# Grant Admin Consent for Microsoft Graph Permissions
-resource "azuread_service_principal_delegated_permission_grant" "function_app" {
-  service_principal_object_id         = azuread_service_principal.function_app.object_id
-  resource_service_principal_object_id = data.azuread_service_principal.graph.object_id
-  claim_values                        = [
-    "e1fe6dd8-ba31-4d61-89e7-88639da4633d", # User.Read
-    "b340eb25-3d91-4169-bbdf-9c51564af439", # User.Read.All
-    "5792c5b5-0199-40b6-9c85-c800336b8c2c"  # GroupMember.Read.All
-  ]
-}
-
-# Azure AD Application Password (Client Secret)
-resource "azuread_application_password" "function_app" {
-  application_id = azuread_application.function_app.id
-}
-
-# Azure AD User Groups
-resource "azuread_group" "admin" {
-  display_name     = "ADMIN"
-  security_enabled = true
-  owners           = [data.azuread_client_config.current.object_id]
-}
-
-resource "azuread_group" "user" {
-  display_name     = "USER"
-  security_enabled = true
-  owners           = [data.azuread_client_config.current.object_id]
-}
-
 # Outputs
-output "azure_ad_client_secret" {
-  description = "Azure AD client secret"
-  value       = azuread_application_password.function_app.value
-  sensitive   = true
-}
-
-output "azure_ad_client_id" {
-  description = "Azure AD client ID"
-  value       = azuread_application.function_app.client_id
-}
-
-output "admin_consent_url" {
-  description = "URL to grant admin consent for the application"
-  value       = "https://login.microsoftonline.com/${data.azurerm_subscription.current.tenant_id}/adminconsent?client_id=${azuread_application.function_app.client_id}"
-}
-
 output "application_insights_connection_string" {
   description = "Application Insights connection string"
   value       = azurerm_application_insights.app_insights.connection_string

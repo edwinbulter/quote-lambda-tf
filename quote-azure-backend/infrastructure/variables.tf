@@ -1,7 +1,7 @@
 variable "location" {
   description = "Azure region"
   type        = string
-  default     = "Germany West Central"
+  default     = "West Europe"
 }
 
 variable "resource_group_name" {
@@ -22,26 +22,19 @@ variable "storage_account_name" {
   default     = "quotebackendstorage"
 }
 
-variable "azure_ad_client_secret" {
-  description = "Azure AD client secret"
+variable "table_storage_account_name" {
+  description = "Table storage account name"
+  type        = string
+}
+
+variable "jwt_signing_key" {
+  description = "JWT signing key for authentication"
   type        = string
   sensitive   = true
 }
 
-variable "azure_ad_domain" {
-  description = "Azure AD domain"
+variable "api_gateway_publisher_email" {
+  description = "Email for API Gateway notifications"
   type        = string
-  default     = "edwinbulteroutlook.onmicrosoft.com"
-}
-
-variable "azure_ad_instance" {
-  description = "Azure AD instance URL"
-  type        = string
-  default     = "https://login.microsoftonline.com/"
-}
-
-variable "table_storage_account_name" {
-  description = "Table storage account name"
-  type        = string
-  default     = "qbtstk9asli"
+  default     = "admin@example.com"
 }

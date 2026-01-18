@@ -1,12 +1,12 @@
 # Azure Infrastructure Setup
 
-This directory contains the Terraform configuration for deploying the Azure backend infrastructure.
+This directory contains the Terraform configuration for deploying the Azure backend infrastructure with self-hosted JWT authentication and API Gateway.
 
 ## Prerequisites
 
 - Azure CLI installed and configured
 - Terraform installed
-- Appropriate Azure permissions
+- Appropriate Azure permissions (Contributor level on subscription)
 
 ## Setup Steps
 
@@ -22,95 +22,205 @@ Copy the template file and fill in your values:
 cp terraform.tfvars.template terraform.tfvars
 ```
 
-Edit `terraform.tfvars` with your specific values:
-- `b2c_client_secret`: Get from `terraform output b2c_client_secret` after initial apply
-- `b2c_domain`: Your Azure AD B2C tenant domain
-- `b2c_instance`: Your B2C instance URL
-- `table_storage_account_name`: Your table storage account name
+Edit `terraform.tfvars` with your specific values (see Variables section below).
 
 ### 3. Deploy Infrastructure
 
-Initial deployment (creates Azure AD resources):
+Deploy all resources including the API Gateway:
 ```bash
 terraform apply
 ```
 
-### 4. Create Azure AD User Groups
+### 4. Create Default Admin User
 
-⚠️ **Important**: Azure AD authentication is much simpler than B2C
+After deployment, create an admin user using the seeded endpoint:
+```bash
+# Get the function URL from Terraform outputs
+FUNCTION_URL=$(terraform output function_app_url | tr -d '"')
 
-The Terraform configuration automatically creates:
-- **ADMIN** group for administrative users
-- **USER** group for regular users
-
-No manual setup required! Just assign users to groups in Azure Portal:
-1. Go to Azure Portal → Azure AD
-2. Navigate to "Groups"
-3. Add users to ADMIN or USER groups as needed
+# Create admin user (replace with your details)
+curl -X POST "https://${FUNCTION_URL}/api/seed-users" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "username": "admin",
+    "password": "YourSecurePassword123!"
+  }'
+```
 
 ### 5. Deploy Application Code
 
-Deploy the updated Azure Functions with authentication:
+Deploy the Azure Functions with JWT authentication:
 ```bash
 cd ../src
 dotnet build --configuration Release
-# Deploy using your preferred method (GitHub Actions, Azure CLI, etc.)
+func azure functionapp publish quote-backend-function
 ```
 
-### 6. Test Authentication
+### 6. Configure API Gateway JWT Validation
 
-Test the authentication endpoints:
+After deployment, you need to update the API Gateway with your JWT signing key:
+
+1. Go to Azure Portal → API Gateway → quote-api-gateway
+2. Navigate to APIs → quote-backend-api
+3. Go to Inbound processing
+4. Edit the JWT validation policy
+5. Replace `{{jwt-signing-key}}` with your actual JWT key from local.settings.json
+
+### 7. Test Authentication
+
+Test the JWT authentication endpoints:
 ```bash
-# Get Azure AD token for testing
-az account get-access-token --resource <your-client-id> --query accessToken -o tsv
+# Get API Gateway URL
+API_URL=$(terraform output api_gateway_url | tr -d '"')
+
+# Register a new user
+curl -X POST "${API_URL}/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "username": "testuser",
+    "password": "User123!",
+    "confirmPassword": "User123!"
+  }'
+
+# Login to get JWT token
+TOKEN=$(curl -s -X POST "${API_URL}/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "User123!"
+  }' | jq -r '.token')
 
 # Test API with token
-curl -H "Authorization: Bearer <token>" https://<function-app-url>/api/quotes
+curl -H "Authorization: Bearer ${TOKEN}" "${API_URL}/quote"
 ```
 
 ## Variables
 
-### Required Variables
+### terraform.tfvars Configuration
 
-| Variable | Description | How to Find |
-|-----------|-------------|-------------|
-| `azure_ad_client_secret` | Azure AD client secret | `terraform output azure_ad_client_secret` |
-| `azure_ad_domain` | Azure AD tenant domain | `az ad tenant show --query "defaultDomain"` |
-| `azure_ad_instance` | Azure AD instance URL | Standard: `https://login.microsoftonline.com/` |
-| `table_storage_account_name` | Table storage account | `az storage account list -g quote-backend-rg` |
+Add these variables to your `terraform.tfvars` file:
+
+```hcl
+# Storage Configuration
+table_storage_account_name = "your-storage-account-name"  # Your existing storage account name
+
+# JWT Configuration (generate your own secure key)
+jwt_signing_key = "your-super-secret-jwt-key-that-is-at-least-256-bits-long"
+
+# API Gateway Configuration
+api_gateway_publisher_email = "admin@example.com"  # Your email for API Gateway notifications
+
+# Optional: Override defaults if needed
+location = "West Europe"
+resource_group_name = "quote-backend-rg"
+function_app_name = "quote-backend-function"
+```
+
+### How to Obtain Values
+
+| Variable | Description | How to Obtain/Generate |
+|-----------|-------------|------------------------|
+| `table_storage_account_name` | Existing storage account name | Use your current storage account name |
+| `jwt_signing_key` | Secret key for JWT token signing | Generate a cryptographically secure random string (at least 256 bits) |
+| `api_gateway_publisher_email` | Email for API Gateway notifications | Use your admin email address |
+
+#### Generating a Secure JWT Key
+
+Use one of these methods to generate a secure JWT signing key:
+
+**Option 1: Using OpenSSL (recommended)**
+```bash
+openssl rand -base64 32
+```
+
+**Option 2: Using PowerShell**
+```powershell
+Add-Type -AssemblyName System.Web
+[System.Web.Security.Membership]::GeneratePassword(32, 5)
+```
+
+**Option 3: Using Python**
+```python
+import secrets
+print(secrets.token_urlsafe(32))
+```
+
+**Option 4: Using an online generator**
+- Visit https://randomkeygen.com/ or similar
+- Generate a 256-bit key
+- Ensure it's URL-safe and Base64 encoded
 
 ### Optional Variables
 
 | Variable | Default | Description |
 |-----------|---------|-------------|
-| `location` | "Germany West Central" | Azure region |
+| `location` | "West Europe" | Azure region for deployment |
 | `resource_group_name` | "quote-backend-rg" | Resource group name |
 | `function_app_name` | "quote-backend-function" | Function app name |
+| `api_gateway_name` | "quote-api-gateway" | API Gateway name |
+
+## Architecture Overview
+
+The deployed infrastructure includes:
+
+1. **Function App**: Serverless functions with JWT authentication
+2. **API Gateway**: Secure proxy with automatic master key injection
+3. **Storage Account**: Tables for quotes, users, and user activity
+4. **Application Insights**: Monitoring and logging
+
+### API Gateway Benefits
+
+- **Security**: Master key never exposed to frontend
+- **Authentication**: JWT validation at gateway level
+- **Rate Limiting**: 100 calls/minute per IP
+- **CORS**: Centralized cross-origin configuration
+- **Logging**: Request/response logging to Application Insights
 
 ## Security Notes
 
 - `terraform.tfvars` contains sensitive information and is gitignored
-- Never commit `terraform.tfvars` to version control
-- Use environment variables for CI/CD deployments
-- Regularly rotate secrets
+- Never commit secrets to version control
+- Use a strong, randomly generated JWT signing key
+- Regularly rotate the JWT signing key
+- The API Gateway automatically handles master key security
 
 ## Outputs
 
 After deployment, you can retrieve important values:
 
 ```bash
-terraform output azure_ad_client_id
-terraform output azure_ad_client_secret
+# Function App URL (direct access)
 terraform output function_app_url
+
+# API Gateway URL (recommended for frontend)
+terraform output api_gateway_url
+
+# Resource Group Name
+terraform output resource_group_name
+
+# Storage Account Name
+terraform output storage_account_name
+```
+
+## Frontend Integration
+
+Update your frontend configuration to use the API Gateway:
+
+```javascript
+// Use the API Gateway URL instead of direct Function App URL
+const API_BASE_URL = "https://quote-api-gateway.azure-api.net/quote";
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Authentication failures**: Check Azure AD app registration and client secret
-2. **Group membership issues**: Verify users are in correct Azure AD groups
-3. **Token validation errors**: Ensure correct tenant ID and client ID
+1. **JWT validation errors**: Ensure the JWT key in API Gateway matches your application settings
+2. **CORS errors**: Check that your frontend domain is in the allowed origins list
+3. **Rate limiting**: Monitor API usage and adjust limits if needed
+4. **Authentication failures**: Verify JWT token format and expiration
 
 ### Useful Commands
 
@@ -118,10 +228,15 @@ terraform output function_app_url
 # Check Terraform state
 terraform state list
 
-# Import existing resources
-terraform import azurerm_storage_account.sa /subscriptions/.../resourceGroups/.../providers/Microsoft.Storage/storageAccounts/account-name
+# View Terraform outputs
+terraform output
 
-# Get B2C tenant info
-az ad tenant show
-az ad app list --display-name "quote-backend-function-app"
+# Check Function App logs
+az webapp log tail --resource-group quote-backend-rg --name quote-backend-function
+
+# Test API Gateway directly
+curl -H "Authorization: Bearer <token>" https://quote-api-gateway.azure-api.net/quote
+
+# Monitor Application Insights
+az monitor app-insights query --app quote-backend-ai --analytics-query "requests | where timestamp > ago(1h)"
 ```
