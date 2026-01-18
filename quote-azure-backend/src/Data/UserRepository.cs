@@ -16,9 +16,8 @@ namespace QuoteAzureBackend.Data
 
         public UserRepository(IConfiguration config, ILogger<UserRepository> logger)
         {
-            // Uses the SAME storage account as other tables (qbtstk9asli)
             var connectionString = config["TableStorageConnectionString"];
-            var tableName = "users"; // New table for JWT authentication
+            var tableName = "users";
             
             _tableClient = new TableClient(connectionString, tableName);
             _tableClient.CreateIfNotExists(); // Auto-creates the Users table
@@ -183,7 +182,7 @@ namespace QuoteAzureBackend.Data
                 ["Email"] = user.Email,
                 ["PasswordHash"] = user.PasswordHash,
                 ["CreatedAt"] = user.CreatedAt,
-                ["UpdatedAt"] = DateTime.UtcNow, // Always update the timestamp
+                ["UpdatedAt"] = DateTime.UtcNow,
                 ["IsActive"] = user.IsActive,
                 ["PasswordResetToken"] = user.PasswordResetToken,
                 ["PasswordResetExpires"] = user.PasswordResetExpires
@@ -193,7 +192,7 @@ namespace QuoteAzureBackend.Data
             {
                 await _tableClient.UpdateEntityAsync(entity, new ETag("*"), TableUpdateMode.Replace);
                 _logger.LogInformation("User updated successfully with ID: {UserId}", user.Id);
-                user.UpdatedAt = DateTime.UtcNow; // Update the user object as well
+                user.UpdatedAt = DateTime.UtcNow;
                 return user;
             }
             catch (RequestFailedException ex)
