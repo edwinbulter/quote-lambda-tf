@@ -145,61 +145,7 @@ namespace QuoteAzureBackend.Data
             }
         }
 
-        public Task<bool> RecordViewAsync(UserViewHistory viewHistory)
-        {
-            // No longer needed - view tracking is handled by the progress table
-            // Keeping method for interface compatibility
-            _logger.LogDebug("RecordViewAsync called - views are tracked via progress table");
-            return Task.FromResult(true);
-        }
-
-        public async Task<List<int>> GetUserViewHistoryQuoteIdsAsync(string userId, int limit)
-        {
-            try
-            {
-                // Get viewed quotes from progress table (quotes 1 to lastQuoteId)
-                var viewedQuoteIds = new List<int>();
-                var progress = await GetUserPreferencesAsync(userId);
-                
-                if (progress != null && progress.LastQuoteId > 0)
-                {
-                    // Return quotes 1 through lastQuoteId
-                    var startId = Math.Max(1, progress.LastQuoteId - limit + 1);
-                    for (int i = startId; i <= progress.LastQuoteId; i++)
-                    {
-                        viewedQuoteIds.Add(i);
-                    }
-                }
-                
-                return viewedQuoteIds;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting user view history");
-                return new List<int>();
-            }
-        }
-
-        // Placeholder implementations for existing interface methods
-        public async Task<bool> AddFavoriteAsync(UserFavorite favorite)
-        {
-            // For now, treat favorites as likes
-            return await AddUserLikeAsync(favorite.UserId, favorite.QuoteId);
-        }
-
-        public async Task<bool> RemoveFavoriteAsync(string userId, int quoteId)
-        {
-            // For now, treat favorites as likes
-            return await RemoveUserLikeAsync(userId, quoteId);
-        }
-
-        public async Task<List<int>> GetUserFavoriteQuoteIdsAsync(string userId)
-        {
-            // For now, treat favorites as likes
-            return await GetUserLikedQuoteIdsAsync(userId);
-        }
-
-        public async Task<UserPreferences?> GetUserPreferencesAsync(string userId)
+        public async Task<UserProgress?> GetUserProgressAsync(string userId)
         {
             try
             {
@@ -216,9 +162,9 @@ namespace QuoteAzureBackend.Data
                     return null;
                 }
                 
-                return new UserPreferences
+                return new UserProgress
                 {
-                    UserId = entity.PartitionKey,
+                    Username = entity.PartitionKey,
                     LastQuoteId = entity.ContainsKey("LastQuoteId") ? entity.GetInt32("LastQuoteId") ?? 0 : 0,
                     UpdatedAt = entity.ContainsKey("UpdatedAt") ? entity.GetDateTime("UpdatedAt") ?? DateTime.UtcNow : DateTime.UtcNow
                 };
@@ -230,32 +176,25 @@ namespace QuoteAzureBackend.Data
             }
         }
 
-        public async Task<bool> UpdateUserPreferencesAsync(UserPreferences preferences)
+        public async Task<bool> UpdateUserPreferencesAsync(UserProgress preferences)
         {
             try
             {
-                var entity = new TableEntity(preferences.UserId, preferences.UserId)
+                var entity = new TableEntity(preferences.Username, preferences.Username)
                 {
                     ["LastQuoteId"] = preferences.LastQuoteId,
                     ["UpdatedAt"] = preferences.UpdatedAt
                 };
                 
                 await _progressTableClient.UpsertEntityAsync(entity);
-                _logger.LogInformation("Updated user preferences for {UserId}, LastQuoteId: {LastQuoteId}", preferences.UserId, preferences.LastQuoteId);
+                _logger.LogInformation("Updated user preferences for {Username}, LastQuoteId: {LastQuoteId}", preferences.Username, preferences.LastQuoteId);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating user preferences for {UserId}", preferences.UserId);
+                _logger.LogError(ex, "Error updating user preferences for {Username}", preferences.Username);
                 return false;
             }
-        }
-
-        // UserProgress-like methods to match Java implementation
-        public async Task<UserPreferences?> GetUserProgressAsync(string userId)
-        {
-            // Same as GetUserPreferencesAsync - just a different name for clarity
-            return await GetUserPreferencesAsync(userId);
         }
 
         public async Task<bool> UpdateLastQuoteIdAsync(string userId, int quoteId)
@@ -276,6 +215,25 @@ namespace QuoteAzureBackend.Data
             {
                 _logger.LogError(ex, "Error updating last quote ID for {UserId}", userId);
                 return false;
+            }
+        }
+        
+        public async Task<int> GetTotalLikesCountAsync()
+        {
+            try
+            {
+                var totalCount = 0;
+                await foreach (var entity in _likesTableClient.QueryAsync<UserLikeEntity>())
+                {
+                    totalCount++;
+                }
+                _logger.LogInformation("Total likes count: {Count}", totalCount);
+                return totalCount;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting total likes count");
+                return 0;
             }
         }
     }

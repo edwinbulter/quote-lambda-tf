@@ -36,9 +36,8 @@ namespace QuoteAzureBackend.Services
                 {
                     var adminUser = new AdminUserInfo
                     {
-                        ObjectId = userRole.ObjectId,
-                        Email = userRole.Email,
-                        DisplayName = userRole.Email, // Could be enhanced with Azure AD lookup
+                        Username = userRole.Username,
+                        DisplayName = userRole.Username, // Could be enhanced with Azure AD lookup
                         Role = userRole.Role,
                         CreatedAt = userRole.CreatedAt,
                         UpdatedAt = userRole.UpdatedAt,

@@ -93,7 +93,7 @@ namespace QuoteAzureBackend.Services
             try
             {
                 // Fetch quotes from ZenQuotes API
-                var newQuotes = await _zenQuotesService.GetMultipleQuotesAsync(10); // Get 10 random quotes
+                var newQuotes = await _zenQuotesService.GetMultipleQuotesAsync(); // Get 10 random quotes
                 
                 var quotesAdded = 0;
                 var totalQuotes = 0;
@@ -161,16 +161,8 @@ namespace QuoteAzureBackend.Services
         {
             try
             {
-                // Get all quotes and sum their like counts
-                var allQuotes = await _quoteRepository.GetAllQuotesAsync();
-                var totalLikes = 0;
-                
-                foreach (var quote in allQuotes)
-                {
-                    totalLikes += await GetLikeCountAsync(quote.Id);
-                }
-                
-                return totalLikes;
+                // Get total likes by counting all records in userlikes table
+                return await _userActivityRepository.GetTotalLikesCountAsync();
             }
             catch (Exception ex)
             {

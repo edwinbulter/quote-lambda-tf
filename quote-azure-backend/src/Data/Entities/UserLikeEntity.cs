@@ -10,18 +10,18 @@ namespace QuoteAzureBackend.Data.Entities
         public DateTimeOffset? Timestamp { get; set; }
         public ETag ETag { get; set; }
 
-        public string UserId { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
         public int QuoteId { get; set; }
         public int Order { get; set; }
         public DateTime LikedAt { get; set; }
 
         public UserLikeEntity() { }
 
-        public UserLikeEntity(string userId, int quoteId)
+        public UserLikeEntity(string username, int quoteId)
         {
-            PartitionKey = userId;
-            RowKey = $"{userId}_{quoteId}";
-            UserId = userId;
+            PartitionKey = username;
+            RowKey = $"{username}_{quoteId}";
+            Username = username;
             QuoteId = quoteId;
             LikedAt = DateTime.UtcNow;
         }

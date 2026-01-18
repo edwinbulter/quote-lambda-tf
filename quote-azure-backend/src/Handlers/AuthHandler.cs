@@ -53,14 +53,13 @@ namespace QuoteAzureBackend.Handlers
                 var user = await _userService.RegisterAsync(registerRequest);
 
                 var response = req.CreateResponse(HttpStatusCode.Created);
-                await response.WriteStringAsync(JsonSerializer.Serialize(new
+                await response.WriteAsJsonAsync(new
                 {
                     message = "User registered successfully",
                     userId = user.Id,
                     email = user.Email,
-                    username = user.Username,
-                    role = user.Role
-                }));
+                    username = user.Username
+                });
 
                 return response;
             }

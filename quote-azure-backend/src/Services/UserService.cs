@@ -11,17 +11,20 @@ namespace QuoteAzureBackend.Services
         private readonly IUserRepository _userRepository;
         private readonly IJwtService _jwtService;
         private readonly IPasswordHasher<Models.User> _passwordHasher;
+        private readonly IUserRoleRepository _userRoleRepository;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
             IUserRepository userRepository,
             IJwtService jwtService,
             IPasswordHasher<Models.User> passwordHasher,
+            IUserRoleRepository userRoleRepository,
             ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
             _passwordHasher = passwordHasher;
+            _userRoleRepository = userRoleRepository;
             _logger = logger;
         }
 
@@ -44,7 +47,6 @@ namespace QuoteAzureBackend.Services
             {
                 Email = request.Email,
                 Username = request.Username,
-                Role = "User", // Default role
                 IsActive = true
             };
 
@@ -54,6 +56,10 @@ namespace QuoteAzureBackend.Services
             try
             {
                 var createdUser = await _userRepository.CreateAsync(user);
+                
+                // Assign default USER role
+                await _userRoleRepository.AssignRoleAsync(user.Username, "USER", "system");
+                
                 _logger.LogInformation("User registered successfully with email: {Email}", request.Email);
                 return createdUser;
             }
@@ -153,34 +159,101 @@ namespace QuoteAzureBackend.Services
 
         public async Task<bool> UpdateUserRoleAsync(string adminId, UpdateRoleRequest request)
         {
-            // Verify admin user
-            var admin = await _userRepository.GetByIdAsync(adminId);
-            if (admin == null || !IsAdminAsync(adminId).Result)
-            {
-                throw new UnauthorizedAccessException("Only administrators can update user roles");
-            }
-
-            // Find user to update
-            var user = await _userRepository.GetByIdAsync(request.UserId);
-            if (user == null)
-            {
-                throw new InvalidOperationException("User not found");
-            }
-
-            // Update role
-            user.Role = request.NewRole;
-            user.UpdatedAt = DateTime.UtcNow;
-
             try
             {
+                // Verify admin user
+                var admin = await _userRepository.GetByIdAsync(adminId);
+                if (admin == null || !await IsAdminAsync(adminId))
+                {
+                    throw new UnauthorizedAccessException("Only administrators can update user roles");
+                }
+
+                // Find user to update - try by ID first, then by username
+                var user = await _userRepository.GetByIdAsync(request.UserId);
+                if (user == null)
+                {
+                    // If not found by ID, try by username
+                    user = await _userRepository.GetByUsernameAsync(request.UserId);
+                }
+                
+                if (user == null)
+                {
+                    throw new InvalidOperationException("User not found");
+                }
+
+                // Update role in userroles table
+                var success = await _userRoleRepository.AssignRoleAsync(
+                    user.Username, 
+                    request.NewRole, 
+                    adminId
+                );
+                
+                if (!success)
+                {
+                    throw new InvalidOperationException("Failed to update user role");
+                }
+
+                // Update user repository timestamp
+                user.UpdatedAt = DateTime.UtcNow;
                 await _userRepository.UpdateAsync(user);
-                _logger.LogInformation("User role updated successfully. User ID: {UserId}, New Role: {Role}, Updated by: {AdminId}", 
-                    request.UserId, request.NewRole, adminId);
+
+                _logger.LogInformation("User role updated successfully. Username: {Username}, New Role: {Role}, Updated by: {AdminId}", 
+                    user.Username, request.NewRole, adminId);
                 return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating user role for user ID: {UserId}", request.UserId);
+                throw;
+            }
+        }
+
+        public async Task<bool> RemoveUserRoleAsync(string adminId, UpdateRoleRequest request)
+        {
+            try
+            {
+                // Verify admin user
+                var admin = await _userRepository.GetByIdAsync(adminId);
+                if (admin == null || !await IsAdminAsync(adminId))
+                {
+                    throw new UnauthorizedAccessException("Only administrators can remove user roles");
+                }
+
+                // Find user to update - try by ID first, then by username
+                var user = await _userRepository.GetByIdAsync(request.UserId);
+                if (user == null)
+                {
+                    // If not found by ID, try by username
+                    user = await _userRepository.GetByUsernameAsync(request.UserId);
+                }
+                
+                if (user == null)
+                {
+                    throw new InvalidOperationException("User not found");
+                }
+
+                // Remove role in userroles table
+                var success = await _userRoleRepository.RemoveRoleAsync(
+                    user.Username, 
+                    request.NewRole
+                );
+                
+                if (!success)
+                {
+                    throw new InvalidOperationException("Failed to remove user role");
+                }
+
+                // Update user repository timestamp
+                user.UpdatedAt = DateTime.UtcNow;
+                await _userRepository.UpdateAsync(user);
+
+                _logger.LogInformation("User role removed successfully. Username: {Username}, Removed Role: {Role}, Removed by: {AdminId}", 
+                    user.Username, request.NewRole, adminId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing user role for user ID: {UserId}", request.UserId);
                 throw;
             }
         }
@@ -193,7 +266,7 @@ namespace QuoteAzureBackend.Services
         public async Task<IEnumerable<User>> GetAllUsersAsync(string adminId)
         {
             // Verify admin user
-            if (!IsAdminAsync(adminId).Result)
+            if (!await IsAdminAsync(adminId))
             {
                 throw new UnauthorizedAccessException("Only administrators can view all users");
             }
@@ -213,13 +286,19 @@ namespace QuoteAzureBackend.Services
 
         public async Task<bool> IsUserInRoleAsync(string userId, string role)
         {
+            // Get user to find username
             var user = await _userRepository.GetByIdAsync(userId);
-            return user?.Role == role;
+            if (user == null)
+            {
+                return false;
+            }
+            
+            return await _userRoleRepository.IsUserInRoleAsync(user.Username, role);
         }
 
         public async Task<bool> IsAdminAsync(string userId)
         {
-            return await IsUserInRoleAsync(userId, "Admin");
+            return await IsUserInRoleAsync(userId, "ADMIN");
         }
 
         public async Task<bool> UnregisterAsync(string userId, string password)
@@ -241,7 +320,7 @@ namespace QuoteAzureBackend.Services
                 }
 
                 // Prevent deletion of admin users (self-protection)
-                if (user.Role == "Admin")
+                if (await _userRoleRepository.IsUserInRoleAsync(user.Username, "ADMIN"))
                 {
                     throw new InvalidOperationException("Cannot delete admin users");
                 }
@@ -253,7 +332,10 @@ namespace QuoteAzureBackend.Services
                     throw new InvalidOperationException("Failed to delete user");
                 }
 
-                _logger.LogInformation("User unregistered successfully: {UserId}", userId);
+                // Clean up user roles
+                await _userRoleRepository.RemoveAllRolesAsync(user.Username);
+
+                _logger.LogInformation("User unregistered successfully: {Username}", user.Username);
                 return true;
             }
             catch (Exception ex)

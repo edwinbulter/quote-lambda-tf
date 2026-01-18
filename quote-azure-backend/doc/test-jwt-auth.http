@@ -71,7 +71,7 @@ Content-Type: application/json
 
 > {%
 const responseBody = JSON.parse(response.body);
-client.global.set("adminToken", responseBody.token);
+client.global.set("authToken", responseBody.token);
 %}
 
 ### ============================================
@@ -114,11 +114,11 @@ Authorization: Bearer {{authToken}}
 ### ============================================
 
 ### 8. Like Quote
-POST {{baseUrl}}/api/quote/9/like?code={{master_key}}
+POST {{baseUrl}}/api/quote/8/like?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### 9. Unlike Quote
-DELETE {{baseUrl}}/api/quote/1/unlike?code={{master_key}}
+DELETE {{baseUrl}}/api/quote/2/unlike?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### 10. Get All Liked Quotes
@@ -147,29 +147,14 @@ DELETE {{baseUrl}}/api/quote/1/unlike?code={{master_key}}
 GET {{baseUrl}}/api/quote/liked?code={{master_key}}
 
 ### ============================================
-### REORDER ENDPOINTS
+### REORDER LIKED QUOTES
 ### ============================================
-
-### 16. Move Quote ID 3 to position 1
-PUT {{baseUrl}}/api/quote/9/reorder?code={{master_key}}
+### 16. Get All Liked Quotes
+GET {{baseUrl}}/api/quote/liked?code={{master_key}}
 Authorization: Bearer {{authToken}}
-Content-Type: application/json
 
-{
-  "newPosition": 6
-}
-
-### 17. Move Quote ID 1 to position 2
-PUT {{baseUrl}}/api/quote/1/reorder?code={{master_key}}
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-  "newPosition": 2
-}
-
-### 18. Move Quote ID 79 to position 3
-PUT {{baseUrl}}/api/quote/79/reorder?code={{master_key}}
+### 17. Move Quote ID 3 to position 1
+PUT {{baseUrl}}/api/quote/5/reorder?code={{master_key}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
@@ -177,34 +162,43 @@ Content-Type: application/json
   "newPosition": 3
 }
 
-### 19. Move Quote ID 61 to position 4
-PUT {{baseUrl}}/api/quote/61/reorder?code={{master_key}}
+### ============================================
+### MANAGEMENT ENDPOINTS (Admin only)
+### ============================================
+
+### 20. Get all users (admin only)
+GET {{baseUrl}}/api/manage/users?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 21. GET quotes
+GET {{baseUrl}}/api/manage/quotes?page=2&pageSize=50&sortBy=id&sortOrder=asc&code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 22. FETCH quotes (adds quotes to database)
+POST {{baseUrl}}/api/manage/quotes/fetch?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 23. Get stats (total likes)
+GET {{baseUrl}}/api/manage/stats?code={{master_key}}
+Authorization: Bearer {{authToken}}
+
+### 24. Update user role (admin only)
+PUT {{baseUrl}}/api/manage/users/role?code={{master_key}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "newPosition": 4
+  "userId": "testuser",
+  "newRole": "Admin"
 }
 
-### ============================================
-### USER MANAGEMENT ENDPOINTS (Admin only)
-### ============================================
-
-### 20. Get all users (admin only)
-GET {{baseUrl}}/api/users/all?code={{master_key}}
-Authorization: Bearer {{adminToken}}
-
-### 21. Get user by ID (admin only)
-GET {{baseUrl}}/api/admin/users/{{authToken}}?code={{master_key}}
-Authorization: Bearer {{adminToken}}
-
-### 22. Update user role (admin only)
-PUT {{baseUrl}}/api/admin/users/role?code={{master_key}}
-Authorization: Bearer {{adminToken}}
+### 25. Remove user role (admin only)
+DELETE {{baseUrl}}/api/manage/users/role?code={{master_key}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "userId": "USER_ID_HERE",
+  "userId": "testuser",
   "newRole": "Admin"
 }
 

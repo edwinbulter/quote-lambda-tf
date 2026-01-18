@@ -31,7 +31,6 @@ namespace QuoteAzureBackend.Data
             {
                 ["Email"] = user.Email,
                 ["PasswordHash"] = user.PasswordHash,
-                ["Role"] = user.Role,
                 ["CreatedAt"] = user.CreatedAt,
                 ["UpdatedAt"] = user.UpdatedAt,
                 ["IsActive"] = user.IsActive,
@@ -183,7 +182,6 @@ namespace QuoteAzureBackend.Data
             {
                 ["Email"] = user.Email,
                 ["PasswordHash"] = user.PasswordHash,
-                ["Role"] = user.Role,
                 ["CreatedAt"] = user.CreatedAt,
                 ["UpdatedAt"] = DateTime.UtcNow, // Always update the timestamp
                 ["IsActive"] = user.IsActive,
@@ -232,7 +230,6 @@ namespace QuoteAzureBackend.Data
                 Username = entity.RowKey,
                 Email = entity.GetString("Email") ?? string.Empty,
                 PasswordHash = entity.GetString("PasswordHash") ?? string.Empty,
-                Role = entity.GetString("Role") ?? "User",
                 CreatedAt = entity.GetDateTime("CreatedAt") ?? DateTime.UtcNow,
                 UpdatedAt = entity.GetDateTime("UpdatedAt") ?? DateTime.UtcNow,
                 IsActive = entity.GetBoolean("IsActive") ?? false,

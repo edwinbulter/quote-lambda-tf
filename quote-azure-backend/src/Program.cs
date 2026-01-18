@@ -36,7 +36,6 @@ var host = new HostBuilder()
         // Register services
         services.AddSingleton<IQuoteService, QuoteService>();
         services.AddSingleton<IZenQuotesService, ZenQuotesService>();
-        services.AddSingleton<IUserActivityService, UserActivityService>();
         services.AddSingleton<IQuoteManagementService, QuoteManagementService>();
         
         // Register JWT authentication services
@@ -46,9 +45,6 @@ var host = new HostBuilder()
         
         // Register password hasher for JWT authentication
         services.AddSingleton<IPasswordHasher<QuoteAzureBackend.Models.User>, PasswordHasher<QuoteAzureBackend.Models.User>>();
-        
-        // Keep existing authentication service for backward compatibility
-        services.AddSingleton<IAuthenticationService, AuthenticationService>();
         
         // Register admin services
         services.AddSingleton<IAdminService, AdminService>();

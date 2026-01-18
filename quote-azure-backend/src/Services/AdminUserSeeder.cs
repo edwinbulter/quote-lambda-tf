@@ -44,7 +44,6 @@ namespace QuoteAzureBackend.Services
                     Id = Guid.NewGuid().ToString(),
                     Email = "admin@quote-backend.local",
                     Username = "admin",
-                    Role = "Admin",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -58,8 +57,7 @@ namespace QuoteAzureBackend.Services
 
                 // Assign ADMIN role in userroles table
                 await _userRoleRepository.AssignRoleAsync(
-                    adminUser.Id,
-                    adminUser.Email,
+                    adminUser.Username,
                     "ADMIN",
                     "system"
                 );
@@ -95,7 +93,6 @@ namespace QuoteAzureBackend.Services
                     Id = Guid.NewGuid().ToString(),
                     Email = "user@example.com",
                     Username = "testuser",
-                    Role = "User",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -109,8 +106,7 @@ namespace QuoteAzureBackend.Services
 
                 // Assign USER role in userroles table
                 await _userRoleRepository.AssignRoleAsync(
-                    testUser.Id,
-                    testUser.Email,
+                    testUser.Username,
                     "USER",
                     "system"
                 );

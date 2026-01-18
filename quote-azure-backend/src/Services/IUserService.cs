@@ -9,6 +9,7 @@ namespace QuoteAzureBackend.Services
         Task<string> LoginAsync(LoginRequest request);
         Task<bool> ChangePasswordAsync(string userId, ChangePasswordRequest request);
         Task<bool> UpdateUserRoleAsync(string adminId, UpdateRoleRequest request);
+        Task<bool> RemoveUserRoleAsync(string adminId, UpdateRoleRequest request);
         Task<User?> GetUserByIdAsync(string id);
         Task<IEnumerable<User>> GetAllUsersAsync(string adminId);
         Task<bool> IsUserInRoleAsync(string userId, string role);

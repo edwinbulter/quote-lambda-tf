@@ -34,12 +34,6 @@ namespace QuoteAzureBackend.Handlers
                         return req.CreateResponse(HttpStatusCode.NotFound);
                     }
                     
-                    // Record view if user is authenticated
-                    if (!string.IsNullOrEmpty(userId))
-                    {
-                        await quoteService.RecordViewAsync(userId, quote.Id);
-                    }
-
                     var response = req.CreateResponse(HttpStatusCode.OK);
                     await response.WriteAsJsonAsync(quote);
                     return response;
@@ -261,13 +255,7 @@ namespace QuoteAzureBackend.Handlers
                     logger.LogWarning("No quotes available in database");
                     return req.CreateResponse(HttpStatusCode.NotFound);
                 }
-
-                // Record view if user is authenticated
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    await quoteService.RecordViewAsync(userId, quote.Id);
-                }
-
+                
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(quote);
                 return response;

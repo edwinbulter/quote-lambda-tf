@@ -1,3 +1,9 @@
+## Publish
+
+```shell
+cd ~/IdeaProjects/quote-lambda-tf/quote-azure-backend/src && func azure functionapp publish quote-backend-function
+```
+
 
 ## Logging
 

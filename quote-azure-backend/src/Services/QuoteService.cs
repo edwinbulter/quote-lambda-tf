@@ -14,10 +14,7 @@ namespace QuoteAzureBackend.Services
         Task<int> GetLikeCountAsync(int quoteId);
         Task<bool> HasUserLikedQuoteAsync(string username, int quoteId);
         Task<Quote?> GetPreviousQuoteAsync(string username, int currentQuoteId);
-        Task<Quote?> GetNextQuoteAsync(string username, int currentQuoteId);
-        Task<UserProgress?> GetUserProgressAsync(string username);
         Task<List<Quote>> GetViewedQuotesAsync(string username);
-        Task<bool> RecordViewAsync(string username, int quoteId);
         Task ReorderLikedQuoteAsync(string username, int quoteId, int newOrder);
         Task ResetUserProgressAsync(string username);
     }
@@ -152,7 +149,7 @@ namespace QuoteAzureBackend.Services
             try
             {
                 _logger.LogInformation("Fetching quotes from ZenQuotes API");
-                var fetchedQuotes = await _zenQuotesService.GetMultipleQuotesAsync(50);
+                var fetchedQuotes = await _zenQuotesService.GetMultipleQuotesAsync();
                 _logger.LogInformation("Fetched {Count} quotes from ZenQuotes", fetchedQuotes?.Count ?? 0);
                 
                 var currentDatabaseQuotes = await _quoteRepository.GetAllQuotesAsync();
@@ -205,9 +202,9 @@ namespace QuoteAzureBackend.Services
             var quote = await _quoteRepository.GetQuoteByIdAsync(quoteId);
             if (quote != null && !string.IsNullOrEmpty(username))
             {
-                await _userActivityRepository.UpdateUserPreferencesAsync(new UserPreferences
+                await _userActivityRepository.UpdateUserPreferencesAsync(new UserProgress
                 {
-                    UserId = username,
+                    Username = username,
                     LastQuoteId = quoteId,
                     UpdatedAt = DateTime.UtcNow
                 });
@@ -260,9 +257,9 @@ namespace QuoteAzureBackend.Services
                 var quote = await _quoteRepository.GetQuoteByIdAsync(id);
                 if (quote != null)
                 {
-                    await _userActivityRepository.UpdateUserPreferencesAsync(new UserPreferences
+                    await _userActivityRepository.UpdateUserPreferencesAsync(new UserProgress
                     {
-                        UserId = username,
+                        Username = username,
                         LastQuoteId = id,
                         UpdatedAt = DateTime.UtcNow
                     });
@@ -271,44 +268,8 @@ namespace QuoteAzureBackend.Services
             }
             return null;
         }
-
-        public async Task<Quote?> GetNextQuoteAsync(string username, int currentQuoteId)
-        {
-            if (string.IsNullOrEmpty(username)) return null;
-            
-            var allQuotes = await _quoteRepository.GetAllQuotesAsync();
-            int maxId = allQuotes.Any() ? allQuotes.Max(q => q.Id) : 0;
-            
-            for (int id = currentQuoteId + 1; id <= maxId; id++)
-            {
-                var quote = await _quoteRepository.GetQuoteByIdAsync(id);
-                if (quote != null)
-                {
-                    await _userActivityRepository.UpdateUserPreferencesAsync(new UserPreferences
-                    {
-                        UserId = username,
-                        LastQuoteId = id,
-                        UpdatedAt = DateTime.UtcNow
-                    });
-                    return quote;
-                }
-            }
-            return null;
-        }
-
-        public async Task<UserProgress?> GetUserProgressAsync(string username)
-        {
-            if (string.IsNullOrEmpty(username)) return null;
-            var preferences = await _userActivityRepository.GetUserPreferencesAsync(username);
-            if (preferences == null) return null;
-            return new UserProgress
-            {
-                Username = username,
-                LastQuoteId = preferences.LastQuoteId,
-                UpdatedAt = preferences.UpdatedAt ?? DateTime.UtcNow
-            };
-        }
-
+        
+        
         public async Task<List<Quote>> GetViewedQuotesAsync(string username)
         {
             // Return quotes 1 to lastQuoteId using the sequential system (matching Java implementation)
@@ -343,24 +304,6 @@ namespace QuoteAzureBackend.Services
             _logger.LogInformation("Retrieved {Count} viewed quotes for user {Username}", viewedQuotes.Count, username);
             return viewedQuotes;
         }
-
-        public Task<bool> RecordViewAsync(string userId, int quoteId)
-        {
-            try
-            {
-                // In the Java version, this updates the user progress
-                // But in C#, the progress is already updated in GetNextSequentialQuoteAsync
-                // So we don't need to do anything here, but we keep the method for compatibility
-                _logger.LogDebug("RecordViewAsync called for user {UserId}, quote {QuoteId} - progress already tracked", userId, quoteId);
-                return Task.FromResult(true);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error recording view for user {UserId}, quote {QuoteId}", userId, quoteId);
-                return Task.FromResult(false);
-            }
-        }
-
         
         public async Task ReorderLikedQuoteAsync(string username, int quoteId, int newOrder)
         {
@@ -412,9 +355,9 @@ namespace QuoteAzureBackend.Services
         public async Task ResetUserProgressAsync(string username)
         {
             if (string.IsNullOrEmpty(username)) return;
-            await _userActivityRepository.UpdateUserPreferencesAsync(new UserPreferences
+            await _userActivityRepository.UpdateUserPreferencesAsync(new UserProgress
             {
-                UserId = username,
+                Username = username,
                 LastQuoteId = 0,
                 UpdatedAt = DateTime.UtcNow
             });

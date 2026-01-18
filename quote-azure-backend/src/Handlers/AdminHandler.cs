@@ -38,40 +38,9 @@ namespace QuoteAzureBackend.Handlers
         }
 
         
-        [Function("GetAllUsersAlternative")]
-        public async Task<HttpResponseData> GetAllUsersAlternative(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users/all")] HttpRequestData req)
-        {
-            _logger.LogInformation("Processing get all users request");
-
-            try
-            {
-                if (!await IsCurrentUserAdminViaMiddleware(req))
-                {
-                    var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
-                    await forbiddenResponse.WriteStringAsync("Admin access required");
-                    return forbiddenResponse;
-                }
-
-                var users = await _adminService.ListAllUsersAsync();
-                
-                var response = req.CreateResponse(HttpStatusCode.OK);
-                await response.WriteAsJsonAsync(users);
-                return response;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error listing users");
-                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
-                await errorResponse.WriteStringAsync("Internal server error");
-                return errorResponse;
-            }
-        }
-
-        
         [Function("AdminGetQuotes")]
         public async Task<HttpResponseData> AdminGetQuotesAsync(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/quotes")] HttpRequestData req)
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "manage/quotes")] HttpRequestData req)
         {
             try
             {
@@ -108,7 +77,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("AdminAddQuotes")]
         public async Task<HttpResponseData> AdminAddQuotesAsync(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/quotes/fetch")] HttpRequestData req)
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "manage/quotes/fetch")] HttpRequestData req)
         {
             try
             {
@@ -140,7 +109,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("AdminGetStats")]
         public async Task<HttpResponseData> AdminGetStatsAsync(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/stats")] HttpRequestData req)
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "manage/stats")] HttpRequestData req)
         {
             try
             {
@@ -174,7 +143,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("AdminDeleteQuote")]
         public async Task<HttpResponseData> AdminDeleteQuoteAsync(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "admin/quotes/{id}")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "manage/quotes/{id}")] HttpRequestData req,
             int id)
         {
             try
@@ -214,7 +183,7 @@ namespace QuoteAzureBackend.Handlers
 
         [Function("AdminUpdateQuote")]
         public async Task<HttpResponseData> AdminUpdateQuoteAsync(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/quotes/{id}")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Function, "put", Route = "manage/quotes/{id}")] HttpRequestData req,
             int id)
         {
             try

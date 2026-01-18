@@ -74,8 +74,7 @@ namespace QuoteAzureBackend.Middleware
             {
                 Id = userInfo.ObjectId ?? string.Empty,
                 Email = userInfo.Email ?? string.Empty,
-                Username = userInfo.DisplayName ?? string.Empty,
-                Role = userInfo.Role ?? "User"
+                Username = userInfo.DisplayName ?? string.Empty
             };
         }
 
