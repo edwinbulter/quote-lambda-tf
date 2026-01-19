@@ -24,8 +24,8 @@ data "azurerm_subscription" "current" {}
 
 # Resource Group
 resource "azurerm_resource_group" "rg" {
-  name     = "quote-backend-rg"
-  location = "West Europe"
+  name     = var.resource_group_name
+  location = var.location
 }
 
 # Storage Account for Function App is the same as table storage account
@@ -74,7 +74,7 @@ resource "azurerm_storage_table" "userprogress" {
 
 # Function App (Windows Consumption Plan)
 resource "azurerm_windows_function_app" "function_app" {
-  name                = "quote-backend-function"
+  name                = var.function_app_name
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 

@@ -2,20 +2,48 @@
 
 This directory contains the Terraform configuration for deploying the Azure backend infrastructure with self-hosted JWT authentication and API Gateway.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Setup Steps](#setup-steps)
+- [Variables](#variables)
+- [Architecture Overview](#architecture-overview)
+- [Security Notes](#security-notes)
+- [Outputs](#outputs)
+- [Frontend Integration](#frontend-integration)
+- [Troubleshooting](#troubleshooting)
+
 ## Prerequisites
 
 - Azure CLI installed and configured
 - Terraform installed
 - Appropriate Azure permissions (Contributor level on subscription)
+- **Remote backend setup**: See [README-backend.md](./README-backend.md) for Terraform state backend configuration
 
 ## Setup Steps
 
-### 1. Initialize Terraform
+### 1. Configure Remote Backend (First Time Only)
+
+Before initializing Terraform, set up the remote backend to store state securely in Azure:
+
+1. Run the backend setup script:
+   ```bash
+   ./setup-backend.sh
+   ```
+
+2. Create your local `backend.tf` file (see [README-backend.md](./README-backend.md) for details)
+
+3. Initialize Terraform with backend migration:
+   ```bash
+   terraform init -migrate-state
+   ```
+
+### 2. Initialize Terraform (After Backend Setup)
 ```bash
 terraform init
 ```
 
-### 2. Configure Variables
+### 3. Configure Variables
 
 Copy the template file and fill in your values:
 ```bash
@@ -24,14 +52,14 @@ cp terraform.tfvars.template terraform.tfvars
 
 Edit `terraform.tfvars` with your specific values (see Variables section below).
 
-### 3. Deploy Infrastructure
+### 4. Deploy Infrastructure
 
 Deploy all resources including the API Gateway:
 ```bash
 terraform apply
 ```
 
-### 4. Create Default Admin User
+### 5. Create Default Admin User
 
 After deployment, create an admin user using the seeded endpoint:
 ```bash
@@ -48,7 +76,7 @@ curl -X POST "https://${FUNCTION_URL}/api/seed-users" \
   }'
 ```
 
-### 5. Deploy Application Code
+### 6. Deploy Application Code
 
 Deploy the Azure Functions with JWT authentication:
 ```bash
@@ -57,7 +85,7 @@ dotnet build --configuration Release
 func azure functionapp publish quote-backend-function
 ```
 
-### 6. Configure API Gateway JWT Validation
+### 7. Configure API Gateway JWT Validation
 
 After deployment, you need to update the API Gateway with your JWT signing key:
 
@@ -67,7 +95,7 @@ After deployment, you need to update the API Gateway with your JWT signing key:
 4. Edit the JWT validation policy
 5. Replace `{{jwt-signing-key}}` with your actual JWT key from local.settings.json
 
-### 7. Test Authentication
+### 8. Test Authentication
 
 Test the JWT authentication endpoints:
 ```bash

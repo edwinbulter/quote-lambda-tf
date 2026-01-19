@@ -63,6 +63,9 @@ yarn-error.log*
 terraform.tfvars
 *.tfvars
 
+# Terraform backend configuration (contains sensitive data)
+**/backend.tf
+
 # Application settings with secrets
 **/appsettings.json
 appsettings.*.json

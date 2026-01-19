@@ -1,9 +1,9 @@
 # API Gateway Instance
 resource "azurerm_api_management" "quote_api" {
-  name                = "quote-api-gateway"
+  name                = var.api_gateway_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  publisher_email     = "admin@example.com"
+  publisher_email     = var.api_gateway_publisher_email
   publisher_name      = "Quote Backend API"
   sku_name            = "Developer_1"
 }
