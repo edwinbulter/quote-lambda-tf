@@ -16,5 +16,7 @@ namespace QuoteAzureBackend.Data
         Task<List<UserLikeEntity>> GetAllUserLikesAsync(string userId);
         Task<bool> UpdateUserLikeOrderAsync(string userId, int quoteId, int newOrder);
         Task<int> GetTotalLikesCountAsync();
+        Task<bool> RemoveAllUserLikesAsync(string userId);
+        Task<bool> RemoveUserProgressAsync(string userId);
     }
 }

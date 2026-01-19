@@ -22,7 +22,7 @@ POST {{baseUrl}}/api/seed-users?code={{master_key}}
 Content-Type: application/json
 
 ### 0.1 Register user (for testing)
-POST {{baseUrl}}/api/auth/register?code={{master_key}}
+POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
@@ -33,7 +33,7 @@ Content-Type: application/json
 }
 
 ### 0.2 Login to get JWT token (using email)
-POST {{baseUrl}}/api/auth/login?code={{master_key}}
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -47,7 +47,7 @@ client.global.set("authToken", responseBody.token);
 %}
 
 ### 0.2b Login to get JWT token (using username)
-POST {{baseUrl}}/api/auth/login?code={{master_key}}
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -109,19 +109,27 @@ Content-Type: application/json
 ]
 
 ### 3. Get All Liked Quotes (public endpoint)
-GET {{baseUrl}}/api/quote/liked?code={{master_key}}
+GET {{baseUrl}}/quote/liked
 Authorization: Bearer {{authToken}}
 
 ### ============================================
 ### AUTHENTICATED ENDPOINTS
 ### ============================================
 
-### 4. GET Quote with authentication (records view)
-GET {{baseUrl}}/api/quote?code={{master_key}}
+### 4. GET Quote with authentication (stores LastQuoteId in userprogress)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{authToken}}
+
+### 4.1 GET Quote with authentication, by function call (stores LastQuoteId in userprogress)
+GET {{function_url}}/quote?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### 5. GET View History (authenticated)
-GET {{baseUrl}}/api/quote/viewed?code={{master_key}}
+GET {{baseUrl}}/quote/viewed
+Authorization: Bearer {{authToken}}
+
+### 5.1 GET View History, by function call (authenticated)
+GET {{function_url}}/quote/viewed?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
 ### ============================================
@@ -129,19 +137,19 @@ Authorization: Bearer {{authToken}}
 ### ============================================
 
 ### 8. Like Quote
-POST {{baseUrl}}/api/quote/8/like?code={{master_key}}
+POST {{baseUrl}}/quote/7/like
 Authorization: Bearer {{authToken}}
 
 ### 9. Unlike Quote
-DELETE {{baseUrl}}/api/quote/2/unlike?code={{master_key}}
+DELETE {{baseUrl}}/quote/10/unlike
 Authorization: Bearer {{authToken}}
 
 ### 10. Get All Liked Quotes
-GET {{baseUrl}}/api/quote/liked?code={{master_key}}
+GET {{baseUrl}}/quote/liked
 Authorization: Bearer {{authToken}}
 
 ### 11. GET View History for user
-GET {{baseUrl}}/api/quote/viewed?code={{master_key}}
+GET {{baseUrl}}/quote/viewed
 Authorization: Bearer {{authToken}}
 
 ### ============================================
@@ -149,32 +157,32 @@ Authorization: Bearer {{authToken}}
 ### ============================================
 
 ### 12. GET View History without token (should return 401)
-GET {{baseUrl}}/api/quote/viewed?code={{master_key}}
+GET {{baseUrl}}/quote/viewed
 
 ### 13. Like Quote without token (should return 401)
-POST {{baseUrl}}/api/quote/1/like?code={{master_key}}
+POST {{baseUrl}}/quote/1/like
 Content-Type: application/json
 
 ### 14. Unlike Quote without token (should return 401)
-DELETE {{baseUrl}}/api/quote/1/unlike?code={{master_key}}
+DELETE {{baseUrl}}/quote/1/unlike
 
 ### 15. Get All Liked Quotes without token (should return 401)
-GET {{baseUrl}}/api/quote/liked?code={{master_key}}
+GET {{baseUrl}}/quote/liked
 
 ### ============================================
 ### REORDER LIKED QUOTES
 ### ============================================
 ### 16. Get All Liked Quotes
-GET {{baseUrl}}/api/quote/liked?code={{master_key}}
+GET {{baseUrl}}/quote/liked
 Authorization: Bearer {{authToken}}
 
 ### 17. Move Quote ID 3 to position 1
-PUT {{baseUrl}}/api/quote/5/reorder?code={{master_key}}
+PUT {{baseUrl}}/quote/3/reorder
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "newPosition": 3
+  "newPosition": 1
 }
 
 ### ============================================
@@ -182,23 +190,23 @@ Content-Type: application/json
 ### ============================================
 
 ### 20. Get all users (admin only)
-GET {{baseUrl}}/api/manage/users?code={{master_key}}
+GET {{baseUrl}}/manage/users
 Authorization: Bearer {{authToken}}
 
 ### 21. GET quotes
-GET {{baseUrl}}/api/manage/quotes?page=2&pageSize=50&sortBy=id&sortOrder=asc&code={{master_key}}
+GET {{baseUrl}}/manage/quotes?page=2&pageSize=50&sortBy=id&sortOrder=asc
 Authorization: Bearer {{authToken}}
 
 ### 22. FETCH quotes (adds quotes to database)
-POST {{baseUrl}}/api/manage/quotes/fetch?code={{master_key}}
+POST {{baseUrl}}/manage/quotes/fetch
 Authorization: Bearer {{authToken}}
 
 ### 23. Get stats (total likes)
-GET {{baseUrl}}/api/manage/stats?code={{master_key}}
+GET {{baseUrl}}/manage/stats
 Authorization: Bearer {{authToken}}
 
 ### 24. Update user role (admin only)
-PUT {{baseUrl}}/api/manage/users/role?code={{master_key}}
+PUT {{baseUrl}}/manage/users/role
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
@@ -208,7 +216,7 @@ Content-Type: application/json
 }
 
 ### 25. Remove user role (admin only)
-DELETE {{baseUrl}}/api/manage/users/role?code={{master_key}}
+DELETE {{baseUrl}}/manage/users/role
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
@@ -220,25 +228,50 @@ Content-Type: application/json
 ### ============================================
 ### PASSWORD MANAGEMENT
 ### ============================================
+### 30 Register user (for testing)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
 
-### 23. Change password
-POST {{baseUrl}}/api/auth/change-password?code={{master_key}}
+{
+  "email": "user-a@outlook.com",
+  "username": "user-a",
+  "password": "Hello-user-a",
+  "confirmPassword": "Hello-user-a"
+}
+
+### 31 Login to get JWT token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "loginIdentifier": "user-a",
+  "password": "Hello-user-a"
+}
+
+> {%
+    const responseBody = JSON.parse(response.body);
+    client.global.set("authToken", responseBody.token);
+%}
+
+
+### 32. Change password
+POST {{baseUrl}}/auth/change-password
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "currentPassword": "{{user_password}}",
+  "currentPassword": "Hello-user-a",
   "newPassword": "NewUser123!",
   "confirmNewPassword": "NewUser123!"
 }
 
-### 23. Unregister user (delete account and all data)
-DELETE {{baseUrl}}/api/auth/unregister?code={{master_key}}
+### 33. Unregister user (delete account and all data)
+DELETE {{baseUrl}}/auth/unregister
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "password": "Hello-user-1"
+  "password": "NewUser123!"
 }
 
 ### ============================================

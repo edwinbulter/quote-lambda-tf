@@ -12,6 +12,7 @@ namespace QuoteAzureBackend.Services
         private readonly IJwtService _jwtService;
         private readonly IPasswordHasher<Models.User> _passwordHasher;
         private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IUserActivityRepository _userActivityRepository;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
@@ -19,12 +20,14 @@ namespace QuoteAzureBackend.Services
             IJwtService jwtService,
             IPasswordHasher<Models.User> passwordHasher,
             IUserRoleRepository userRoleRepository,
+            IUserActivityRepository userActivityRepository,
             ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
             _passwordHasher = passwordHasher;
             _userRoleRepository = userRoleRepository;
+            _userActivityRepository = userActivityRepository;
             _logger = logger;
         }
 
@@ -334,6 +337,12 @@ namespace QuoteAzureBackend.Services
 
                 // Clean up user roles
                 await _userRoleRepository.RemoveAllRolesAsync(user.Username);
+
+                // Clean up user likes
+                await _userActivityRepository.RemoveAllUserLikesAsync(user.Username);
+
+                // Clean up user progress
+                await _userActivityRepository.RemoveUserProgressAsync(user.Username);
 
                 _logger.LogInformation("User unregistered successfully: {Username}", user.Username);
                 return true;

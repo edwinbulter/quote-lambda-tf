@@ -44,6 +44,54 @@ resource "azurerm_api_management_api" "quote_backend_api" {
   api_type            = "http"
 }
 
+# Catch-all operation for all endpoints
+resource "azurerm_api_management_api_operation" "catch_all" {
+  api_name            = azurerm_api_management_api.quote_backend_api.name
+  resource_group_name = azurerm_resource_group.rg.name
+  api_management_name = azurerm_api_management.quote_api.name
+  display_name        = "Catch All"
+  method              = "GET"
+  url_template        = "/*"
+  description         = "Forward all GET requests to Function App"
+  operation_id        = "catch-all-get"
+}
+
+# Catch-all POST operation
+resource "azurerm_api_management_api_operation" "catch_all_post" {
+  api_name            = azurerm_api_management_api.quote_backend_api.name
+  resource_group_name = azurerm_resource_group.rg.name
+  api_management_name = azurerm_api_management.quote_api.name
+  display_name        = "Catch All POST"
+  method              = "POST"
+  url_template        = "/*"
+  description         = "Forward all POST requests to Function App"
+  operation_id        = "catch-all-post"
+}
+
+# Catch-all PUT operation
+resource "azurerm_api_management_api_operation" "catch_all_put" {
+  api_name            = azurerm_api_management_api.quote_backend_api.name
+  resource_group_name = azurerm_resource_group.rg.name
+  api_management_name = azurerm_api_management.quote_api.name
+  display_name        = "Catch All PUT"
+  method              = "PUT"
+  url_template        = "/*"
+  description         = "Forward all PUT requests to Function App"
+  operation_id        = "catch-all-put"
+}
+
+# Catch-all DELETE operation
+resource "azurerm_api_management_api_operation" "catch_all_delete" {
+  api_name            = azurerm_api_management_api.quote_backend_api.name
+  resource_group_name = azurerm_resource_group.rg.name
+  api_management_name = azurerm_api_management.quote_api.name
+  display_name        = "Catch All DELETE"
+  method              = "DELETE"
+  url_template        = "/*"
+  description         = "Forward all DELETE requests to Function App"
+  operation_id        = "catch-all-delete"
+}
+
 # Backend for Function App
 resource "azurerm_api_management_backend" "function_backend" {
   name                = "quote-function-backend"
@@ -74,30 +122,6 @@ resource "azurerm_api_management_api_policy" "function_key_policy" {
   </outbound>
 </policies>
   XML
-}
-
-# Login Operation
-resource "azurerm_api_management_api_operation" "login" {
-  api_name            = azurerm_api_management_api.quote_backend_api.name
-  resource_group_name = azurerm_resource_group.rg.name
-  api_management_name = azurerm_api_management.quote_api.name
-  display_name        = "Login User"
-  method              = "POST"
-  url_template        = "/auth/login"
-  description         = "Authenticate user"
-  operation_id        = "login-user"
-}
-
-# Random Quote Operation
-resource "azurerm_api_management_api_operation" "random_quote" {
-  api_name            = azurerm_api_management_api.quote_backend_api.name
-  resource_group_name = azurerm_resource_group.rg.name
-  api_management_name = azurerm_api_management.quote_api.name
-  display_name        = "Get Random Quote"
-  method              = "GET"
-  url_template        = "/quotes/random"
-  description         = "Get a random quote"
-  operation_id        = "get-random-quote"
 }
 
 # API Product

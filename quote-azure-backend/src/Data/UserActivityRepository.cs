@@ -32,7 +32,8 @@ namespace QuoteAzureBackend.Data
             {
                 // Get current max order for this user
                 var allLikes = await GetAllUserLikesAsync(userId);
-                int nextOrder = allLikes.Count + 1;
+                int maxOrder = allLikes.Any() ? allLikes.Max(l => l.Order) : 0;
+                int nextOrder = maxOrder + 1;
                 
                 var entity = new UserLikeEntity(userId, quoteId)
                 {
@@ -122,6 +123,43 @@ namespace QuoteAzureBackend.Data
             {
                 _logger.LogError(ex, "Error getting all user likes");
                 return new List<UserLikeEntity>();
+            }
+        }
+
+        public async Task<bool> RemoveAllUserLikesAsync(string userId)
+        {
+            try
+            {
+                await foreach (var entity in _likesTableClient.QueryAsync<UserLikeEntity>(filter: $"PartitionKey eq '{userId}'"))
+                {
+                    await _likesTableClient.DeleteEntityAsync(entity.PartitionKey, entity.RowKey);
+                }
+                _logger.LogInformation("Removed all likes for user {UserId}", userId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing all user likes");
+                return false;
+            }
+        }
+
+        public async Task<bool> RemoveUserProgressAsync(string userId)
+        {
+            try
+            {
+                await _progressTableClient.DeleteEntityAsync(userId, userId);
+                _logger.LogInformation("Removed progress for user {UserId}", userId);
+                return true;
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return true; // Progress didn't exist, that's ok
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing user progress");
+                return false;
             }
         }
 

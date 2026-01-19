@@ -4,6 +4,10 @@
 cd ~/IdeaProjects/quote-lambda-tf/quote-azure-backend/src && func azure functionapp publish quote-backend-function
 ```
 
+## Restart function app
+```shell
+az webapp restart --resource-group quote-backend-rg --name quote-backend-function
+```
 
 ## Logging
 
