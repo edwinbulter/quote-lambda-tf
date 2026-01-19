@@ -38,3 +38,9 @@ variable "api_gateway_publisher_email" {
   type        = string
   default     = "admin@example.com"
 }
+
+variable "api_gateway_master_key" {
+  description = "Master key for API Gateway"
+  type        = string
+  sensitive   = true
+}

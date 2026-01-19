@@ -61,7 +61,7 @@ Content-Type: application/json
 %}
 
 ### 0.3 Login as admin to get admin JWT token
-POST {{baseUrl}}/api/auth/login?code={{master_key}}
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -79,10 +79,25 @@ client.global.set("authToken", responseBody.token);
 ### ============================================
 
 ### 1. GET Random Quote (unauthenticated - no view recording)
-GET {{baseUrl}}/api/quotes/random?code={{master_key}}
+GET {{baseUrl}}/quotes/random
 
-### 2. POST Quote with exclusions (unauthenticated)
-POST {{baseUrl}}/api/quote?code={{master_key}}
+### 1.1 GET Random Quote from function (unauthenticated - no view recording)
+GET {{function_url}}/quotes/random?code={{master_key}}
+
+### 2. POST Quote with exclusions from api gateway (unauthenticated)
+POST {{baseUrl}}/quote
+Content-Type: application/json
+
+[
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+  41, 42, 43, 44, 45, 46, 47, 48, 49, 50
+]
+
+### 2.1 POST Quote with exclusions from function (unauthenticated)
+POST {{function_url}}/quote?code={{master_key}}
 Content-Type: application/json
 
 [

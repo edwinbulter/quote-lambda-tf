@@ -88,6 +88,10 @@ resource "azurerm_windows_function_app" "function_app" {
     }
   }
 
+  auth_settings {
+    enabled = false
+  }
+
   app_settings = {
     "FUNCTIONS_WORKER_RUNTIME" = "dotnet-isolated"
     "AzureWebJobsStorage"        = data.azurerm_storage_account.table_storage.primary_connection_string
