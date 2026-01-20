@@ -78,6 +78,9 @@ client.global.set("authToken", responseBody.token);
 ### PUBLIC ENDPOINTS (No authentication required)
 ### ============================================
 
+### 1 GET Random Quote (unauthenticated - no view recording)
+GET {{baseUrl}}/quote
+
 ### 1. GET Random Quote (unauthenticated - no view recording)
 GET {{baseUrl}}/quotes/random
 

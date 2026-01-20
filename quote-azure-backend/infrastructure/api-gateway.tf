@@ -101,7 +101,7 @@ resource "azurerm_api_management_backend" "function_backend" {
   url                 = "https://${azurerm_windows_function_app.function_app.default_hostname}/api"
 }
 
-# API Policy to add Function Key
+# API Policy to add Function Key and CORS
 resource "azurerm_api_management_api_policy" "function_key_policy" {
   api_name            = azurerm_api_management_api.quote_backend_api.name
   resource_group_name = azurerm_resource_group.rg.name
@@ -110,6 +110,24 @@ resource "azurerm_api_management_api_policy" "function_key_policy" {
 <policies>
   <inbound>
     <base />
+    <cors allow-credentials="false">
+      <allowed-origins>
+        <origin>http://localhost:3000</origin>
+        <origin>http://localhost:5173</origin>
+        <origin>http://localhost:5174</origin>
+        <origin>https://quote-azure-frontend.azurestaticapps.net</origin>
+      </allowed-origins>
+      <allowed-methods>
+        <method>GET</method>
+        <method>POST</method>
+        <method>PUT</method>
+        <method>DELETE</method>
+        <method>OPTIONS</method>
+      </allowed-methods>
+      <allowed-headers>
+        <header>*</header>
+      </allowed-headers>
+    </cors>
     <set-query-parameter name="code" exists-action="override">
       <value>${var.api_gateway_master_key}</value>
     </set-query-parameter>
