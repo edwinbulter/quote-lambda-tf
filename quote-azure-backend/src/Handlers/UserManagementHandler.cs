@@ -48,7 +48,7 @@ namespace QuoteAzureBackend.Handlers
                 }
 
                 var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-                var updateRoleRequest = JsonSerializer.Deserialize<UpdateRoleRequest>(requestBody, new JsonSerializerOptions
+                var updateRoleRequest = JsonSerializer.Deserialize<UserRoleRequest>(requestBody, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
@@ -59,19 +59,30 @@ namespace QuoteAzureBackend.Handlers
                 }
 
                 // Validate request
-                if (string.IsNullOrEmpty(updateRoleRequest.UserId))
+                if (string.IsNullOrEmpty(updateRoleRequest.Username))
                 {
-                    return CreateBadRequestResponse(req, "User ID is required");
+                    return CreateBadRequestResponse(req, "Username is required");
                 }
 
-                if (string.IsNullOrEmpty(updateRoleRequest.NewRole) || 
-                    !IsValidRole(updateRoleRequest.NewRole))
+                if (string.IsNullOrEmpty(updateRoleRequest.Role) || 
+                    !IsValidRole(updateRoleRequest.Role))
                 {
                     return CreateBadRequestResponse(req, "Invalid role. Valid roles are: User, Admin");
                 }
 
+                // Get the target user
+                var targetUser = await _userService.GetUserByUsernameAsync(updateRoleRequest.Username);
+                if (targetUser == null)
+                {
+                    return CreateNotFoundResponse(req, "User not found");
+                }
+
                 // Update user role
-                var result = await _userService.UpdateUserRoleAsync(user.Id, updateRoleRequest);
+                var result = await _userService.UpdateUserRoleAsync(user.Id, new UpdateRoleRequest 
+                { 
+                    UserId = targetUser.Id, 
+                    NewRole = updateRoleRequest.Role 
+                });
 
                 if (result)
                 {
@@ -80,8 +91,8 @@ namespace QuoteAzureBackend.Handlers
                     await response.WriteStringAsync(JsonSerializer.Serialize(new
                     {
                         message = "User role updated successfully",
-                        userId = updateRoleRequest.UserId,
-                        newRole = updateRoleRequest.NewRole
+                        username = updateRoleRequest.Username,
+                        role = updateRoleRequest.Role
                     }));
                     return response;
                 }
@@ -130,7 +141,7 @@ namespace QuoteAzureBackend.Handlers
                 }
 
                 var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-                var updateRoleRequest = JsonSerializer.Deserialize<UpdateRoleRequest>(requestBody, new JsonSerializerOptions
+                var updateRoleRequest = JsonSerializer.Deserialize<UserRoleRequest>(requestBody, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
@@ -141,19 +152,41 @@ namespace QuoteAzureBackend.Handlers
                 }
 
                 // Validate request
-                if (string.IsNullOrEmpty(updateRoleRequest.UserId))
+                if (string.IsNullOrEmpty(updateRoleRequest.Username))
                 {
-                    return CreateBadRequestResponse(req, "User ID is required");
+                    return CreateBadRequestResponse(req, "Username is required");
                 }
 
-                if (string.IsNullOrEmpty(updateRoleRequest.NewRole) || 
-                    !IsValidRole(updateRoleRequest.NewRole))
+                if (string.IsNullOrEmpty(updateRoleRequest.Role) || 
+                    !IsValidRole(updateRoleRequest.Role))
                 {
                     return CreateBadRequestResponse(req, "Invalid role. Valid roles are: User, Admin");
                 }
 
+                // Get the target user
+                var targetUser = await _userService.GetUserByUsernameAsync(updateRoleRequest.Username);
+                if (targetUser == null)
+                {
+                    return CreateNotFoundResponse(req, "User not found");
+                }
+
+                // Prevent users from removing their own ADMIN role
+                _logger.LogInformation("Attempting to remove role {Role} from user {Username}. Current user ID: {CurrentUserId}, Target user ID: {TargetUserId}", 
+                    updateRoleRequest.Role, updateRoleRequest.Username, user.Id, targetUser.Id);
+                
+                if (updateRoleRequest.Role.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) && 
+                    targetUser.Id.Equals(user.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("User {UserId} attempted to remove their own ADMIN role", user.Id);
+                    return CreateBadRequestResponse(req, "Cannot remove your own ADMIN role");
+                }
+
                 // Remove user role
-                var result = await _userService.RemoveUserRoleAsync(user.Id, updateRoleRequest);
+                var result = await _userService.RemoveUserRoleAsync(user.Id, new UpdateRoleRequest 
+                { 
+                    UserId = targetUser.Id, 
+                    NewRole = updateRoleRequest.Role 
+                });
 
                 if (result)
                 {
@@ -162,8 +195,8 @@ namespace QuoteAzureBackend.Handlers
                     await response.WriteStringAsync(JsonSerializer.Serialize(new
                     {
                         message = "User role removed successfully",
-                        userId = updateRoleRequest.UserId,
-                        removedRole = updateRoleRequest.NewRole
+                        username = updateRoleRequest.Username,
+                        role = updateRoleRequest.Role
                     }));
                     return response;
                 }
@@ -188,10 +221,99 @@ namespace QuoteAzureBackend.Handlers
                 return CreateErrorResponse(req, "An error occurred while removing user role");
             }
         }
+        
+        [Function("RemoveUserAccount")]
+        public async Task<HttpResponseData> RemoveUserAccount(
+            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "manage/users/account")] HttpRequestData req,
+            FunctionContext context)
+        {
+            _logger.LogInformation("Processing remove user account request");
+
+            try
+            {
+                // Authenticate and authorize user
+                var user = await _authMiddleware.GetUserFromRequestAsync(req);
+                if (user == null)
+                {
+                    return _authMiddleware.CreateUnauthorizedResponse(req);
+                }
+
+                // Check if user is admin
+                if (!await _userService.IsAdminAsync(user.Id))
+                {
+                    return _authMiddleware.CreateForbiddenResponse(req);
+                }
+
+                var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var removeAccountRequest = JsonSerializer.Deserialize<RemoveUserAccountRequest>(requestBody, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (removeAccountRequest == null)
+                {
+                    return CreateBadRequestResponse(req, "Invalid request body");
+                }
+
+                // Validate request
+                if (string.IsNullOrEmpty(removeAccountRequest.Username))
+                {
+                    return CreateBadRequestResponse(req, "Username is required");
+                }
+
+                // Prevent admin from deleting their own account
+                if (user.Username.Equals(removeAccountRequest.Username, StringComparison.OrdinalIgnoreCase))
+                {
+                    return CreateBadRequestResponse(req, "Cannot delete your own account");
+                }
+
+                // Get the target user to delete
+                var targetUser = await _userService.GetUserByUsernameAsync(removeAccountRequest.Username);
+                if (targetUser == null)
+                {
+                    return CreateNotFoundResponse(req, "User not found");
+                }
+
+                // Delete the user account and all associated data
+                var success = await _userService.DeleteUserAsync(targetUser.Id);
+
+                if (success)
+                {
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    response.Headers.Add("Content-Type", "application/json");
+                    await response.WriteStringAsync(JsonSerializer.Serialize(new
+                    {
+                        message = "User account deleted successfully",
+                        username = removeAccountRequest.Username,
+                        deletedUserId = targetUser.Id
+                    }));
+                    return response;
+                }
+                else
+                {
+                    return CreateErrorResponse(req, "Failed to delete user account");
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Access denied to remove user account");
+                return _authMiddleware.CreateForbiddenResponse(req);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Remove user account failed: {Message}", ex.Message);
+                return CreateBadRequestResponse(req, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing user account");
+                return CreateErrorResponse(req, "An error occurred while removing user account");
+            }
+        }
 
         [Function("GetUserById")]
         public async Task<HttpResponseData> GetUserById(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "admin/users/{userId}")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "manage/users/{userId}")] HttpRequestData req,
             string userId,
             FunctionContext context)
         {

@@ -266,7 +266,7 @@ namespace QuoteAzureBackend.Services
             return await _userRepository.GetByIdAsync(id);
         }
 
-        public async Task<IEnumerable<User>> GetAllUsersAsync(string adminId)
+        public async Task<IEnumerable<Models.Admin.AdminUserInfo>> GetAllUsersAsync(string adminId)
         {
             // Verify admin user
             if (!await IsAdminAsync(adminId))
@@ -277,8 +277,30 @@ namespace QuoteAzureBackend.Services
             try
             {
                 var users = await _userRepository.GetAllAsync();
+                var userInfos = new List<Models.Admin.AdminUserInfo>();
+                
+                foreach (var user in users)
+                {
+                    // Get user roles
+                    var userRoles = await _userRoleRepository.GetUserRolesAsync(user.Username);
+                    var roles = userRoles.Select(r => string.IsNullOrEmpty(r.Role) ? string.Empty : r.Role.ToUpper()).ToArray();
+                    
+                    var userInfo = new Models.Admin.AdminUserInfo
+                    {
+                        Username = user.Username,
+                        Email = user.Email,
+                        Roles = roles,
+                        Enabled = user.IsActive,
+                        UserStatus = user.IsActive ? "ACTIVE" : "INACTIVE",
+                        UserCreateDate = user.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                        UserLastModifiedDate = user.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                    };
+                    
+                    userInfos.Add(userInfo);
+                }
+                
                 _logger.LogInformation("Retrieved all users by admin ID: {AdminId}", adminId);
-                return users;
+                return userInfos;
             }
             catch (Exception ex)
             {
@@ -350,6 +372,62 @@ namespace QuoteAzureBackend.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error unregistering user: {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<User?> GetUserByUsernameAsync(string username)
+        {
+            try
+            {
+                return await _userRepository.GetByUsernameAsync(username);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user by username: {Username}", username);
+                return null;
+            }
+        }
+
+        public async Task<bool> DeleteUserAsync(string userId)
+        {
+            try
+            {
+                // Get user to validate existence
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new InvalidOperationException("User not found");
+                }
+
+                // Prevent deletion of admin users (self-protection)
+                if (await _userRoleRepository.IsUserInRoleAsync(user.Username, "ADMIN"))
+                {
+                    throw new InvalidOperationException("Cannot delete admin users");
+                }
+
+                // Delete user from repository (this will delete the user entity)
+                var userDeleted = await _userRepository.DeleteAsync(userId);
+                if (!userDeleted)
+                {
+                    throw new InvalidOperationException("Failed to delete user");
+                }
+
+                // Clean up user roles
+                await _userRoleRepository.RemoveAllRolesAsync(user.Username);
+
+                // Clean up user likes
+                await _userActivityRepository.RemoveAllUserLikesAsync(user.Username);
+
+                // Clean up user progress
+                await _userActivityRepository.RemoveUserProgressAsync(user.Username);
+
+                _logger.LogInformation("User deleted successfully: {Username}", user.Username);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting user: {UserId}", userId);
                 throw;
             }
         }

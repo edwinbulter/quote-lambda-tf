@@ -135,12 +135,16 @@ Authorization: Bearer {{authToken}}
 GET {{function_url}}/quote/viewed?code={{master_key}}
 Authorization: Bearer {{authToken}}
 
+### 6. GET Progress (authenticated)
+GET {{baseUrl}}/quote/progress
+Authorization: Bearer {{authToken}}
+
 ### ============================================
 ### LIKE/UNLIKE ENDPOINTS
 ### ============================================
 
 ### 8. Like Quote
-POST {{baseUrl}}/quote/7/like
+POST {{baseUrl}}/quote/6/like
 Authorization: Bearer {{authToken}}
 
 ### 9. Unlike Quote
@@ -214,8 +218,8 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "userId": "testuser",
-  "newRole": "Admin"
+  "username": "user-a",
+  "role": "Admin"
 }
 
 ### 25. Remove user role (admin only)
@@ -224,8 +228,17 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "userId": "testuser",
-  "newRole": "Admin"
+  "username": "user-a",
+  "role": "Admin"
+}
+
+### 26. Remove user, delete account and all data (admin only)
+DELETE {{baseUrl}}/manage/users/account
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "username": "user-a"
 }
 
 ### ============================================

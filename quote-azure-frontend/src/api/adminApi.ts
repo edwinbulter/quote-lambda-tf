@@ -19,13 +19,13 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 }
 
 export interface UserInfo {
-    username: string;
-    email: string;
-    groups: string[];
-    enabled: boolean;
-    userStatus: string;
-    userCreateDate?: string;
-    userLastModifiedDate?: string;
+    Username: string;
+    Email: string;
+    Roles: string[];
+    Enabled: boolean;
+    UserStatus: string;
+    UserCreateDate?: string;
+    UserLastModifiedDate?: string;
 }
 
 export interface QuoteWithLikeCount {
@@ -56,7 +56,7 @@ async function listUsers(): Promise<UserInfo[]> {
     
     return withRetry(
         async () => {
-            const response = await fetch(`${BASE_URL}/admin/users`, {
+            const response = await fetch(`${BASE_URL}/manage/users`, {
                 method: "GET",
                 headers: {
                     ...authHeaders,
@@ -85,11 +85,16 @@ async function addUserToGroup(username: string, groupName: string): Promise<void
     
     return withRetry(
         async () => {
-            const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}/groups/${groupName}`, {
-                method: "POST",
+            const response = await fetch(`${BASE_URL}/manage/users/role`, {
+                method: "PUT",
                 headers: {
                     ...authHeaders,
+                    "Content-Type": "application/json",
                 },
+                body: JSON.stringify({
+                    username: username,
+                    role: groupName,
+                }),
             });
             
             if (!response.ok) {
@@ -112,11 +117,16 @@ async function removeUserFromGroup(username: string, groupName: string): Promise
     
     return withRetry(
         async () => {
-            const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}/groups/${groupName}`, {
+            const response = await fetch(`${BASE_URL}/manage/users/role`, {
                 method: "DELETE",
                 headers: {
                     ...authHeaders,
+                    "Content-Type": "application/json",
                 },
+                body: JSON.stringify({
+                    username: username,
+                    role: groupName,
+                }),
             });
             
             if (!response.ok) {
@@ -139,11 +149,15 @@ async function deleteUser(username: string): Promise<void> {
     
     return withRetry(
         async () => {
-            const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(username)}`, {
+            const response = await fetch(`${BASE_URL}/manage/users/account`, {
                 method: "DELETE",
                 headers: {
                     ...authHeaders,
+                    "Content-Type": "application/json",
                 },
+                body: JSON.stringify({
+                    username: username,
+                }),
             });
             
             if (!response.ok) {

@@ -199,6 +199,11 @@ const App: React.FC = () => {
                     // Use the updateQuote callback to update both cache and React Query
                     if (isAuthenticated) {
                         updateQuote({ ...displayQuote, liked: true });
+                        
+                        // Refresh the favourites component to show the newly liked quote
+                        if (favouritesRef.current) {
+                            favouritesRef.current.reloadFavouriteQuotes();
+                        }
                     }
                 } else {
                     console.log("Failed to like quote for some reason, id=" + displayQuote.id);
@@ -290,6 +295,9 @@ const App: React.FC = () => {
     const handleSignOut = async (): Promise<void> => {
         logout();
         setShowProfile(false);
+        setShowManagement(false);
+        setManagementView('main');
+        setSigningIn(false);
     };
 
     const closeProfile = (): void => {
@@ -432,10 +440,14 @@ const App: React.FC = () => {
                     </button>
                 )}
                 {!isAuthenticated ? (
-                    <button className="signinButton" disabled={isLoading || signingIn || showProfile} onClick={isAuthenticated ? handleSignOut : signIn}>
-                        {isLoading ? "Loading..." : (isAuthenticated ? "Sign Out" : "Sign In")}
+                    <button className="signinButton" disabled={isLoading || signingIn || showProfile} onClick={signIn}>
+                        {isLoading ? "Loading..." : "Sign In"}
                     </button>
-                ) : ""}
+                ) : (
+                    <button className="signinButton" disabled={isLoading || signingIn || showProfile} onClick={handleSignOut}>
+                        Sign Out
+                    </button>
+                )}
             </div>
             {!signingIn && !showProfile && !showManagement && (
                 <FavouritesComponent ref={favouritesRef}/>

@@ -37,13 +37,10 @@ namespace QuoteAzureBackend.Services
                     var adminUser = new AdminUserInfo
                     {
                         Username = userRole.Username,
-                        DisplayName = userRole.Username, // Could be enhanced with Azure AD lookup
-                        Role = userRole.Role,
-                        CreatedAt = userRole.CreatedAt,
-                        UpdatedAt = userRole.UpdatedAt,
-                        CreatedBy = userRole.CreatedBy,
-                        UpdatedBy = userRole.UpdatedBy,
-                        Enabled = true // Azure AD users are enabled by default
+                        Email = userRole.Username + "@example.com", // Placeholder - could be enhanced with Azure AD lookup
+                        Roles = new[] { string.IsNullOrEmpty(userRole.Role) ? string.Empty : userRole.Role.ToUpper() },
+                        Enabled = true, // Azure AD users are enabled by default
+                        UserStatus = "ACTIVE"
                     };
                     
                     adminUsers.Add(adminUser);
