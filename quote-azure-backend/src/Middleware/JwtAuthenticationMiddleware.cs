@@ -42,6 +42,9 @@ namespace QuoteAzureBackend.Middleware
                     return Task.FromResult<UserInfo?>(null);
                 }
 
+                // Get all roles from the token
+                var roles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
                 // Convert to UserInfo for compatibility with existing code
                 var userInfo = new UserInfo
                 {
@@ -49,7 +52,7 @@ namespace QuoteAzureBackend.Middleware
                     Email = principal.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty,
                     DisplayName = principal.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
                     IsAuthenticated = true,
-                    Role = principal.FindFirst(ClaimTypes.Role)?.Value ?? "User"
+                    Role = roles.Contains("ADMIN") ? "ADMIN" : (roles.FirstOrDefault() ?? "User")
                 };
 
                 return Task.FromResult<UserInfo?>(userInfo);

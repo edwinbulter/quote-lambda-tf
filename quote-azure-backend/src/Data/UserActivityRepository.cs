@@ -274,5 +274,28 @@ namespace QuoteAzureBackend.Data
                 return 0;
             }
         }
+
+        public async Task<int> GetLikeCountForQuoteAsync(int quoteId)
+        {
+            try
+            {
+                var likeCount = 0;
+                
+                // Query all likes for this specific quoteId across all users
+                var filter = $"QuoteId eq {quoteId}";
+                
+                await foreach (var entity in _likesTableClient.QueryAsync<UserLikeEntity>(filter: filter))
+                {
+                    likeCount++;
+                }
+                
+                return likeCount;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting like count for quote {QuoteId}", quoteId);
+                return 0;
+            }
+        }
     }
 }

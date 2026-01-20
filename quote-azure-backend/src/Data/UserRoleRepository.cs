@@ -14,6 +14,7 @@ namespace QuoteAzureBackend.Data
         Task<IEnumerable<UserRole>> GetAllUsersAsync();
         Task<bool> IsUserInRoleAsync(string username, string role);
         Task<bool> RemoveAllRolesAsync(string username);
+        Task<IEnumerable<UserRole>> GetUserRolesAsync(string username);
     }
 
     public class UserRoleRepository : IUserRoleRepository
@@ -28,7 +29,7 @@ namespace QuoteAzureBackend.Data
             _logger = logger;
         }
 
-        private async Task<IEnumerable<UserRole>> GetUserRolesAsync(string username)
+        public async Task<IEnumerable<UserRole>> GetUserRolesAsync(string username)
         {
             try
             {

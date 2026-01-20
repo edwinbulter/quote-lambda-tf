@@ -4,19 +4,22 @@ using System.Security.Claims;
 using System.Text;
 using QuoteAzureBackend.Models;
 using Microsoft.Extensions.Configuration;
+using QuoteAzureBackend.Data;
 
 namespace QuoteAzureBackend.Services
 {
     public class JwtService : IJwtService
     {
         private readonly IConfiguration _config;
+        private readonly IUserRoleRepository _userRoleRepository;
         private readonly string _key;
         private readonly string _issuer;
         private readonly string _audience;
 
-        public JwtService(IConfiguration config)
+        public JwtService(IConfiguration config, IUserRoleRepository userRoleRepository)
         {
             _config = config;
+            _userRoleRepository = userRoleRepository;
             _key = _config["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key not configured");
             _issuer = _config["Jwt:Issuer"] ?? "quote-azure-backend";
             _audience = _config["Jwt:Audience"] ?? "quote-azure-backend-users";
@@ -27,6 +30,10 @@ namespace QuoteAzureBackend.Services
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_key);
             
+            // Get user roles from the database
+            var userRoles = _userRoleRepository.GetUserRolesAsync(user.Username).GetAwaiter().GetResult();
+            var roleClaims = userRoles.Select(role => new Claim(ClaimTypes.Role, role.Role));
+            
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
@@ -35,6 +42,9 @@ namespace QuoteAzureBackend.Services
                 new Claim("jti", Guid.NewGuid().ToString()),
                 new Claim("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             };
+            
+            // Add role claims
+            claims.AddRange(roleClaims);
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {

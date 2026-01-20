@@ -1,15 +1,15 @@
 import { BASE_URL } from "../constants/constants";
-import { fetchAuthSession } from 'aws-amplify/auth';
 import { withRetry } from '../utils/apiRetry';
 import { notifyBackendRestart } from '../components/BackendRestartNotification';
 
 async function getAuthHeaders(): Promise<HeadersInit> {
     try {
-        const session = await fetchAuthSession();
-        const token = session.tokens?.accessToken?.toString();
+        // Get JWT token from localStorage for Azure authentication
+        const token = localStorage.getItem('jwt_token');
+        
         if (token) {
             return {
-                'Authorization': token,
+                'Authorization': `Bearer ${token}`,
             };
         }
     } catch (error) {
@@ -29,18 +29,20 @@ export interface UserInfo {
 }
 
 export interface QuoteWithLikeCount {
-    id: number;
-    quoteText: string;
-    author: string;
-    likeCount: number;
+    Id: number;
+    QuoteText: string;
+    Author: string;
+    LikeCount: number;
+    CreatedAt?: string;
+    Source?: string;
 }
 
 export interface QuotePageResponse {
-    quotes: QuoteWithLikeCount[];
-    totalCount: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
+    Quotes: QuoteWithLikeCount[];
+    TotalCount: number;
+    Page: number;
+    PageSize: number;
+    TotalPages: number;
 }
 
 export interface QuoteAddResponse {
@@ -170,6 +172,7 @@ async function getQuotes(
     sortOrder?: string
 ): Promise<QuotePageResponse> {
     const authHeaders = await getAuthHeaders();
+    
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
@@ -180,7 +183,7 @@ async function getQuotes(
 
     return withRetry(
         async () => {
-            const response = await fetch(`${BASE_URL}/admin/quotes?${params.toString()}`, {
+            const response = await fetch(`${BASE_URL}/manage/quotes?${params.toString()}`, {
                 method: "GET",
                 headers: {
                     ...authHeaders,
@@ -237,12 +240,12 @@ async function fetchAndAddNewQuotes(): Promise<QuoteAddResponse> {
     });
 }
 
-async function getTotalLikes(): Promise<{ totalLikes: number }> {
+async function getTotalLikes(): Promise<{ TotalLikes: number; Timestamp: string }> {
     const authHeaders = await getAuthHeaders();
     
     return withRetry(
         async () => {
-            const response = await fetch(`${BASE_URL}/admin/likes/total`, {
+            const response = await fetch(`${BASE_URL}/manage/stats`, {
                 method: "GET",
                 headers: {
                     ...authHeaders,

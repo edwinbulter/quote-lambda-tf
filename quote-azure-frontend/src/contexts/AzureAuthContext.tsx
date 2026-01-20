@@ -46,7 +46,7 @@ export const AzureAuthProvider: React.FC<AuthProviderProps> = ({ children }) => 
           id: payload.nameid,
           email: payload.email,
           username: payload.unique_name,
-          roles: payload.role || [],
+          roles: Array.isArray(payload.role) ? payload.role : (payload.role ? [payload.role] : []),
         });
       } catch (error) {
         console.error('Invalid token:', error);
@@ -77,7 +77,7 @@ export const AzureAuthProvider: React.FC<AuthProviderProps> = ({ children }) => 
           id: payload.nameid,
           email: payload.email,
           username: payload.unique_name,
-          roles: payload.role || [],
+          roles: Array.isArray(payload.role) ? payload.role : (payload.role ? [payload.role] : []),
         });
       } catch (decodeError) {
         console.error('Failed to decode token:', decodeError);
@@ -110,7 +110,7 @@ export const AzureAuthProvider: React.FC<AuthProviderProps> = ({ children }) => 
           id: payload.nameid,
           email: payload.email,
           username: payload.unique_name,
-          roles: payload.role || [],
+          roles: Array.isArray(payload.role) ? payload.role : (payload.role ? [payload.role] : []),
         });
       } catch (decodeError) {
         console.error('Failed to decode token:', decodeError);

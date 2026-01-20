@@ -357,7 +357,7 @@ const App: React.FC = () => {
                         <div className="profile-info">
                             <p><strong>Username:</strong> {displayUsername || user.username}</p>
                             <p><strong>Email:</strong> {userEmail || 'Loading...'}</p>
-                            <p><strong>Roles:</strong> {user?.roles && user.roles.length > 0 ? user.roles.join(', ') : 'No roles assigned'}</p>
+                            <p><strong>Roles:</strong> {user?.roles && Array.isArray(user.roles) && user.roles.length > 0 ? user.roles.join(', ') : 'No roles assigned'}</p>
                         </div>
                         <div className="profile-actions">
                             <button className="signOutButton" onClick={handleSignOut}>

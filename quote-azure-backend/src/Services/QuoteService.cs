@@ -11,12 +11,9 @@ namespace QuoteAzureBackend.Services
         Task<Quote?> LikeQuoteAsync(string username, int quoteId);
         Task UnlikeQuoteAsync(string username, int quoteId);
         Task<List<Quote>> GetLikedQuotesByUserAsync(string username);
-        Task<int> GetLikeCountAsync(int quoteId);
-        Task<bool> HasUserLikedQuoteAsync(string username, int quoteId);
-        Task<Quote?> GetPreviousQuoteAsync(string username, int currentQuoteId);
         Task<List<Quote>> GetViewedQuotesAsync(string username);
         Task ReorderLikedQuoteAsync(string username, int quoteId, int newOrder);
-        Task ResetUserProgressAsync(string username);
+        Task<UserProgress?> GetUserProgressAsync(string username);
     }
 
     public class QuoteService : IQuoteService
@@ -199,17 +196,7 @@ namespace QuoteAzureBackend.Services
 
         public async Task<Quote?> GetQuoteByIdAsync(string? username, int quoteId)
         {
-            var quote = await _quoteRepository.GetQuoteByIdAsync(quoteId);
-            if (quote != null && !string.IsNullOrEmpty(username))
-            {
-                await _userActivityRepository.UpdateUserPreferencesAsync(new UserProgress
-                {
-                    Username = username,
-                    LastQuoteId = quoteId,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
-            return quote;
+            return await _quoteRepository.GetQuoteByIdAsync(quoteId);
         }
 
         public async Task<Quote?> LikeQuoteAsync(string username, int quoteId)
@@ -240,36 +227,6 @@ namespace QuoteAzureBackend.Services
             return likedQuotes;
         }
 
-        public Task<int> GetLikeCountAsync(int quoteId) => Task.FromResult(0);
-
-        public async Task<bool> HasUserLikedQuoteAsync(string username, int quoteId)
-        {
-            var likedIds = await _userActivityRepository.GetUserLikedQuoteIdsAsync(username);
-            return likedIds.Contains(quoteId);
-        }
-
-        public async Task<Quote?> GetPreviousQuoteAsync(string username, int currentQuoteId)
-        {
-            if (string.IsNullOrEmpty(username)) return null;
-            
-            for (int id = currentQuoteId - 1; id >= 1; id--)
-            {
-                var quote = await _quoteRepository.GetQuoteByIdAsync(id);
-                if (quote != null)
-                {
-                    await _userActivityRepository.UpdateUserPreferencesAsync(new UserProgress
-                    {
-                        Username = username,
-                        LastQuoteId = id,
-                        UpdatedAt = DateTime.UtcNow
-                    });
-                    return quote;
-                }
-            }
-            return null;
-        }
-        
-        
         public async Task<List<Quote>> GetViewedQuotesAsync(string username)
         {
             // Return quotes 1 to lastQuoteId using the sequential system (matching Java implementation)
@@ -352,15 +309,28 @@ namespace QuoteAzureBackend.Services
                 quoteId, username, oldOrder, newOrder);
         }
 
-        public async Task ResetUserProgressAsync(string username)
+        public async Task<UserProgress?> GetUserProgressAsync(string username)
         {
-            if (string.IsNullOrEmpty(username)) return;
-            await _userActivityRepository.UpdateUserPreferencesAsync(new UserProgress
+            try
             {
-                Username = username,
-                LastQuoteId = 0,
-                UpdatedAt = DateTime.UtcNow
-            });
+                var progress = await _userActivityRepository.GetUserProgressAsync(username);
+                if (progress == null)
+                {
+                    return null;
+                }
+
+                return new UserProgress
+                {
+                    Username = progress.Username,
+                    LastQuoteId = progress.LastQuoteId,
+                    UpdatedAt = progress.UpdatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user progress for {Username}", username);
+                return null;
+            }
         }
     }
 }

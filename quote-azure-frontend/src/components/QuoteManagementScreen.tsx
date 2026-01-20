@@ -25,7 +25,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
     const [addingQuotes, setAddingQuotes] = useState<boolean>(false);
     const [paginationLoading, setPaginationLoading] = useState<boolean>(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-    const [sortBy, setSortBy] = useState<'id' | 'quoteText' | 'author' | 'likeCount'>('id');
+    const [sortBy, setSortBy] = useState<'id' | 'quotetext' | 'author' | 'likes'>('id');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const { isOpen, retryCount } = useBackendRestartNotification();
 
@@ -55,15 +55,22 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
                 setLoading(true);
             }
             const response = await adminApi.getQuotes(page, pageSize, debouncedQuoteText, debouncedAuthor, sortBy, sortOrder);
-            setQuotes(response.quotes);
-            setTotalCount(response.totalCount);
-            setTotalPages(response.totalPages);
+            
+            setQuotes(response?.Quotes || []);
+            setTotalCount(response?.TotalCount || 0);
+            setTotalPages(response?.TotalPages || 0);
             
             // Get total likes from the new endpoint
-            const totalLikesResponse = await adminApi.getTotalLikes();
-            setTotalLikes(totalLikesResponse.totalLikes);
+            try {
+                const totalLikesResponse = await adminApi.getTotalLikes();
+                setTotalLikes(totalLikesResponse?.TotalLikes || 0);
+            } catch (likesError) {
+                console.error('Failed to get total likes:', likesError);
+                setTotalLikes(0); // Set to 0 on error
+            }
         } catch (error) {
             console.error('Failed to load quotes:', error);
+            setQuotes([]); // Reset to empty array on error
             showToast('Failed to load quotes', 'error');
         } finally {
             setLoading(false);
@@ -76,9 +83,11 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
         try {
             setAddingQuotes(true);
             const response = await adminApi.fetchAndAddNewQuotes();
-            setTotalCount(response.totalQuotes);
+            if (response) {
+                setTotalCount(response?.totalQuotes || totalCount); // Keep current count if undefined
+                showToast(`Successfully added ${response.quotesAdded || 0} new quotes`, 'success');
+            }
             setPage(1); // Reset to first page
-            showToast(`Successfully added ${response.quotesAdded} new quotes`, 'success');
             await loadQuotes();
         } catch (error) {
             console.error('Failed to add quotes:', error);
@@ -93,19 +102,20 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
         setPage(1);
     };
 
-    const handleSort = (column: 'id' | 'quoteText' | 'author' | 'likeCount') => {
+    const handleSort = (column: 'id' | 'quotetext' | 'author' | 'likes') => {
         if (sortBy === column) {
-            // For likeCount, only allow descending sort
-            if (column === 'likeCount') {
+            // For likes, only allow descending sort
+            if (column === 'likes') {
                 setSortOrder('desc');
             } else {
                 setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
             }
         } else {
             setSortBy(column);
-            // For likeCount, always use descending sort
-            setSortOrder(column === 'likeCount' ? 'desc' : 'asc');
+            // For likes, default to descending sort
+            setSortOrder(column === 'likes' ? 'desc' : 'asc');
         }
+        setPage(1);
     };
 
     const handleClearSearch = () => {
@@ -154,8 +164,8 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
 
             <div className="quote-count-section">
                 <div className="quote-stats">
-                    <span className="quote-count">Total Quotes: {totalCount.toLocaleString()}</span>
-                    <span className="quote-count">Total Likes: {totalLikes.toLocaleString()}</span>
+                    <span className="quote-count">Total Quotes: {(totalCount || 0).toLocaleString()}</span>
+                    <span className="quote-count">Total Likes: {(totalLikes || 0).toLocaleString()}</span>
                 </div>
                 <button 
                     className="add-quotes-button" 
@@ -205,7 +215,7 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
                                 <div className="loading">Loading page...</div>
                             </div>
                         ) : null}
-                        {quotes.length === 0 ? (
+                        {(!quotes || quotes.length === 0) ? (
                             <div className="empty-state-inline">No quotes found.</div>
                         ) : (
                             <table className="quotes-table">
@@ -214,24 +224,24 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
                                         <th onClick={() => handleSort('id')} className="sortable">
                                             ID {sortBy === 'id' && (sortOrder === 'asc' ? '↑' : '↓')}
                                         </th>
-                                        <th onClick={() => handleSort('quoteText')} className="sortable">
-                                            Quote Text {sortBy === 'quoteText' && (sortOrder === 'asc' ? '↑' : '↓')}
+                                        <th onClick={() => handleSort('quotetext')} className="sortable">
+                                            Quote Text {sortBy === 'quotetext' && (sortOrder === 'asc' ? '↑' : '↓')}
                                         </th>
                                         <th onClick={() => handleSort('author')} className="sortable">
                                             Author {sortBy === 'author' && (sortOrder === 'asc' ? '↑' : '↓')}
                                         </th>
-                                        <th onClick={() => handleSort('likeCount')} className="sortable">
-                                            Likes {sortBy === 'likeCount' ? '↓' : ''}
+                                        <th onClick={() => handleSort('likes')} className="sortable">
+                                            Likes {sortBy === 'likes' ? '↓' : ''}
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {quotes.map((quote) => (
-                                        <tr key={quote.id}>
-                                            <td className="id-cell">{quote.id}</td>
-                                            <td className="quote-text-cell">{quote.quoteText}</td>
-                                            <td className="author-cell">{quote.author}</td>
-                                            <td className="like-count-cell">{quote.likeCount}</td>
+                                    {quotes?.map((quote) => (
+                                        <tr key={quote.Id}>
+                                            <td className="id-cell">{quote.Id}</td>
+                                            <td className="quote-text-cell">{quote.QuoteText}</td>
+                                            <td className="author-cell">{quote.Author}</td>
+                                            <td className="like-count-cell">{quote.LikeCount}</td>
                                         </tr>
                                     ))}
                                 </tbody>

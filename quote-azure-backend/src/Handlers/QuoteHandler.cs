@@ -309,6 +309,50 @@ namespace QuoteAzureBackend.Handlers
             }
         }
 
+        [Function("GetUserProgress")]
+        public async Task<HttpResponseData> GetUserProgressAsync(
+            [HttpTrigger(AuthorizationLevel.User, "get", Route = "quote/progress")] HttpRequestData req,
+            FunctionContext executionContext)
+        {
+            try
+            {
+                var userId = await GetUserFromRequestAsync(req);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    var response = req.CreateResponse(HttpStatusCode.Unauthorized);
+                    await response.WriteStringAsync("Authentication required");
+                    return response;
+                }
+
+                logger.LogInformation("Getting user progress for {UserId}", userId);
+
+                var progress = await quoteService.GetUserProgressAsync(userId);
+                if (progress == null)
+                {
+                    // Return default progress for new users
+                    var defaultProgress = new UserProgress
+                    {
+                        Username = userId,
+                        LastQuoteId = 0,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(defaultProgress);
+                    return response;
+                }
+
+                var successResponse = req.CreateResponse(HttpStatusCode.OK);
+                await successResponse.WriteAsJsonAsync(progress);
+                return successResponse;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting user progress");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+        }
+
         private async Task<string> GetUserFromRequestAsync(HttpRequestData req)
         {
             try

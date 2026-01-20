@@ -52,23 +52,27 @@ namespace QuoteAzureBackend.Services
                         q.Author.Contains(author, StringComparison.OrdinalIgnoreCase));
                 }
                 
-                // Apply sorting
-                filteredQuotes = ApplySorting(filteredQuotes, sortBy, sortOrder);
+                // Add like counts to ALL quotes before sorting
+                var quotesWithLikes = new List<Quote>();
+                var filteredQuotesList = filteredQuotes.ToList();
+                
+                foreach (var quote in filteredQuotesList)
+                {
+                    quote.LikeCount = await GetLikeCountAsync(quote.Id);
+                    quotesWithLikes.Add(quote);
+                }
+                
+                // Apply sorting on quotes with like counts
+                var sortedQuotes = ApplySorting(quotesWithLikes, sortBy, sortOrder);
                 
                 // Get total count
-                var totalCount = filteredQuotes.Count();
+                var totalCount = sortedQuotes.Count();
                 
                 // Apply pagination
-                var quotes = filteredQuotes
+                var quotes = sortedQuotes
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToList();
-                
-                // Add like counts to each quote
-                foreach (var quote in quotes)
-                {
-                    quote.LikeCount = await GetLikeCountAsync(quote.Id);
-                }
                 
                 return new QuotePageResponse
                 {
@@ -261,6 +265,10 @@ namespace QuoteAzureBackend.Services
                     ? quotes.OrderByDescending(q => q.LikeCount)
                     : quotes.OrderBy(q => q.LikeCount),
                 
+                "quotetext" or "text" or "quote" => sortDescending 
+                    ? quotes.OrderByDescending(q => q.QuoteText)
+                    : quotes.OrderBy(q => q.QuoteText),
+                
                 "createdat" or "date" => sortDescending 
                     ? quotes.OrderByDescending(q => q.CreatedAt)
                     : quotes.OrderBy(q => q.CreatedAt),
@@ -275,10 +283,8 @@ namespace QuoteAzureBackend.Services
         {
             try
             {
-                // This would typically come from a dedicated likes repository
-                // For now, we'll use the existing quote service method
-                // Note: This is a simplified implementation
-                return Task.FromResult(0); // TODO: Implement proper like counting
+                // Use the UserActivityRepository to get the actual like count
+                return _userActivityRepository.GetLikeCountForQuoteAsync(quoteId);
             }
             catch (Exception ex)
             {
