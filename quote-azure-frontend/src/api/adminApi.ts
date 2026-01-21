@@ -46,8 +46,8 @@ export interface QuotePageResponse {
 }
 
 export interface QuoteAddResponse {
-    quotesAdded: number;
-    totalQuotes: number;
+    QuotesAdded: number;
+    TotalQuotes: number;
     message: string;
 }
 

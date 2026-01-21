@@ -84,8 +84,8 @@ export function QuoteManagementScreen({ onBack }: QuoteManagementScreenProps) {
             setAddingQuotes(true);
             const response = await adminApi.fetchAndAddNewQuotes();
             if (response) {
-                setTotalCount(response?.totalQuotes || totalCount); // Keep current count if undefined
-                showToast(`Successfully added ${response.quotesAdded || 0} new quotes`, 'success');
+                setTotalCount(response?.TotalQuotes || totalCount); // Keep current count if undefined
+                showToast(`Successfully added ${response.QuotesAdded || 0} new quotes`, 'success');
             }
             setPage(1); // Reset to first page
             await loadQuotes();
