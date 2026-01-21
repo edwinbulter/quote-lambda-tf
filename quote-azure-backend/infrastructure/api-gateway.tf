@@ -5,7 +5,11 @@ resource "azurerm_api_management" "quote_api" {
   resource_group_name = azurerm_resource_group.rg.name
   publisher_email     = var.api_gateway_publisher_email
   publisher_name      = "Quote Backend API"
-  sku_name            = "Developer_1"
+  sku_name            = "Consumption_0"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # API Gateway Logger
@@ -49,11 +53,11 @@ resource "azurerm_api_management_api_operation" "catch_all" {
   api_name            = azurerm_api_management_api.quote_backend_api.name
   resource_group_name = azurerm_resource_group.rg.name
   api_management_name = azurerm_api_management.quote_api.name
-  display_name        = "Catch All"
+  display_name        = "Catch All GET"
   method              = "GET"
   url_template        = "/*"
   description         = "Forward all GET requests to Function App"
-  operation_id        = "catch-all-get"
+  operation_id        = "6b0c23ec8712451cbd9b8f20e73f87fe"
 }
 
 # Catch-all POST operation
