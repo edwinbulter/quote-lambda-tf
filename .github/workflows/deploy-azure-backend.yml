@@ -35,7 +35,7 @@
 # 3. Run workflow (deploys to production only)
 # 4. After deployment, create default users via API or AdminUserSeeder
 
-name: Build and Deploy Azure Backend
+name: Deploy Azure Backend
 
 on:
   workflow_dispatch:

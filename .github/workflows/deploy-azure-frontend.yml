@@ -1,4 +1,8 @@
 # GitHub Action: Deploy Frontend to Azure Static Website
+#
+# Service Principal Setup (one-time):
+# az ad sp create-for-rbac --name "github-frontend-deploy" --role "Storage Blob Data Contributor" --scopes "/subscriptions/<subscription-id>/resourceGroups/quote-frontend-rg"
+#
 # Required GitHub Secrets:
 # - AZURE_CLIENT_ID: Found in Azure Portal → Azure AD → App registrations → Application (client) ID
 # - AZURE_CLIENT_SECRET: Found in Azure Portal → Azure AD → App registrations → Certificates & secrets
@@ -7,10 +11,8 @@
 # - STORAGE_ACCOUNT_NAME: quotefrontend
 # - RESOURCE_GROUP_NAME: quote-frontend-rg
 # 
-# Service Principal Setup (one-time):
-# az ad sp create-for-rbac --name "github-frontend-deploy" --role "Storage Blob Data Contributor" --scopes "/subscriptions/<subscription-id>/resourceGroups/quote-frontend-rg"
 
-name: Deploy Frontend to Azure Static Website
+name: Deploy Azure Frontend
 
 on:
   workflow_dispatch: # Manual trigger only

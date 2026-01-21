@@ -1,4 +1,4 @@
-name: Deploy Frontend
+name: Deploy AWS Frontend
 
 on:
   workflow_dispatch:
