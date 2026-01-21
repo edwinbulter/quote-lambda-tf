@@ -71,7 +71,8 @@ jobs:
             --source ./quote-azure-frontend/dist \
             --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }} \
             --content-cache-control "no-cache" \
-            --overwrite
+            --overwrite \
+            --auth-mode login
           
           # Configure CORS for the frontend
           az storage cors add \
@@ -81,7 +82,8 @@ jobs:
             --origins "*" \
             --max-age 3600 \
             --allowed-headers "*" \
-            --exposed-headers "*"
+            --exposed-headers "*" \
+            --auth-mode login
             
     - name: Logout from Azure
       if: always()
