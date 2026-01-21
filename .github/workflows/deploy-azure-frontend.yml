@@ -65,20 +65,7 @@ jobs:
       uses: azure/CLI@v2
       with:
         inlineScript: |
-          # Enable static website on storage account
-          az storage account update \
-            --name ${{ secrets.STORAGE_ACCOUNT_NAME }} \
-            --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
-            --static-website true
-          
-          # Set index and error documents
-          az storage blob service-properties update \
-            --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }} \
-            --static-website \
-            --index-document index.html \
-            --404-document index.html
-          
-          # Upload files with correct content types
+          # Upload files to $web container
           az storage blob upload-batch \
             --destination '$web' \
             --source ./quote-azure-frontend/dist \
@@ -86,8 +73,8 @@ jobs:
             --content-cache-control "no-cache" \
             --overwrite
           
-          # Ensure CORS is configured for the frontend
-          az storage cors rule create \
+          # Configure CORS for the frontend
+          az storage cors add \
             --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }} \
             --services b \
             --methods GET HEAD OPTIONS \
