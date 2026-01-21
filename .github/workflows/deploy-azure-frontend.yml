@@ -82,8 +82,7 @@ jobs:
             --origins "*" \
             --max-age 3600 \
             --allowed-headers "*" \
-            --exposed-headers "*" \
-            --auth-mode login
+            --exposed-headers "*"
             
     - name: Logout from Azure
       if: always()
