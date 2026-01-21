@@ -116,6 +116,7 @@ resource "azurerm_api_management_api_policy" "function_key_policy" {
         <origin>http://localhost:5173</origin>
         <origin>http://localhost:5174</origin>
         <origin>https://quote-azure-frontend.azurestaticapps.net</origin>
+        <origin>https://quotefrontend.z6.web.core.windows.net</origin>
       </allowed-origins>
       <allowed-methods>
         <method>GET</method>

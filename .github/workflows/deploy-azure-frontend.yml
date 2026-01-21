@@ -48,7 +48,7 @@ jobs:
       run: npm run build
       env:
         # Set production API URL - update this to your production backend URL
-        VITE_REACT_APP_API_BASE_URL: https://quote-api-gateway.azure-api.net
+        VITE_REACT_APP_API_BASE_URL: https://quote-api-gateway.azure-api.net/quote
         
     - name: Login to Azure
       uses: azure/login@v2

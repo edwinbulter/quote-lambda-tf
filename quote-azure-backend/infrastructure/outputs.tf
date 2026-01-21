@@ -11,6 +11,7 @@ output "resource_group_name" {
 output "storage_account_name" {
   description = "The name of the Storage Account"
   value       = data.azurerm_storage_account.table_storage.name
+  sensitive   = true
 }
 
 output "function_app_name" {
