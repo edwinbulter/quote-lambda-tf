@@ -59,31 +59,3 @@ resource "azurerm_storage_blob" "frontend_files" {
   source                 = "${path.root}/../dist/${each.value}"
   content_md5            = filemd5("${path.root}/../dist/${each.value}")
 }
-
-# CDN Profile (optional, for better performance)
-resource "azurerm_cdn_profile" "frontend" {
-  count                = var.enable_cdn ? 1 : 0
-  name                = "quote-frontend-cdn"
-  location            = var.use_existing_storage_account ? data.azurerm_storage_account.existing[0].location : azurerm_resource_group.frontend[0].location
-  resource_group_name = var.use_existing_storage_account ? var.frontend_resource_group_name : azurerm_resource_group.frontend[0].name
-  sku                 = "Standard_Microsoft"
-
-  tags = var.tags
-}
-
-# CDN Endpoint
-resource "azurerm_cdn_endpoint" "frontend" {
-  count                = var.enable_cdn ? 1 : 0
-  name                = "quote-frontend-endpoint"
-  profile_name        = azurerm_cdn_profile.frontend[0].name
-  location            = var.use_existing_storage_account ? data.azurerm_storage_account.existing[0].location : azurerm_resource_group.frontend[0].location
-  resource_group_name = var.use_existing_storage_account ? var.frontend_resource_group_name : azurerm_resource_group.frontend[0].name
-  origin_host_header  = var.use_existing_storage_account ? data.azurerm_storage_account.existing[0].primary_web_endpoint : azurerm_storage_account.frontend[0].primary_web_endpoint
-
-  origin {
-    name      = "frontend-origin"
-    host_name = var.use_existing_storage_account ? data.azurerm_storage_account.existing[0].primary_web_endpoint : azurerm_storage_account.frontend[0].primary_web_endpoint
-  }
-
-  tags = var.tags
-}

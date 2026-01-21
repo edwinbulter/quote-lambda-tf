@@ -2,6 +2,8 @@
 
 A full-stack serverless quote management application built with modern cloud-native technologies. This monorepo contains both the frontend React application and the backend Java Lambda API, demonstrating best practices for serverless architecture, infrastructure as code, and CI/CD automation.
 
+> **📘 Azure Deployment**: For Microsoft Azure deployment guide, see [README-quote-azure.md](./README-quote-azure.md) for Azure Functions, API Management, and Azure Storage setup.
+
 ## Table of Contents
 
 - [🌟 Live Demo](#-live-demo)
@@ -220,6 +222,9 @@ aws s3 sync dist/ s3://quote-lambda-tf-frontend --delete
 - **Security**: IAM roles with least-privilege policies
 
 ## 📚 Documentation
+
+### Azure Deployment Documentation
+- **[Azure Deployment Guide](./README-quote-azure.md)** - Complete guide for deploying on Microsoft Azure
 
 ### Backend Documentation
 - [Infrastructure Setup](./quote-lambda-tf-backend/doc/infrastructure.md) - Terraform configuration and deployment

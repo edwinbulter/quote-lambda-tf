@@ -48,12 +48,6 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "enable_cdn" {
-  description = "Enable CDN for the frontend"
-  type        = bool
-  default     = false
-}
-
 variable "custom_domain" {
   description = "Custom domain configuration"
   type = object({

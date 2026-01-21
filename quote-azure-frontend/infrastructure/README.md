@@ -2,6 +2,61 @@
 
 This directory contains the Terraform configuration for deploying the quote-azure-frontend as a static website on Azure Storage using your existing storage account for frontend files, with a dedicated storage account for Terraform state management.
 
+## Table of Contents
+
+- [🏗️ Architecture](#️-architecture)
+  - [Infrastructure Components](#infrastructure-components)
+  - [Data Flow](#data-flow)
+  - [Security Features](#security-features)
+- [Prerequisites](#prerequisites)
+  - [Terraform State Storage](#terraform-state-storage)
+- [🚀 Quick Start](#-quick-start)
+  - [Deploy Frontend Infrastructure](#deploy-frontend-infrastructure)
+- [Quick Setup Script](#quick-setup-script)
+- [Manual Deployment Steps](#manual-deployment-steps)
+  - [1. Initialize Terraform](#1-initialize-terraform)
+  - [2. Plan the Deployment](#2-plan-the-deployment)
+  - [3. Apply the Configuration](#3-apply-the-configuration)
+- [File Structure](#file-structure)
+- [Resources Created](#resources-created)
+- [Configuration Options](#configuration-options)
+  - [Basic Configuration](#basic-configuration)
+  - [Custom Domain](#custom-domain)
+- [Outputs](#outputs)
+- [Environment Variables](#environment-variables)
+- [Cleanup](#cleanup)
+
+## 🏗️ Architecture
+
+Simple static website hosting on Azure Storage:
+
+```
+React App → GitHub Actions → Azure Storage ($web container) → Users
+     ↓              ↓                    ↓
+  Build files    Terraform        HTTPS endpoint
+```
+
+### Infrastructure Components
+
+- **Azure Storage Account**: Hosts static website files
+- **$web Container**: Default container for static website hosting  
+- **Terraform State Storage**: Separate storage for state management
+- **GitHub Actions**: Automated CI/CD pipeline for deployment
+- **CORS Configuration**: Secure cross-origin resource sharing
+
+### Data Flow
+
+1. **Development**: React app → `npm run build` → `dist/` folder
+2. **Deployment**: GitHub Actions → Terraform → Azure Storage
+3. **Access**: Users → HTTPS → Static website → React app
+
+### Security Features
+
+- **HTTPS Only**: Azure Storage enforces secure connections
+- **CORS Protection**: Limited to specific domains
+- **State Isolation**: Separate storage account for Terraform state
+- **Access Control**: Service Principal authentication for deployments
+
 ## Prerequisites
 
 ### Terraform State Storage
@@ -131,7 +186,6 @@ infrastructure/
 - $web container created for frontend files
 - CORS configuration updated
 - Frontend files uploaded to $web container
-- CDN Profile & Endpoint (optional)
 
 ## Configuration Options
 
@@ -155,46 +209,15 @@ custom_domain = {
 }
 ```
 
-### CDN Configuration
-Enable/disable CDN:
-```hcl
-enable_cdn = true  # Set to false to save costs
-```
-
 ## Outputs
 
 After deployment, you'll get:
-- `static_website_url`: Direct storage endpoint
-- `cdn_endpoint_url`: CDN endpoint (if enabled)
-- `storage_account_id`: For reference
-- `primary_access_key`: For uploads (sensitive)
-
-## Updating the Frontend
-
-1. Build the frontend:
-   ```bash
-   cd ..
-   npm run build
-   cd infrastructure
-   ```
-
-2. Upload new files:
-   ```bash
-   terraform apply  # This will update the blobs
-   ```
-
-   Or use the Azure CLI for faster uploads:
-   ```bash
-   # Get storage account key
-   STORAGE_KEY=$(terraform output -raw primary_access_key)
-   
-   # Upload files
-   az storage blob upload-batch \
-     --source ../dist \
-     --destination '$web' \
-     --account-name $(terraform output -raw storage_account_name) \
-     --account-key $STORAGE_KEY
-   ```
+- `resource_group_name`: Name of the resource group (sensitive)
+- `storage_account_name`: Name of the storage account (sensitive)
+- `storage_account_id`: ID of the storage account
+- `static_website_url`: URL of the static website
+- `primary_access_key`: Primary access key for uploads (sensitive)
+- `connection_string`: Connection string for the storage account (sensitive)
 
 ## Environment Variables
 
@@ -208,54 +231,6 @@ VITE_API_BASE_URL=https://your-backend-api.azurewebsites.net npm run build
 VITE_API_BASE_URL=http://localhost:7071 npm run build
 ```
 
-## Cost Optimization
-
-### Using Existing Storage Account:
-- **Additional cost**: Minimal (~$0.50-1/month for operations)
-- **Storage cost**: Shared with backend
-- **Data transfer**: First 100GB/month free
-
-## Security Considerations
-
-1. **HTTPS**: Storage account enforces HTTPS by default
-2. **CORS**: Configure to allow only your domains
-3. **Access Keys**: Store securely (Terraform state is encrypted)
-4. **Shared Storage**: Ensure frontend files don't conflict with backend data
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Storage Account Access**
-   - Ensure you have contributor rights to the storage account
-   - Check that the storage account exists and is accessible
-
-2. **Static Website Not Working**
-   - Verify static website is enabled
-   - Check that index.html is uploaded to $web container
-
-3. **CORS Issues**
-   - Update backend CORS settings
-   - Check storage account CORS configuration
-
-4. **Terraform State Issues**
-   - Ensure backend configuration is correct
-   - Check storage account access
-
-### Debug Commands
-
-```bash
-# Check storage account static website settings
-az storage blob service-properties show \
-  --account-name $(terraform output -raw storage_account_name) \
-  --query "staticWebsite"
-
-# List uploaded files
-az storage blob list \
-  --container-name '$web' \
-  --account-name $(terraform output -raw storage_account_name)
-```
-
 ## Cleanup
 
 To remove frontend resources:
@@ -266,60 +241,6 @@ terraform destroy
 This will remove:
 - Frontend files from $web container
 - Static website configuration
-- CDN resources (if enabled)
 - Frontend Terraform state from terraform-state-frontend container
 
 **Note**: Your existing storage account, terraform-state container (backend), backend data, and quote-frontend-rg resource group (containing state storage) will remain untouched.
-
-## Integration with CI/CD
-
-### GitHub Actions Example
-
-```yaml
-name: Deploy Frontend
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Build frontend
-        run: npm run build
-        env:
-          VITE_API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        
-      - name: Deploy to Azure
-        run: |
-          cd infrastructure
-          terraform init
-          terraform apply -auto-approve
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-```
-
-## Next Steps
-
-1. Set up custom domain
-2. Configure SSL certificate
-3. Set up monitoring and alerts
-4. Implement CI/CD pipeline
-5. Add backup strategy

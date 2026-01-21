@@ -22,11 +22,6 @@ output "static_website_url" {
   value       = var.use_existing_storage_account ? data.azurerm_storage_account.existing[0].primary_web_endpoint : azurerm_storage_account.frontend[0].primary_web_endpoint
 }
 
-output "cdn_endpoint_url" {
-  description = "URL of the CDN endpoint"
-  value       = var.enable_cdn ? azurerm_cdn_endpoint.frontend[0].fqdn : null
-}
-
 output "primary_access_key" {
   description = "Primary access key for the storage account"
   value       = var.use_existing_storage_account ? data.azurerm_storage_account.existing[0].primary_access_key : azurerm_storage_account.frontend[0].primary_access_key

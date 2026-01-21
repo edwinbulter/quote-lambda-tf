@@ -18,13 +18,6 @@ storage_account_name = "quotefrontend"
 # Environment
 environment = "dev"
 
-# Backend API URL (configure in your build process)
-# dev_backend_api_url = "http://localhost:7071"
-# prod_backend_api_url = "https://your-backend-api.azurewebsites.net"
-
-# CDN Configuration
-enable_cdn = false
-
 # Custom Domain (optional)
 custom_domain = {
   domain_name = ""
