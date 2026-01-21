@@ -228,7 +228,7 @@ async function fetchAndAddNewQuotes(): Promise<QuoteAddResponse> {
     
     return withRetry(
         async () => {
-            const response = await fetch(`${BASE_URL}/admin/quotes/fetch`, {
+            const response = await fetch(`${BASE_URL}/manage/quotes/fetch`, {
                 method: "POST",
                 headers: {
                     ...authHeaders,
