@@ -39,6 +39,10 @@ Search for a trace in Azure portal:
 
 ## View azure table storage
 
+### In Azure Portal
+Open the Storage account  
+Open Storage Browser>Tables
+
 ### By Azure CLI
 1. Get your-connection-string by copying the entire output of this command:
    ```shell

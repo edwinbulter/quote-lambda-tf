@@ -49,7 +49,7 @@ The script is interactive and will ask for confirmation before making changes.
 #### Documentation
 
 For detailed information about multi-environment setup and workspace management, see:
-- [Multi-Environment Setup Guide](../doc/multi-environment-setup.md)
+- [Multi-Environment Setup Guide](../doc/AWS/multi-environment-setup.md)
 
 ---
 
@@ -377,7 +377,7 @@ The script automatically handles table naming based on environment:
 #### Documentation
 
 For detailed technical design and implementation details, see:
-- [ECS-25: DynamoDB PITR Restore Automation](../doc/tasks/ECS-25-backup-and-restore.md)
+- [ECS-25: DynamoDB PITR Restore Automation](../doc/AWS/tasks/ECS-25-backup-and-restore.md)
 
 ---
 

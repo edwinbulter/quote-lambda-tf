@@ -55,7 +55,7 @@ This project uses **remote state storage** in AWS S3 with a **shared bucket arch
 
 > **📚 New Documentation**: This project now uses a shared Terraform state infrastructure. For complete details, see:
 > - [Infrastructure README](../infrastructure/README.md) - Quick reference and deployment guide
-> - [Terraform State Architecture](../../doc/terraform-state-architecture.md) - Complete architecture overview
+> - [Terraform State Architecture](../../doc/AWS/terraform-state-architecture.md) - Complete architecture overview
 
 ### State Storage Configuration
 

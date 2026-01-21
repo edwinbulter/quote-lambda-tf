@@ -237,10 +237,10 @@ aws s3 sync dist/ s3://quote-lambda-tf-frontend --delete
 - [GitHub Workflows](./quote-lambda-tf-frontend/doc/github-workflows.md) - Deployment automation
 
 ### Shared Documentation
-- [Terraform State Architecture](doc/terraform-state-architecture.md) - Complete state management architecture
-- [Multi-Environment Setup](doc/multi-environment-setup.md) - Dev/Prod environment configuration
+- [Terraform State Architecture](doc/AWS/terraform-state-architecture.md) - Complete state management architecture
+- [Multi-Environment Setup](doc/AWS/multi-environment-setup.md) - Dev/Prod environment configuration
 - [AWS OIDC Setup Script](./.github/setup-aws-oidc.sh) - Automated IAM role configuration
-- [Authentication & Authorization Architecture](doc/authentication/authentication-authorization-setup.md) - How users authenticate and access is authorized
+- [Authentication & Authorization Architecture](doc/AWS/authentication/authentication-authorization-setup.md) - How users authenticate and access is authorized
 
 ## 🔐 Authentication & Authorization
 
@@ -274,7 +274,7 @@ Users can authenticate in two ways:
 - ✅ User action logging to CloudWatch
 - ✅ CORS configured for secure cross-origin requests
 
-For detailed architecture and implementation details, see: **[Authentication & Authorization Architecture](doc/authentication/authentication-authorization-setup.md)**
+For detailed architecture and implementation details, see: **[Authentication & Authorization Architecture](doc/AWS/authentication/authentication-authorization-setup.md)**
 
 ## 🔐 GitHub Actions Setup
 

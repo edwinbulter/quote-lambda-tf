@@ -245,4 +245,4 @@ terraform plan -var-file="prod.tfvars"
 - [Infrastructure Details](../doc/infrastructure.md)
 - [GitHub Workflows](../doc/github-workflows.md)
 - [SnapStart Setup](../doc/snapstart-setup.md)
-- [Shared State Architecture](../../doc/terraform-state-architecture.md)
+- [Shared State Architecture](../../doc/AWS/terraform-state-architecture.md)

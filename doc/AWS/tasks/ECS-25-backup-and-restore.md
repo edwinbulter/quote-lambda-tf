@@ -956,7 +956,7 @@ python3 scripts/restore-dynamodb-pitr/restore_dynamodb_pitr.py \
 
 ### Documentation
 
-- **Script README**: [scripts/README.md](../../scripts/README.md#restore-dynamodb-pitr)
+- **Script README**: [scripts/README.md](../../../scripts/README.md#restore-dynamodb-pitr)
 - **Technical Design**: This document (ECS-25)
 - **Installation**: `pip3 install -r scripts/restore-dynamodb-pitr/requirements.txt`
 
