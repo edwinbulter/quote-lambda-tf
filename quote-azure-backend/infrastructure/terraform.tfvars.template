@@ -1,0 +1,24 @@
+# Backend Infrastructure Variables
+# Copy this file to terraform.tfvars and update with your actual values
+
+# Azure Configuration
+subscription_id = "your-azure-subscription-id"
+location = "westeurope"
+
+# Storage Configuration
+table_storage_account_name = "qbtstk9asli"
+
+# JWT Configuration
+jwt_signing_key = "your-jwt-signing-key-here"
+jwt_issuer = "https://quote-backend-function.azurewebsites.net"
+jwt_audience = "quote-azure-backend-users"
+
+# API Gateway Configuration
+api_gateway_master_key = "your-api-gateway-master-key-here"
+api_gateway_publisher_email = "admin@example.com"
+
+# Resource Names (optional - defaults are usually fine)
+# storage_account_name = "quotebackendstorage"
+# resource_group_name = "quote-backend-rg"
+# function_app_name = "quote-backend-function"
+# api_gateway_name = "quote-api-gateway"

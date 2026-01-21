@@ -2,7 +2,7 @@
 variable "location" {
   description = "Azure region for resources"
   type        = string
-  default     = "West Europe"
+  sensitive   = true
 }
 
 variable "resource_group_name" {
@@ -26,21 +26,14 @@ variable "api_gateway_name" {
 variable "subscription_id" {
   description = "Azure Subscription ID"
   type        = string
-  default     = "740da4a2-18ba-4ffc-827a-1b526cbc3b9f"
   sensitive   = true
 }
 
 # Storage Configuration
-variable "storage_account_name" {
-  description = "Base name for the storage account"
-  type        = string
-  default     = "quotebackendstorage"
-}
-
 variable "table_storage_account_name" {
   description = "Name of the storage account for tables"
   type        = string
-  default     = "qbtstk9asli"
+  sensitive   = true
 }
 
 # JWT Configuration
@@ -53,7 +46,7 @@ variable "jwt_signing_key" {
 variable "jwt_issuer" {
   description = "JWT issuer"
   type        = string
-  default     = "https://quote-backend-function.azurewebsites.net"
+  sensitive   = true
 }
 
 variable "jwt_audience" {

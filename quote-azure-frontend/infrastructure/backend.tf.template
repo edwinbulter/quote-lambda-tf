@@ -1,0 +1,20 @@
+terraform {
+  backend "azurerm" {
+    # Use dedicated storage account for frontend state
+    storage_account_name  = "quotefrontendstate"
+    resource_group_name  = "quote-frontend-rg"
+    container_name       = "terraform-state-frontend"
+    key                  = "frontend-infrastructure.tfstate"
+  }
+  
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+}

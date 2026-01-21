@@ -1,0 +1,105 @@
+# GitHub Action: Deploy Frontend to Azure Static Website
+# Required GitHub Secrets:
+# - AZURE_CLIENT_ID: Found in Azure Portal → Azure AD → App registrations → Application (client) ID
+# - AZURE_CLIENT_SECRET: Found in Azure Portal → Azure AD → App registrations → Certificates & secrets
+# - AZURE_TENANT_ID: Found in Azure Portal → Azure AD → Overview → Tenant ID
+# - AZURE_SUBSCRIPTION_ID: Found in Azure Portal → Subscriptions
+# - STORAGE_ACCOUNT_NAME: quotefrontend
+# - RESOURCE_GROUP_NAME: quote-frontend-rg
+# 
+# Service Principal Setup (one-time):
+# az ad sp create-for-rbac --name "github-frontend-deploy" --role "Storage Blob Data Contributor" --scopes "/subscriptions/<subscription-id>/resourceGroups/quote-frontend-rg"
+
+name: Deploy Frontend to Azure Static Website
+
+on:
+  workflow_dispatch: # Manual trigger only
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: quote-azure-frontend/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: ./quote-azure-frontend
+      run: npm ci
+      
+    - name: Run tests
+      working-directory: ./quote-azure-frontend
+      run: npm run test
+      
+    - name: Build application
+      working-directory: ./quote-azure-frontend
+      run: npm run build
+      env:
+        # Set production API URL - update this to your production backend URL
+        VITE_API_URL: https://quote-api-gateway.azure-api.net
+        
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        creds: |
+          {
+            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+            "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+          }
+          
+    - name: Deploy to Azure Storage
+      uses: azure/CLI@v2
+      with:
+        inlineScript: |
+          # Enable static website on storage account
+          az storage account blob-service-properties update \
+            --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }} \
+            --static-website \
+            --index-document index.html \
+            --404-document index.html
+          
+          # Upload files with correct content types
+          az storage blob upload-batch \
+            --destination '$web' \
+            --source ./quote-azure-frontend/dist \
+            --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }} \
+            --content-cache-control "no-cache" \
+            --overwrite
+          
+          # Ensure CORS is configured for the frontend
+          az storage cors rule create \
+            --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }} \
+            --services b \
+            --methods GET HEAD OPTIONS \
+            --origins "*" \
+            --max-age 3600 \
+            --allowed-headers "*" \
+            --exposed-headers "*"
+            
+    - name: Logout from Azure
+      if: always()
+      run: az logout
+      
+    - name: Display website URL
+      run: |
+        echo "🚀 Frontend deployed successfully!"
+        echo "📍 Website URL: https://${{ secrets.STORAGE_ACCOUNT_NAME }}.z6.web.core.windows.net/"
+        echo "🔍 Check the deployment at: https://${{ secrets.STORAGE_ACCOUNT_NAME }}.z6.web.core.windows.net/"

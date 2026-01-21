@@ -1,0 +1,40 @@
+# Environment-specific variables for Terraform
+# Copy this file to terraform.tfvars and update values
+
+# Use existing storage account for frontend files
+use_existing_storage_account = true
+
+# Frontend storage account details (for hosting frontend files)
+frontend_storage_account_name = "quote-lambda-tf"  # Replace with your storage account name
+frontend_resource_group_name = "quote-lambda-tf-rg"  # Replace with your resource group name
+
+# Resource Group (only used if creating new storage account)
+resource_group_name = "quote-frontend-rg"
+location            = "westeurope"
+
+# Storage Account (only used if not using existing)
+storage_account_name = "quotefrontend"
+
+# Environment
+environment = "dev"
+
+# Backend API URL (configure in your build process)
+# dev_backend_api_url = "http://localhost:7071"
+# prod_backend_api_url = "https://your-backend-api.azurewebsites.net"
+
+# CDN Configuration
+enable_cdn = false
+
+# Custom Domain (optional)
+custom_domain = {
+  domain_name = ""
+  ttl         = 3600
+}
+
+# Tags
+tags = {
+  Project     = "quote-azure"
+  Component   = "frontend"
+  Environment = "dev"
+  Owner       = "code.bulter"
+}
