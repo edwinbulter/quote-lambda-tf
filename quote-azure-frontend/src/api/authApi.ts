@@ -42,7 +42,7 @@ class ApiService {
     confirmPassword: string;
   }) {
     const response = await this.client.post('/auth/register', userData);
-    this.setToken(response.data.token);
+    // Don't set token on registration - user should login separately
     return response.data;
   }
 

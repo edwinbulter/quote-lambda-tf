@@ -26,6 +26,14 @@ export const AzureLogin: React.FC<AzureLoginProps> = ({ onCancel }) => {
                     return;
                 }
                 await register({ email, username, password, confirmPassword });
+                // Registration successful - switch to login mode
+                setIsRegister(false);
+                setError('');
+                // Clear form fields for login
+                setPassword('');
+                setConfirmPassword('');
+                // Show success message (optional)
+                console.log('Registration successful! Please login.');
             } else {
                 await login(username, password);
             }

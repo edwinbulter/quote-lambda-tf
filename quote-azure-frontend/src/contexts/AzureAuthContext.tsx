@@ -94,28 +94,9 @@ export const AzureAuthProvider: React.FC<AuthProviderProps> = ({ children }) => 
       const response = await apiService.register(userData);
       console.log('Register response:', response);
       
-      // The response only contains token info, user data is in the JWT
-      const token = response.token;
-      if (!token) {
-        console.error('No token in response:', response);
-        throw new Error('No token received from server');
-      }
-      
-      // Decode JWT to get user info
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('Decoded token payload:', payload);
-        
-        setUser({
-          id: payload.nameid,
-          email: payload.email,
-          username: payload.unique_name,
-          roles: Array.isArray(payload.role) ? payload.role : (payload.role ? [payload.role] : []),
-        });
-      } catch (decodeError) {
-        console.error('Failed to decode token:', decodeError);
-        throw new Error('Invalid token received from server');
-      }
+      // Registration successful but no token - user should login separately
+      // Just return success, don't set user or token
+      return response;
     } catch (error: any) {
       console.error('Register error:', error);
       throw error;
