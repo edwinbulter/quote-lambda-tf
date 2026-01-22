@@ -280,21 +280,65 @@ This Azure deployment demonstrates:
 
 ## 💰 Cost Estimate
 
-This application runs on Azure Free Tier eligible services:
+This application uses multiple Azure services across both backend and frontend. Here's the complete cost breakdown:
 
-- **Azure Functions**: 1M executions free (Consumption Plan) / Always free on Premium with credit
-- **API Management**: Consumption tier (~$2-5/month) - Pay-per-use pricing ✅ **Now configured**
-- **Azure Storage**: 5GB storage + 100K transactions free
-- **Azure Monitor**: Free tier included
+### **Backend Infrastructure (quote-azure-backend)**
 
-**Estimated monthly cost**: $0-5 for low traffic (API Management Consumption tier with pay-per-use pricing)
+| Service | Configuration | Free Tier Coverage | Estimated Monthly Cost |
+|---------|---------------|-------------------|----------------------|
+| **Azure Functions** | Consumption Plan (Y1 SKU) | 1M executions free + 400k GB-sec | $0-2 for typical usage |
+| **API Management** | Consumption tier (Consumption_0) | No free tier | $2-5 based on API calls |
+| **Azure Storage Tables** | 4 tables (quotes, userlikes, userprogress, userroles) | 5GB storage + 100K transactions free | $0-1 for low traffic |
+| **Application Insights** | Basic logging | 5GB data free | $0-1 for moderate usage |
+| **Log Analytics Workspace** | PerGB2018 SKU | 5GB data free | $0-1 for moderate usage |
+| **App Service Plan** | Consumption (Y1) | Included with Functions | $0 (billed with Functions) |
 
-**Cost Benefits**:
-- ✅ API Management Consumption tier is significantly cheaper than Developer tier
-- Most services are within Azure Free Tier limits for low-traffic applications
-- Pay-per-use model means you only pay for actual usage
+### **Frontend Infrastructure (quote-azure-frontend)**
 
-**Note**: API Management has been successfully switched from Developer tier (~$50/month) to Consumption tier (~$2-5/month). The API configuration may need to be manually recreated in the Azure Portal due to management endpoint issues during the migration.
+| Service | Configuration | Free Tier Coverage | Estimated Monthly Cost |
+|---------|---------------|-------------------|----------------------|
+| **Azure Storage Account** | StorageV2 LRS (quotefrontend) | 5GB storage + 100K transactions free | $0-1 for static assets |
+| **Static Website Hosting** | $web container | Completely free | $0 |
+| **Terraform State Storage** | Same storage account, separate container | Included in storage free tier | $0 |
+
+### **Total Estimated Monthly Costs**
+
+| Usage Level | Backend | Frontend | **Total** |
+|-------------|---------|----------|-----------|
+| **Low Traffic** (<10K API calls/month) | $2-4 | $0-1 | **$2-5** |
+| **Moderate Traffic** (50K API calls/month) | $5-8 | $0-1 | **$5-9** |
+| **High Traffic** (100K+ API calls/month) | $8-15 | $1-2 | **$9-17** |
+
+### **Cost Optimization Benefits**
+
+✅ **API Management Consumption Tier**: Switched from Developer tier (~$50/month) to Consumption tier (~$2-5/month)  
+✅ **Shared Storage**: Frontend uses existing storage account, no additional storage costs  
+✅ **Free Tier Utilization**: Most services stay within Azure Free Tier limits for low-traffic usage  
+✅ **Pay-per-use Model**: Only pay for actual API calls and storage consumption  
+✅ **No CDN Costs**: Removed CDN configuration to eliminate additional expenses  
+
+### **Cost Management Tips**
+
+1. **Monitor API Usage**: API Management Consumption tier charges per million requests
+2. **Optimize Storage**: Regular cleanup of unused data in Storage Tables
+3. **Review Logs**: Configure appropriate retention periods in Log Analytics
+4. **Function Optimization**: Keep function execution times minimal to reduce consumption costs
+5. **Static Asset Caching**: Leverage browser caching to reduce storage transactions
+
+### **Infrastructure Summary**
+
+**Total Azure Resources Created:**
+- 1 Resource Group (quote-backend-rg)
+- 1 Azure Function App (Consumption Plan)
+- 1 API Management instance (Consumption tier)
+- 1 Application Insights instance
+- 1 Log Analytics Workspace
+- 4 Azure Storage Tables
+- 1 Storage Account for frontend (shared)
+- 1 Static Website hosting
+- Terraform state management
+
+**Most services are within Azure Free Tier limits for typical learning project usage, making this an extremely cost-effective deployment for development and small-scale production.**
 
 ## 🤝 Contributing
 
