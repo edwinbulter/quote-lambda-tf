@@ -40,6 +40,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# OVHcloud configuration (contains sensitive credentials)
+ovh.conf
+
 # HTTP Client environment files (secrets)
 **/http-client.env.json
 
@@ -62,6 +65,7 @@ yarn-error.log*
 .terraform.tfstate.lock.info
 terraform.tfvars
 *.tfvars
+!*.tfvars.example
 
 # Terraform backend configuration (contains sensitive data)
 **/backend.tf

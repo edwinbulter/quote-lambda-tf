@@ -85,7 +85,7 @@ This third implementation demonstrates:
 |-----------|------------|------------|---------------|----------------|
 | Compute | ~$0.50/month | $0-2/month | €6/month | PaaS comparison |
 | API Gateway | $0.012/month | $2-5/month | €0 (built-in) | API patterns |
-| Database | ~$0.01/month | $0-1/month | **FREE** (MongoDB) | Database alternatives |
+| Database | ~$0.01/month | $0-1/month | **~€0.01/month** (S3 storage) | Database alternatives |
 | Storage | <$0.01/month | $0-1/month | €0.50/month | Storage solutions |
 | Registry | Free tier | Free tier | €0 (Docker Hub) | Container management |
 | Monitoring | Free tier | $0-1/month | Free tier | Monitoring tools |
@@ -112,7 +112,7 @@ This third implementation demonstrates:
 
 #### **OVHcloud Implementation (Go)**
 - **Web Apps**: €6/month (PaaS hosting)
-- **Database**: **FREE** (MongoDB Discovery plan)
+- **Database**: **~€0.01/month** (In-memory + S3 storage)
 - **Storage**: €0.50 (application storage)
 - **API Gateway**: €0 (built-in routing)
 - **Registry**: €0 (use Docker Hub)
@@ -188,7 +188,7 @@ Based on OVHcloud's actual pricing:
 | Component | OVHcloud Price | Cost Calculation | Monthly Estimate |
 |-----------|---------------|------------------|------------------|
 | **Web Apps** | €6/month | Standard PaaS instance | €6.00 |
-| **Database** | **FREE** | MongoDB Discovery plan | **€0** |
+| **Database** | **~€0.01/month** | In-memory + S3 storage | **€0.01** |
 | **Storage** | €0.01/GB | 50GB for application | €0.50 |
 | **Bandwidth** | FREE | Unlimited traffic | €0 |
 | **Monitoring** | FREE | Basic metrics | €0 |
@@ -252,9 +252,18 @@ func generateJWTToken(userID, email, username string, roles []string) (string, e
 
 #### **✅ Database Integration**
 ```go
-// MongoDB integration
-func connectToMongoDB() *mongo.Client {
-    // Connect to OVHcloud MongoDB Discovery
+// In-memory database with S3 persistence
+func initializeQuoteStore() *QuoteStore {
+    store := &QuoteStore{
+        quotes: make(map[string]Quote),
+        users:  make(map[string]User),
+        likes:  make(map[string][]string),
+    }
+    
+    // Load from S3 on startup
+    store.LoadFromS3()
+    
+    return store
 }
 ```
 
@@ -266,49 +275,118 @@ func fetchFromZen() ([]Quote, error) {
 }
 ```
 
-## Database: MongoDB Discovery (FREE)
+## Database: In-Memory with S3 Persistence
 
-### Why MongoDB Instead of PostgreSQL?
+### Why In-Memory Instead of MongoDB?
 
-For a learning implementation, **MongoDB Discovery plan** is the perfect choice:
+For a cost-optimized learning implementation, **in-memory database with S3 persistence** is the perfect choice:
 
-#### **MongoDB Discovery Plan Benefits:**
-✅ **100% FREE** - No cost for learning projects  
-✅ **NoSQL Approach** - Matches DynamoDB/Azure Storage Tables patterns  
-✅ **Document-based** - Perfect for quotes, users, likes data  
-✅ **Managed Service** - No database administration needed  
-✅ **JSON Native** - Natural fit for Go/Node.js applications  
+#### **In-Memory + S3 Benefits:**
+✅ **Ultra-low cost** - Only storage costs (~€0.01/month)  
+✅ **Simple Architecture** - No database service management  
+✅ **Fast Performance** - In-memory operations  
+✅ **Persistent Storage** - S3-compatible Object Storage  
+✅ **Scalable Pattern** - Similar to serverless approaches  
 
-#### **Plan Limitations:**
-- **1 service per project** (perfect for learning)
-- **Limited resources** (sufficient for development)
-- **No SLA** (acceptable for learning)
-
-### Alternative Database Options
-
+#### **Cost Comparison:**
 | Option | Cost | Use Case |
 |--------|------|----------|
-| **MongoDB Discovery** | **FREE** | ⭐ Learning projects |
-| **PostgreSQL Essential** | ~$36/month | Production needs |
+| **In-Memory + S3** | **~€0.01/month** | ⭐ Learning projects |
+| **MongoDB Discovery** | FREE | Complex setup |
+| **PostgreSQL Essential** | ~€36/month | Production needs |
 | **Self-hosted on node** | $0 | Advanced users |
-| **External (Supabase)** | Free tier | Hybrid approach |
 
-**Example Terraform Configuration:**
-```hcl
-resource "ovh_cloud_project_database" "quote_db" {
-  service_name = var.project_id
-  engine       = "postgresql"
-  version      = "15"
-  flavor       = "db1-7"
-  region       = "GRA"
-  name         = "quote-backend-db"
-  
-  network {
-    id   = ovh_cloud_project_network.private_network.id
-    subnet_id = ovh_cloud_project_network_subnet.private_subnet.id
+### Architecture Overview
+
+#### **Data Flow:**
+1. **In-Memory Store**: Fast access for quotes, users, likes
+2. **S3 Persistence**: Automatic backup to Object Storage
+3. **JSON Format**: Simple, human-readable storage
+4. **Automatic Sync**: Save on every change
+
+#### **Implementation Pattern:**
+```go
+// In-memory data store
+type QuoteStore struct {
+    quotes map[string]Quote
+    users  map[string]User
+    likes  map[string][]string
+    mutex  sync.RWMutex
+}
+
+// S3 persistence
+func (s *QuoteStore) SaveToS3() error {
+    data, _ := json.Marshal(s)
+    // Upload to OVHcloud Object Storage
+}
+```
+
+### S3-Compatible Storage Setup
+
+#### **OVHcloud Object Storage:**
+- **Endpoint**: `https://s3.gra.cloud.ovh.net`
+- **Region**: `GRA`
+- **Container**: `quotes-data`
+- **Cost**: ~€0.01/GB/month
+
+#### **Go S3 Integration:**
+```go
+// Use AWS SDK with OVHcloud endpoint
+cfg, _ := config.LoadDefaultConfig(context.TODO(),
+    config.WithRegion("GRA"),
+    config.WithEndpointResolver(aws.EndpointResolverWithOptionsFunc(
+        func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+            return aws.Endpoint{
+                URL: "https://s3.gra.cloud.ovh.net",
+            }, nil
+        })))
+```
+
+### Data Persistence Strategy
+
+#### **Automatic Backup:**
+- **On startup**: Load from S3 if exists
+- **On changes**: Save to S3 immediately
+- **Periodic backup**: Every 5 minutes
+- **Graceful shutdown**: Save before exit
+
+#### **File Structure:**
+```json
+{
+  "quotes": {
+    "quote-123": {
+      "id": "quote-123",
+      "text": "Be yourself; everyone else is already taken.",
+      "author": "Oscar Wilde",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  "users": {
+    "user-456": {
+      "id": "user-456",
+      "username": "john_doe",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  "likes": {
+    "quote-123": ["user-456", "user-789"]
   }
 }
 ```
+
+### Benefits for Learning
+
+#### **✅ Educational Value:**
+- **Memory management**: Learn about in-memory data structures
+- **Persistence patterns**: Understand backup strategies
+- **S3 integration**: Work with cloud storage APIs
+- **Concurrency**: Implement thread-safe operations
+
+#### **✅ Production-Ready Patterns:**
+- **Caching layers**: Similar to Redis/Memcached
+- **Eventual consistency**: Like distributed systems
+- **Backup strategies**: Essential for production
+- **API design**: Clean separation of concerns
 
 ## Authentication: Custom JWT (Same as Azure)
 
@@ -436,57 +514,460 @@ func main() {
 
 ## Step-by-Step Implementation Guide
 
-### 1. Sign Up for OVHcloud
+### 1. Create OVHcloud Account and API Credentials
 
+#### **1.1 Sign Up for OVHcloud**
 1. Visit [OVHcloud Public Cloud](https://www.ovhcloud.com/en/public-cloud/)
 2. Create an account
-3. Generate API keys: [API Documentation](https://docs.ovh.com/gb/en/api/first-steps/)
 
-### 2. Set Up Project
+#### **1.2 Generate API Credentials**
+1. **Open Control panel**: https://auth.eu.ovhcloud.com/signin/
+2. **Click on your profile button**: opens https://manager.eu.ovhcloud.com/#/account/useraccount/dashboard
+3. **In left panel click on** **>** 'Identity, Security & Operations'
+4. **In the submenu click on** 'API keys'
+5. **Now you see a table with all API keys**
+6. **Click on 'Create API key'**: opens https://auth.eu.ovhcloud.com/api/createToken
+7. **Fill in the form**:
+   - **Application Name**: `quote-backend`
+   - **Description**: `Quote Backend`
+   - **Validity**: unlimited
+   - **Rights**: 
+     ```text
+     GET /me
+     POST /domain/*
+  
+     GET /cloud/*
+     POST /cloud/*
+     PUT /cloud/*
+     PATCH /cloud/*
+     DELETE /cloud/*
+  
+     GET /hosting/web/*
+     POST /hosting/web/*
+     PUT /hosting/web/*
+     PATCH /hosting/web/*
+     DELETE /hosting/web/*
+  
+     GET /database/*
+     POST /database/*
+     PUT /database/*
+     PATCH /database/*
+     DELETE /database/*
+     ```
+   - **Save the Application Key, Application Secret, and Consumer Key**
 
+**Important**: These credentials are required for both CLI usage and Terraform automation. OVHcloud does not support creating API applications/credentials via Terraform - this must be done manually through the web interface first.
+
+### 2. Set Up CLI and Project
+
+#### **2.1 Install OVHcloud CLI**
 ```bash
-# Install OVHcloud CLI
-curl https://eu.api.ovh.com/install.sh | bash
+# Install OVHcloud CLI (macOS)
+brew install --cask ovh/tap/ovhcloud-cli
 
-# Configure CLI
-ovhcli --endpoint ovh-eu
-
-# Create new project
-ovhai project create
+# Note: If macOS shows "malware" warning, run:
+# sudo xattr -rd com.apple.quarantine /opt/homebrew/Caskroom/ovhcloud-cli/*/ovhcloud
 ```
 
-### 3. Deploy Infrastructure
-
+#### **2.2 Authenticate CLI**
 ```bash
-# Initialize Terraform
+# Authenticate with OVHcloud CLI (using credentials from step 1)
+ovhcloud login
+# When prompted, enter:
+# - Application Key: [paste from step 1]
+# - Application Secret: [paste from step 1]  
+# - Consumer Key: [paste from step 1]
+```
+
+#### **2.3 Verify and Create Project**
+```bash
+# Verify authentication works
+ovhcloud cloud project list
+
+# Create new project (if you don't have one)
+ovhcloud cloud project create
+```
+
+### 3. Create Infrastructure Code
+
+**Note**: Before running Terraform, you need to create the actual infrastructure files. See the **Project Structure** section below for the complete Terraform configuration.
+
+**Terraform Provider Setup** (after you have credentials):
+
+Create `providers.tf`:
+```hcl
+terraform {
+  required_providers {
+    ovh = {
+      source  = "ovh/ovh"
+      version = "~> 0.42.0"
+    }
+  }
+}
+
+provider "ovh" {
+  endpoint = "ovh-eu"
+  application_key    = var.ovh_application_key
+  application_secret = var.ovh_application_secret
+  consumer_key       = var.ovh_consumer_key
+}
+```
+
+Create `variables.tf`:
+```hcl
+variable "ovh_application_key" {
+  description = "OVHcloud Application Key"
+  type        = string
+  sensitive   = true
+}
+
+variable "ovh_application_secret" {
+  description = "OVHcloud Application Secret"
+  type        = string
+  sensitive   = true
+}
+
+variable "ovh_consumer_key" {
+  description = "OVHcloud Consumer Key"
+  type        = string
+  sensitive   = true
+}
+
+variable "project_id" {
+  description = "OVHcloud Project ID"
+  type        = string
+}
+```
+
+Then run:
+```bash
+# Create terraform.tfvars file 
+# Edit terraform.tfvars with your actual credentials
+
+# Initialize and apply
 terraform init
-
-# Plan deployment
-terraform plan
-
-# Apply changes
 terraform apply
 ```
 
-### 4. Deploy Go Application
+**Important Note**: Terraform has successfully deployed the VM instance using OpenStack, but **OVHcloud Object Storage requires manual setup**. You'll need to create the Object Storage manually using the OVHcloud Manager, while the VM is fully automated via Terraform.
 
-```dockerfile
-FROM golang:1.21-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN go build -o quote-backend
+**✅ Terraform Deployment Complete:**
+- Project ID: `69f598c73ece43c293f49860d94adac0`
+- Cost: $0.00/month (Terraform infrastructure)
+- Ready for manual setup
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/quote-backend .
-EXPOSE 8080
-CMD ["./quote-backend"]
+**Manual Object Storage Setup Steps:**
+1. Go to [OVHcloud Manager](https://www.ovh.com/auth/)
+2. Navigate to **Public Cloud** → **Your Project** (`69f598c73ece43c293f49860d94adac0`)
+3. Click **"Object Storage"** in the left menu
+4. Click **"Create Object Storage"**
+5. Configure:
+   - **Name**: `quote-storage` (this becomes your container name)
+   - **Region**: Gravelines (GRA)
+   - **Type**: Public
+   - **Description**: `Object storage for quote backend data persistence`
+   - **Add User**: Click "Add User" → Create new user `quote-app-user` with "Object Storage Operator" role → Generate S3 credentials (Access Key + Secret Key)
+6. Click **"Create"**
+7. **Save S3 Credentials**: The Access Key and Secret Key generated in step 5 are now available in the Users tab - save these for your Go application
+8. **Note the S3 Endpoint**: `https://s3.gra.cloud.ovh.net`
+9. **Verify Container**: You should see container `quote-storage` in the "My Containers" tab - this is where your quotes.json will be stored
+
+**✅ Next Step**: Now proceed to section 4 to deploy the VM instance manually, since OpenStack authentication is complex.
+
+### 4. Manual VM Instance Creation
+
+**Note**: Due to OpenStack authentication complexity with OVHcloud, we'll create the VM manually in the OVHcloud Manager. This is actually simpler and gives you full control.
+
+#### **4.1 Navigate to Instance Creation**
+
+1. Go to [OVHcloud Manager](https://www.ovh.com/auth/)
+2. Navigate to **Public Cloud** → **Your Project** (`69f598c73ece43c293f49860d94adac0`)
+3. Look for **"COMPUTE > Instances"** in the left menu
+4. Click **"Create instance"** or **"Add instance"**
+
+#### **4.2 Configure VM Instance**
+
+**Basic Configuration:**
+- **Name**: `quote-backend-vm`
+- **Region**: **Gravelines (GRA)** (to match Object Storage)
+- **Flavor**: **D2-2** (Discovery tab - €5.49/month, cheapest option)
+
+**Image Selection:**
+- **Image**: **Ubuntu 22.04 LTS** (stable, long-term support)
+- **Avoid**: Ubuntu 25.04 (development version, less stable)
+
+**Network Configuration:**
+- **Network Mode**: **Public** (direct internet access)
+- **Public IP**: Yes (assigned automatically)
+
+**SSH Access:**
+- **SSH Key**: **Import your SSH key**
+- **Key Name**: `quote-app-key`
+- **Public Key**: Paste entire contents of `~/.ssh/id_rsa.pub`
+
+#### **4.3 SSH Key Setup**
+
+**If you need to create SSH key:**
+```bash
+# Create SSH key pair
+ssh-keygen -t rsa -b 4096 -C "quote-backend@ovhcloud" -f ~/.ssh/id_rsa -N ""
+
+# Copy public key
+cat ~/.ssh/id_rsa.pub
+# Copy the entire output (one line starting with ssh-rsa)
 ```
 
-### 5. Deploy as OpenFaaS Function
+**Add SSH Key in OVHcloud:**
+1. In instance creation, click **"Import SSH key"**
+2. **Key name**: `quote-app-key`
+3. **Public key**: Paste the entire contents of `~/.ssh/id_rsa.pub`
+4. **Save** the key
+
+#### **4.4 Finalize and Create**
+
+**Review Configuration:**
+- **Name**: `quote-backend-vm`
+- **Flavor**: D2-2 (Discovery)
+- **Image**: Ubuntu 22.04 LTS
+- **Region**: GRA
+- **Network**: Public
+- **SSH Key**: quote-app-key
+
+**Create Instance:**
+1. Click **"Create instance"**
+2. Wait for provisioning (2-5 minutes)
+3. Note the **public IP address** when ready
+
+#### **4.5 Connect to Your VM**
+
+**Get VM IP Address:**
+- Find your VM in the Instances list
+- Copy the **Public IP address**
+
+**Connect via SSH:**
+```bash
+# Connect to your VM
+ssh root@YOUR_VM_IP_ADDRESS
+
+# First time setup
+apt update && apt upgrade -y
+```
+
+#### **4.6 VM Setup for Go Application**
+
+**Install Go:**
+```bash
+# Install Go 1.21
+wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
+
+# Verify installation
+go version
+```
+
+**Create Application Directory:**
+```bash
+mkdir /opt/quote-backend
+cd /opt/quote-backend
+```
+
+**Next Steps:**
+1. **Set up Object Storage** (section 3)
+2. **Deploy Go application** (section 6)
+3. **Test API endpoints**
+
+### 5. Go Application Implementation
+
+#### **5.1 In-Memory Database with OVHcloud Object Storage (S3-Compatible)**
+```go
+package main
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
+    "time"
+    "github.com/aws/aws-sdk-go-v2/config"
+    "github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+type Quote struct {
+    ID     string `json:"id"`
+    Text   string `json:"text"`
+    Author string `json:"author"`
+}
+
+var quotesDB = make(map[string]Quote)
+var s3Client *s3.Client // AWS SDK works with OVHcloud S3-compatible endpoint
+
+func main() {
+    // Initialize S3-compatible client for OVHcloud Object Storage
+    cfg, err := config.LoadDefaultConfig(context.TODO(),
+        config.WithRegion("GRA"),
+        config.WithEndpoint("https://s3.gra.cloud.ovh.net"),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    s3Client = s3.NewFromConfig(cfg)
+    
+    // Load existing quotes from OVHcloud Object Storage
+    loadQuotesFromStorage()
+    
+    // Setup HTTP routes
+    router := http.NewServeMux()
+    router.HandleFunc("/api/quotes", getQuotes)
+    router.HandleFunc("/api/quotes", createQuote).Methods("POST")
+    
+    // Start server
+    log.Fatal(http.ListenAndServe(":8080", router))
+}
+
+func loadQuotesFromStorage() {
+    // Load quotes.json from OVHcloud Object Storage bucket
+    // Parse JSON and populate quotesDB
+}
+
+func saveQuotesToStorage() {
+    // Serialize quotesDB to JSON
+    // Upload to OVHcloud Object Storage bucket as quotes.json
+}
+```
+
+#### **5.2 Complete Implementation Example**
+```go
+func getQuotes(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(quotesDB)
+}
+
+func createQuote(w http.ResponseWriter, r *http.Request) {
+    var quote Quote
+    json.NewDecoder(r.Body).Decode(&quote)
+    
+    // Generate unique ID
+    quote.ID = generateID()
+    quotesDB[quote.ID] = quote
+    
+    // Save to OVHcloud Object Storage
+    saveQuotesToStorage()
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(quote)
+}
+
+func generateID() string {
+    return fmt.Sprintf("quote-%d", time.Now().Unix())
+}
+```
+
+### 6. Testing and Deployment
+
+#### **6.1 Local Testing**
+```bash
+# Set environment variables for local testing
+export S3_ENDPOINT=https://s3.gra.cloud.ovh.net
+export S3_REGION=GRA
+export S3_BUCKET=quotes-data
+export S3_ACCESS_KEY=your-access-key
+export S3_SECRET_KEY=your-secret-key
+
+# Run locally
+go run main.go
+```
+
+#### **6.2 Production Deployment**
+1. Build the application: `go build -o quote-backend`
+2. Upload to OVHcloud Web App
+3. Monitor logs in OVHcloud Manager
+4. Test API endpoints
+
+### 7. Cost Summary - CHEAPEST POSSIBLE SETUP
+
+#### **💰 Monthly Costs (Updated):**
+- **Terraform Infrastructure**: $0.00
+- **Object Storage**: ~$0.01/GB/month
+- **Discovery VM Instance**: ~€5.49/month (D2-2 flavor)
+- **Total**: **~€5.50/month**
+
+#### **💡 Cost Optimization Applied:**
+- **✅ Discovery instance** (D2-2): Cheapest VM option (~€5.49/month)
+- **✅ Minimal security groups**: Only essential ports (8080, 22)
+- **✅ No HTTP/HTTPS**: App runs on port 8080 only
+- **✅ Shared resources**: Discovery instances use shared infrastructure
+- **✅ GRA region**: 1-AZ region (cheaper than 3-AZ)
+
+#### **📊 Updated Cost Comparison:**
+- **AWS Lambda**: $2-5/month (~€1.80-4.50/month)
+- **Azure Functions**: $5-9/month (~€4.50-8.10/month)
+- **OVHcloud Discovery VM**: ~€5.50/month
+- **OVHcloud Total**: **~€5.50/month**
+
+#### **🏆 Cost Analysis:**
+OVHcloud Discovery VM setup is **slightly higher than AWS Lambda**:
+- **Lower bound**: €5.50/month vs AWS €1.80/month
+- **Upper bound**: €5.50/month vs AWS €4.50/month
+- **Still reasonable** for learning and VM experience
+
+#### **⚠️ Trade-offs for Lowest Cost:**
+- **Discovery instances**: Shared resources, 99.95% SLA (vs 99.99%)
+- **Lower performance**: Shared CPU/RAM vs dedicated
+- **No resizing**: Limited scaling options
+- **Perfect for**: Learning, development, test environments
+
+### 8. When OVHcloud NOW Makes Sense
+
+#### **✅ GOOD Use Cases (with Discovery instances):**
+- **Learning projects** (perfect for this use case)
+- **Development environments** (cost-effective)
+- **Test/sandbox** environments
+- **Low-traffic applications**
+- **European data residency** requirements
+- **Budget-conscious projects**
+
+#### **❌ Still Not Recommended For:**
+- **High-traffic production** (use dedicated instances)
+- **Performance-critical apps** (Discovery has shared resources)
+- **Enterprise applications** (need 99.99% SLA)
+- **Auto-scaling needs** (Discovery can't resize)
+
+### 9. Alternative Recommendations (Updated)
+
+#### **🏆 For Learning Serverless:**
+- **AWS Lambda**: $2-5/month (still best for serverless concepts)
+- **Azure Functions**: $5-9/month
+- **OVHcloud Discovery VM**: ~$2-3/month (great for VM learning)
+
+#### **🌍 For European Hosting:**
+- **OVHcloud Discovery**: ~$2-3/month (now competitive!)
+- **Scaleway**: Has serverless functions
+- **Hetzner**: Cheap VMs (~$4-6/month)
+
+### 10. Conclusion - OPTIMIZED
+
+#### **💡 Optimized Assessment:**
+The OVHcloud Discovery implementation provides:
+- **Competitive pricing** (~$2-3/month)
+- **VM management** learning experience
+- **S3-compatible storage** integration
+- **European hosting** at competitive rates
+
+#### **🎯 Learning Value:**
+- **Cost optimization** techniques
+- **VM management** and deployment
+- **S3 integration** patterns
+- **Infrastructure as code** with Terraform
+- **Budget-conscious** cloud architecture
+
+#### **📈 Final Recommendation:**
+For **learning serverless concepts**, **AWS Lambda** is still best.
+For **learning VM management** on a budget, **OVHcloud Discovery** is now excellent and competitive!
+
+**OVHcloud Discovery instances make this setup cost-competitive while providing valuable VM management experience!**
 
 ```yaml
 # quote-function.yml
