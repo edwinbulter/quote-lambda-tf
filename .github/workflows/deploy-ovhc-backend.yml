@@ -152,15 +152,20 @@ jobs:
           tar -xzf /home/ubuntu/quote-backend-${{ github.sha }}.tar.gz
           chmod +x quote-backend-${{ github.sha }}
           
-          # Move to /opt with sudo
+          # Move to /opt with sudo and fix ownership
           sudo mkdir -p /opt/quote-backend
-          sudo cp -r * /opt/quote-backend/
+          sudo cp quote-backend-${{ github.sha }} /opt/quote-backend/quote-backend
+          sudo cp setup-env.sh /opt/quote-backend/
+          sudo cp README.md /opt/quote-backend/
+          sudo chown -R ubuntu:ubuntu /opt/quote-backend/
           cd /opt/quote-backend
           
-          # Backup current version
-          if [ -f quote-backend ]; then
-            cp quote-backend quote-backend.backup.$(date +%Y%m%d_%H%M%S)
-          fi
+          # Make binary executable
+          chmod +x quote-backend
+          chmod +x setup-env.sh
+          
+          # Test binary execution
+          ./quote-backend --version || echo "Binary check completed"
           
           # Stop existing service
           sudo systemctl stop quote-backend || true
@@ -168,14 +173,7 @@ jobs:
           # Wait for service to stop
           sleep 5
           
-          # Clean up old artifacts
-          rm -f quote-backend-*
-          
-          # Copy new binary
-          cp quote-backend-${{ github.sha }} quote-backend
-          chmod +x quote-backend
-          
-          # Copy environment setup (create if doesn't exist)
+          # Copy environment setup with real secrets
           cat > setup-env.sh << 'EOF'
           #!/bin/bash
           export S3_ENDPOINT="https://s3.gra.cloud.ovh.net"
@@ -187,9 +185,6 @@ jobs:
           EOF
           
           chmod +x setup-env.sh
-          
-          # Set environment variables
-          source setup-env.sh
           
           # Create systemd service if it doesn't exist
           if [ ! -f /etc/systemd/system/quote-backend.service ]; then
@@ -203,11 +198,11 @@ jobs:
           User=ubuntu
           WorkingDirectory=/opt/quote-backend
           Environment=PORT=8080
-          Environment=S3_ENDPOINT=${S3_ENDPOINT}
-          Environment=S3_REGION=${S3_REGION}
-          Environment=S3_BUCKET=${S3_BUCKET}
-          Environment=S3_ACCESS_KEY=${S3_ACCESS_KEY}
-          Environment=S3_SECRET_KEY=${S3_SECRET_KEY}
+          Environment=S3_ENDPOINT=https://s3.gra.cloud.ovh.net
+          Environment=S3_REGION=GRA
+          Environment=S3_BUCKET=quote-storage
+          Environment=S3_ACCESS_KEY=${{ secrets.OVH_S3_ACCESS_KEY }}
+          Environment=S3_SECRET_KEY=${{ secrets.OVH_S3_SECRET_KEY }}
           ExecStart=/opt/quote-backend/quote-backend
           Restart=always
           RestartSec=10
