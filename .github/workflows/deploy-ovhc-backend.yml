@@ -51,12 +51,6 @@ name: 'Deploy OVHcloud Backend'
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm_deploy:
-        description: 'Confirm deployment'
-        required: true
-        default: false
-        type: boolean
 
 jobs:
   build:
@@ -121,7 +115,6 @@ jobs:
     name: Deploy to OVHcloud
     runs-on: ubuntu-latest
     needs: build
-    if: github.event.inputs.confirm_deploy == 'true'
     
     steps:
     - name: Checkout code
