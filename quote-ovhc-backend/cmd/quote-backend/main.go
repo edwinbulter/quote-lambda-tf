@@ -208,6 +208,13 @@ func main() {
 		log.Fatalf("Failed to initialize quote store: %v", err)
 	}
 
+	// Upload database to S3 to persist for future deployments
+	if err := s3Storage.UploadDatabase(); err != nil {
+		log.Printf("Warning: Failed to upload database to S3: %v", err)
+	} else {
+		log.Println("Successfully uploaded database to S3")
+	}
+
 	// Get count from database
 	count, err := sqliteRepo.GetQuoteCount()
 	if err != nil {
