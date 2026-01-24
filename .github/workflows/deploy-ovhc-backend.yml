@@ -144,51 +144,38 @@ jobs:
         key: ${{ secrets.OVH_SSH_KEY }}
         port: ${{ secrets.OVH_SSH_PORT || 22 }}
         script: |
-          # Create deployment directory in home first
+          # Clean up any existing deployment
+          sudo rm -rf /opt/quote-backend
+          sudo rm -rf /home/ubuntu/quote-backend
+          
+          # Create fresh directories
           mkdir -p /home/ubuntu/quote-backend
-          cd /home/ubuntu/quote-backend
-          
-          # Extract deployment package
-          tar -xzf /home/ubuntu/quote-backend-${{ github.sha }}.tar.gz
-          chmod +x quote-backend-${{ github.sha }}
-          
-          # Move to /opt with sudo and fix ownership
           sudo mkdir -p /opt/quote-backend
+          
+          # Extract and setup in home directory
+          cd /home/ubuntu/quote-backend
+          tar -xzf /home/ubuntu/quote-backend-${{ github.sha }}.tar.gz
+          
+          # Copy to /opt with proper permissions
           sudo cp quote-backend-${{ github.sha }} /opt/quote-backend/quote-backend
-          sudo cp setup-env.sh /opt/quote-backend/
-          sudo cp README.md /opt/quote-backend/
-          sudo chown -R ubuntu:ubuntu /opt/quote-backend/
+          sudo cp setup-env.sh /opt/quote-backend/setup-env.sh
+          sudo cp README.md /opt/quote-backend/README.md
+          
+          # Set ownership and permissions
+          sudo chown -R ubuntu:ubuntu /opt/quote-backend
+          sudo chmod +x /opt/quote-backend/quote-backend
+          sudo chmod +x /opt/quote-backend/setup-env.sh
+          
+          # Change to deployment directory
           cd /opt/quote-backend
           
-          # Make binary executable
-          chmod +x quote-backend
-          chmod +x setup-env.sh
-          
-          # Test binary execution
-          ./quote-backend --version || echo "Binary check completed"
-          
-          # Stop existing service
+          # Stop any existing service
           sudo systemctl stop quote-backend || true
+          sudo systemctl disable quote-backend || true
+          sleep 3
           
-          # Wait for service to stop
-          sleep 5
-          
-          # Copy environment setup with real secrets
-          cat > setup-env.sh << 'EOF'
-          #!/bin/bash
-          export S3_ENDPOINT="https://s3.gra.cloud.ovh.net"
-          export S3_REGION="GRA"
-          export S3_BUCKET="quote-storage"
-          export S3_ACCESS_KEY="${{ secrets.OVH_S3_ACCESS_KEY }}"
-          export S3_SECRET_KEY="${{ secrets.OVH_S3_SECRET_KEY }}"
-          export PORT="8080"
-          EOF
-          
-          chmod +x setup-env.sh
-          
-          # Create systemd service if it doesn't exist
-          if [ ! -f /etc/systemd/system/quote-backend.service ]; then
-            sudo tee /etc/systemd/system/quote-backend.service > /dev/null << 'EOFSERVICE'
+          # Create new systemd service
+          sudo tee /etc/systemd/system/quote-backend.service > /dev/null << 'EOFSERVICE'
           [Unit]
           Description=Quote Backend Service
           After=network.target
@@ -210,7 +197,6 @@ jobs:
           [Install]
           WantedBy=multi-user.target
           EOFSERVICE
-          fi
           
           # Reload systemd and start service
           sudo systemctl daemon-reload
@@ -218,13 +204,16 @@ jobs:
           sudo systemctl start quote-backend
           
           # Wait for service to start
-          sleep 10
+          sleep 15
           
           # Check service status
-          sudo systemctl status quote-backend --no-pager
+          sudo systemctl status quote-backend --no-pager || true
+          
+          # Test binary directly
+          /opt/quote-backend/quote-backend --version || echo "Binary version check failed"
           
           # Health check
-          curl -f http://localhost:8080/health || exit 1
+          curl -f http://localhost:8080/health || (echo "Health check failed" && sudo journalctl -u quote-backend --no-pager -l && exit 1)
           
           echo "✅ Deployment completed successfully!"
           echo "🌐 Service is running on port 8080"
