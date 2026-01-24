@@ -125,11 +125,6 @@ jobs:
       with:
         name: deployment-package
         
-    - name: Extract deployment package
-      run: |
-        tar -xzf quote-backend-${{ github.sha }}.tar.gz
-        chmod +x quote-backend-${{ github.sha }}
-        
     - name: Deploy to OVHcloud VM
       uses: appleboy/scp-action@v0.1.7
       with:
@@ -137,7 +132,7 @@ jobs:
         username: ${{ secrets.OVH_USERNAME }}
         key: ${{ secrets.OVH_SSH_KEY }}
         port: ${{ secrets.OVH_SSH_PORT || 22 }}
-        source: "quote-backend-${{ github.sha }}"
+        source: "quote-backend-${{ github.sha }}.tar.gz"
         target: "/opt/quote-backend/"
         strip_components: 0
         
@@ -150,8 +145,12 @@ jobs:
         port: ${{ secrets.OVH_SSH_PORT || 22 }}
         script: |
           # Create deployment directory if it doesn't exist
-          mkdir -p /opt/quote-backend
+          sudo mkdir -p /opt/quote-backend
           cd /opt/quote-backend
+          
+          # Extract deployment package
+          tar -xzf quote-backend-${{ github.sha }}.tar.gz
+          chmod +x quote-backend-${{ github.sha }}
           
           # Backup current version
           if [ -f quote-backend ]; then
