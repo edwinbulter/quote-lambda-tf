@@ -67,7 +67,7 @@ jobs:
         go-version: '1.21'
         
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build
@@ -90,7 +90,7 @@ jobs:
         go build -v -o quote-backend-${{ github.sha }} ./cmd/quote-backend
         
     - name: Upload build artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: quote-backend-binary
         path: quote-ovhc-backend/quote-backend-${{ github.sha }}
@@ -105,7 +105,7 @@ jobs:
           README.md
           
     - name: Upload deployment package
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: deployment-package
         path: quote-backend-${{ github.sha }}.tar.gz
@@ -121,7 +121,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Download deployment package
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: deployment-package
         
