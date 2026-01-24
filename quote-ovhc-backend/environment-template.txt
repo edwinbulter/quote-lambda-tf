@@ -1,0 +1,17 @@
+# OVHcloud Quote Backend Environment Variables Template
+# Copy this file to .env and fill in your actual credentials
+
+# OVHcloud Object Storage Configuration
+S3_ENDPOINT=https://s3.gra.cloud.ovh.net
+S3_REGION=GRA
+S3_BUCKET=quote-storage
+
+# S3 Credentials (replace with your actual credentials from OVHcloud Manager)
+S3_ACCESS_KEY=your-access-key-here
+S3_SECRET_KEY=your-secret-key-here
+
+# Server Configuration
+PORT=8080
+
+# Optional: Log Level (debug, info, warn, error)
+LOG_LEVEL=info
