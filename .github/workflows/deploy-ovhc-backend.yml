@@ -133,7 +133,7 @@ jobs:
         key: ${{ secrets.OVH_SSH_KEY }}
         port: ${{ secrets.OVH_SSH_PORT || 22 }}
         source: "quote-backend-${{ github.sha }}.tar.gz"
-        target: "/opt/quote-backend/"
+        target: "/home/ubuntu/"
         strip_components: 0
         
     - name: Setup and restart service
@@ -144,13 +144,18 @@ jobs:
         key: ${{ secrets.OVH_SSH_KEY }}
         port: ${{ secrets.OVH_SSH_PORT || 22 }}
         script: |
-          # Create deployment directory if it doesn't exist
-          sudo mkdir -p /opt/quote-backend
-          cd /opt/quote-backend
+          # Create deployment directory in home first
+          mkdir -p /home/ubuntu/quote-backend
+          cd /home/ubuntu/quote-backend
           
           # Extract deployment package
-          tar -xzf quote-backend-${{ github.sha }}.tar.gz
+          tar -xzf /home/ubuntu/quote-backend-${{ github.sha }}.tar.gz
           chmod +x quote-backend-${{ github.sha }}
+          
+          # Move to /opt with sudo
+          sudo mkdir -p /opt/quote-backend
+          sudo cp -r * /opt/quote-backend/
+          cd /opt/quote-backend
           
           # Backup current version
           if [ -f quote-backend ]; then
