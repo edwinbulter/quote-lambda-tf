@@ -1,0 +1,260 @@
+# ==============================================================================
+# Deploy OVHcloud Backend Workflow
+# ==============================================================================
+# 
+# REQUIRED SECRETS:
+# ---------------
+# 1. OVHcloud VM Access:
+#    - OVH_HOST: Your OVHcloud VM IP address or hostname
+#    - OVH_USERNAME: SSH username (usually 'ubuntu' or 'root')
+#    - OVH_SSH_KEY: Private SSH key content (NOT the file path)
+#    - OVH_SSH_PORT: SSH port (optional, defaults to 22)
+#
+# 2. S3 Credentials:
+#    - OVH_S3_ACCESS_KEY: OVHcloud Object Storage access key
+#    - OVH_S3_SECRET_KEY: OVHcloud Object Storage secret key
+#
+# WHERE TO FIND THESE VALUES:
+# -------------------------
+# 1. OVH_HOST:
+#    - Go to OVHcloud Control Panel
+#    - Navigate to "Public Cloud" → "Instances"
+#    - Find your VM instance
+#    - Copy the "Public IP" address
+#
+# 2. OVH_USERNAME:
+#    - For Ubuntu images: 'ubuntu'
+#    - For other images: check VM documentation
+#
+# 3. OVH_SSH_KEY:
+#    - Generate SSH key: ssh-keygen -t rsa -b 4096 -C "github-actions"
+#    - Copy PRIVATE key content (including -----BEGIN/END lines)
+#    - Add PUBLIC key to VM: ssh-copy-id ubuntu@<OVH_HOST>
+#
+# 4. OVH_S3_ACCESS_KEY & OVH_S3_SECRET_KEY:
+#    - Go to OVHcloud Control Panel
+#    - Navigate to "Public Cloud" → "Object Storage"
+#    - Select your storage container
+#    - Click "Users" tab → "View Secret Key"
+#    - Copy the Access Key and Secret Key
+#
+# HOW TO ADD SECRETS:
+# --------------------
+# 1. Go to your GitHub repository
+# 2. Navigate to "Settings" → "Secrets and variables" → "Actions"
+# 3. Click "New repository secret"
+# 4. Add each secret with the exact names above
+#
+# ==============================================================================
+
+name: 'Deploy OVHcloud Backend'
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+      confirm_deploy:
+        description: 'Confirm deployment'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    name: Build and Deploy OVHcloud Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+          
+    - name: Download dependencies
+      working-directory: ./quote-ovhc-backend
+      run: go mod download
+      
+    - name: Run tests
+      working-directory: ./quote-ovhc-backend
+      run: go test ./...
+      
+    - name: Build application
+      working-directory: ./quote-ovhc-backend
+      run: |
+        go build -v -o quote-backend-${{ github.sha }} ./cmd/quote-backend
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: quote-backend-binary
+        path: quote-ovhc-backend/quote-backend-${{ github.sha }}
+        retention-days: 30
+        
+    - name: Create deployment package
+      run: |
+        cd quote-ovhc-backend
+        tar -czf ../quote-backend-${{ github.sha }}.tar.gz \
+          quote-backend-${{ github.sha }} \
+          setup-env.sh \
+          README.md
+          
+    - name: Upload deployment package
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-package
+        path: quote-backend-${{ github.sha }}.tar.gz
+        retention-days: 30
+
+  deploy:
+    name: Deploy to OVHcloud
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event.inputs.confirm_deploy == 'true'
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download deployment package
+      uses: actions/download-artifact@v3
+      with:
+        name: deployment-package
+        
+    - name: Extract deployment package
+      run: |
+        tar -xzf quote-backend-${{ github.sha }}.tar.gz
+        chmod +x quote-backend-${{ github.sha }}
+        
+    - name: Deploy to OVHcloud VM
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.OVH_HOST }}
+        username: ${{ secrets.OVH_USERNAME }}
+        key: ${{ secrets.OVH_SSH_KEY }}
+        port: ${{ secrets.OVH_SSH_PORT || 22 }}
+        source: "quote-backend-${{ github.sha }}"
+        target: "/opt/quote-backend/"
+        strip_components: 0
+        
+    - name: Setup and restart service
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.OVH_HOST }}
+        username: ${{ secrets.OVH_USERNAME }}
+        key: ${{ secrets.OVH_SSH_KEY }}
+        port: ${{ secrets.OVH_SSH_PORT || 22 }}
+        script: |
+          # Create deployment directory if it doesn't exist
+          mkdir -p /opt/quote-backend
+          cd /opt/quote-backend
+          
+          # Backup current version
+          if [ -f quote-backend ]; then
+            cp quote-backend quote-backend.backup.$(date +%Y%m%d_%H%M%S)
+          fi
+          
+          # Stop existing service
+          sudo systemctl stop quote-backend || true
+          
+          # Wait for service to stop
+          sleep 5
+          
+          # Clean up old artifacts
+          rm -f quote-backend-*
+          
+          # Copy new binary
+          cp quote-backend-${{ github.sha }} quote-backend
+          chmod +x quote-backend
+          
+          # Copy environment setup (create if doesn't exist)
+          cat > setup-env.sh << 'EOF'
+          #!/bin/bash
+          export S3_ENDPOINT="https://s3.gra.cloud.ovh.net"
+          export S3_REGION="GRA"
+          export S3_BUCKET="quote-storage"
+          export S3_ACCESS_KEY="${{ secrets.OVH_S3_ACCESS_KEY }}"
+          export S3_SECRET_KEY="${{ secrets.OVH_S3_SECRET_KEY }}"
+          export PORT="8080"
+          EOF
+          
+          chmod +x setup-env.sh
+          
+          # Set environment variables
+          source setup-env.sh
+          
+          # Create systemd service if it doesn't exist
+          if [ ! -f /etc/systemd/system/quote-backend.service ]; then
+            sudo tee /etc/systemd/system/quote-backend.service > /dev/null << 'EOFSERVICE'
+          [Unit]
+          Description=Quote Backend Service
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=ubuntu
+          WorkingDirectory=/opt/quote-backend
+          Environment=PORT=8080
+          Environment=S3_ENDPOINT=${S3_ENDPOINT}
+          Environment=S3_REGION=${S3_REGION}
+          Environment=S3_BUCKET=${S3_BUCKET}
+          Environment=S3_ACCESS_KEY=${S3_ACCESS_KEY}
+          Environment=S3_SECRET_KEY=${S3_SECRET_KEY}
+          ExecStart=/opt/quote-backend/quote-backend
+          Restart=always
+          RestartSec=10
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOFSERVICE
+          fi
+          
+          # Reload systemd and start service
+          sudo systemctl daemon-reload
+          sudo systemctl enable quote-backend
+          sudo systemctl start quote-backend
+          
+          # Wait for service to start
+          sleep 10
+          
+          # Check service status
+          sudo systemctl status quote-backend --no-pager
+          
+          # Health check
+          curl -f http://localhost:8080/health || exit 1
+          
+          echo "✅ Deployment completed successfully!"
+          echo "🌐 Service is running on port 8080"
+          
+    - name: Deployment notification
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "🎉 OVHcloud Backend deployed successfully!"
+          echo "📦 Version: ${{ github.sha }}"
+          echo "🌍 Environment: ${{ github.event.inputs.environment }}"
+        else
+          echo "❌ Deployment failed!"
+          echo "📦 Version: ${{ github.sha }}"
+          echo "🌍 Environment: ${{ github.event.inputs.environment }}"
+        fi
