@@ -58,59 +58,59 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
-        
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('./quote-ovhc-backend/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-      continue-on-error: true
-          
-    - name: Download dependencies
-      working-directory: ./quote-ovhc-backend
-      run: go mod download
-      
-    - name: Run tests
-      working-directory: ./quote-ovhc-backend
-      run: go test ./...
-      
-    - name: Build application
-      working-directory: ./quote-ovhc-backend
-      run: |
-        go build -v -o quote-backend-${{ github.sha }} ./cmd/quote-backend
-        
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: quote-backend-binary
-        path: quote-ovhc-backend/quote-backend-${{ github.sha }}
-        retention-days: 30
-        
-    - name: Create deployment package
-      run: |
-        cd quote-ovhc-backend
-        tar -czf ../quote-backend-${{ github.sha }}.tar.gz \
-          quote-backend-${{ github.sha }} \
-          setup-env.sh \
-          README.md
-          
-    - name: Upload deployment package
-      uses: actions/upload-artifact@v4
-      with:
-        name: deployment-package
-        path: quote-backend-${{ github.sha }}.tar.gz
-        retention-days: 30
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('./quote-ovhc-backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+        continue-on-error: true
+
+      - name: Download dependencies
+        working-directory: ./quote-ovhc-backend
+        run: go mod download
+
+      - name: Run tests
+        working-directory: ./quote-ovhc-backend
+        run: go test ./...
+
+      - name: Build application
+        working-directory: ./quote-ovhc-backend
+        run: |
+          go build -v -o quote-backend-${{ github.sha }} ./cmd/quote-backend
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quote-backend-binary
+          path: quote-ovhc-backend/quote-backend-${{ github.sha }}
+          retention-days: 30
+
+      - name: Create deployment package
+        run: |
+          cd quote-ovhc-backend
+          tar -czf ../quote-backend-${{ github.sha }}.tar.gz \
+            quote-backend-${{ github.sha }} \
+            setup-env.sh \
+            README.md
+
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: quote-backend-${{ github.sha }}.tar.gz
+          retention-days: 30
 
   deploy:
     name: Deploy to OVHcloud
@@ -118,147 +118,134 @@ jobs:
     needs: build
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Download deployment package
-      uses: actions/download-artifact@v4
-      with:
-        name: deployment-package
-        
-    - name: Deploy to OVHcloud VM
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.OVH_HOST }}
-        username: ${{ secrets.OVH_USERNAME }}
-        key: ${{ secrets.OVH_SSH_KEY }}
-        port: ${{ secrets.OVH_SSH_PORT || 22 }}
-        source: "quote-backend-${{ github.sha }}.tar.gz"
-        target: "/home/ubuntu/"
-        strip_components: 0
-        
-    - name: Setup and restart service
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.OVH_HOST }}
-        username: ${{ secrets.OVH_USERNAME }}
-        key: ${{ secrets.OVH_SSH_KEY }}
-        port: ${{ secrets.OVH_SSH_PORT || 22 }}
-        script: |
-          # Clean up any existing deployment
-          sudo rm -rf /opt/quote-backend
-          sudo rm -rf /home/ubuntu/quote-backend
-          
-          # Create fresh directories
-          mkdir -p /home/ubuntu/quote-backend
-          sudo mkdir -p /opt/quote-backend
-          
-          # Extract and setup in home directory
-          cd /home/ubuntu/quote-backend
-          tar -xzf /home/ubuntu/quote-backend-${{ github.sha }}.tar.gz
-          
-          # Copy to /opt with proper permissions
-          sudo cp quote-backend-${{ github.sha }} /opt/quote-backend/quote-backend
-          sudo cp setup-env.sh /opt/quote-backend/setup-env.sh
-          sudo cp README.md /opt/quote-backend/README.md
-          
-          # Set ownership and permissions
-          sudo chown -R ubuntu:ubuntu /opt/quote-backend
-          sudo chmod +x /opt/quote-backend/quote-backend
-          sudo chmod +x /opt/quote-backend/setup-env.sh
-          
-          # Change to deployment directory
-          cd /opt/quote-backend
-          
-          # Stop any existing service
-          sudo systemctl stop quote-backend || true
-          sudo systemctl disable quote-backend || true
-          sleep 3
-          
-          # Create new systemd service
-          sudo tee /etc/systemd/system/quote-backend.service > /dev/null << 'EOFSERVICE'
-          [Unit]
-          Description=Quote Backend Service
-          After=network.target
-          
-          [Service]
-          Type=simple
-          User=ubuntu
-          WorkingDirectory=/opt/quote-backend
-          Environment=PORT=8080
-          Environment=S3_ENDPOINT=https://s3.gra.cloud.ovh.net
-          Environment=S3_REGION=GRA
-          Environment=S3_BUCKET=quote-storage
-          Environment=S3_ACCESS_KEY=${{ secrets.OVH_S3_ACCESS_KEY }}
-          Environment=S3_SECRET_KEY=${{ secrets.OVH_S3_SECRET_KEY }}
-          ExecStart=/opt/quote-backend/quote-backend
-          Restart=always
-          RestartSec=10
-          
-          [Install]
-          WantedBy=multi-user.target
-          EOFSERVICE
-          
-          # Reload systemd and start service
-          sudo systemctl daemon-reload
-          sudo systemctl enable quote-backend
-          sudo systemctl start quote-backend
-          
-          # Wait for service to start
-          sleep 15
-          
-          # Check service status
-          sudo systemctl status quote-backend --no-pager || true
-          
-          # Test binary directly
-          /opt/quote-backend/quote-backend --version || echo "Binary version check failed"
-          
-          # Health check
-          curl -f http://localhost:8080/health || (echo "Health check failed" && sudo journalctl -u quote-backend --no-pager -l && exit 1)
-          
-          # Setup HTTPS with Nginx and Let's Encrypt
-          echo "Setting up HTTPS..."
-          
-          # Install Nginx and Certbot
-          sudo apt update
-          sudo apt install nginx certbot python3-certbot-nginx -y
-          
-          # Create Nginx configuration
-          sudo tee /etc/nginx/sites-available/quote-backend > /dev/null << 'NGINXCONF'
-          server {
-              listen 80;
-              server_name quote-ovhc-backend.mooo.com;  # Your FreeDNS subdomain
-              
-              location / {
-                  proxy_pass http://localhost:8080;
-                  proxy_set_header Host $host;
-                  proxy_set_header X-Real-IP $remote_addr;
-                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto $scheme;
-              }
-          }
-          NGINXCONF
-          
-          # Enable Nginx site
-          sudo ln -sf /etc/nginx/sites-available/quote-backend /etc/nginx/sites-enabled/
-          sudo rm -f /etc/nginx/sites-enabled/default
-          sudo nginx -t
-          sudo systemctl restart nginx
-          
-          # Get SSL certificate (non-interactive mode)
-          sudo certbot --nginx --non-interactive --agree-tos --email admin@quote-ovhc-backend.mooo.com -d quote-ovhc-backend.mooo.com || echo "SSL setup failed - HTTP only"
-          
-          echo "✅ Deployment completed successfully!"
-          echo "🌐 HTTP service is running on port 80"
-          echo "🔒 HTTPS service is running on port 443 (if SSL certificate was obtained)"
-          
-    - name: Deployment notification
-      if: always()
-      run: |
-        if [ "${{ job.status }}" == "success" ]; then
-          echo "🎉 OVHcloud Backend deployed successfully!"
-          echo "📦 Version: ${{ github.sha }}"
-        else
-          echo "❌ Deployment failed!"
-          echo "📦 Version: ${{ github.sha }}"
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download deployment package
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package
+
+      - name: Deploy to OVHcloud VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.OVH_HOST }}
+          username: ${{ secrets.OVH_USERNAME }}
+          key: ${{ secrets.OVH_SSH_KEY }}
+          port: ${{ secrets.OVH_SSH_PORT || 22 }}
+          source: "quote-backend-${{ github.sha }}.tar.gz"
+          target: "/home/ubuntu/"
+          strip_components: 0
+
+      - name: Setup and restart service
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.OVH_HOST }}
+          username: ${{ secrets.OVH_USERNAME }}
+          key: ${{ secrets.OVH_SSH_KEY }}
+          port: ${{ secrets.OVH_SSH_PORT || 22 }}
+          script: |
+            # Clean up any existing deployment
+            sudo rm -rf /opt/quote-backend
+            sudo rm -rf /home/ubuntu/quote-backend
+            
+            # Create fresh directories
+            mkdir -p /home/ubuntu/quote-backend
+            sudo mkdir -p /opt/quote-backend
+            
+            # Extract and setup in home directory
+            cd /home/ubuntu/quote-backend
+            tar -xzf /home/ubuntu/quote-backend-${{ github.sha }}.tar.gz
+            
+            # Copy to /opt with proper permissions
+            sudo cp quote-backend-${{ github.sha }} /opt/quote-backend/quote-backend
+            sudo cp setup-env.sh /opt/quote-backend/setup-env.sh
+            sudo cp README.md /opt/quote-backend/README.md
+            
+            # Set ownership and permissions
+            sudo chown -R ubuntu:ubuntu /opt/quote-backend
+            sudo chmod +x /opt/quote-backend/quote-backend
+            sudo chmod +x /opt/quote-backend/setup-env.sh
+            
+            # Change to deployment directory
+            cd /opt/quote-backend
+            
+            # Stop any existing service
+            sudo systemctl stop quote-backend || true
+            sudo systemctl disable quote-backend || true
+            sleep 3
+            
+            # Create new systemd service
+            sudo tee /etc/systemd/system/quote-backend.service > /dev/null << 'EOFSERVICE'
+            [Unit]
+            Description=Quote Backend Service
+            After=network.target
+            
+            [Service]
+            Type=simple
+            User=ubuntu
+            WorkingDirectory=/opt/quote-backend
+            Environment=PORT=8080
+            Environment=S3_ENDPOINT=https://s3.gra.cloud.ovh.net
+            Environment=S3_REGION=GRA
+            Environment=S3_BUCKET=quote-storage
+            Environment=S3_ACCESS_KEY=${{ secrets.OVH_S3_ACCESS_KEY }}
+            Environment=S3_SECRET_KEY=${{ secrets.OVH_S3_SECRET_KEY }}
+            ExecStart=/opt/quote-backend/quote-backend
+            Restart=always
+            RestartSec=10
+            
+            [Install]
+            WantedBy=multi-user.target
+            EOFSERVICE
+            
+            # Reload systemd and start service
+            sudo systemctl daemon-reload
+            sudo systemctl enable quote-backend
+            sudo systemctl start quote-backend
+            
+            # Wait for service to start
+            sleep 15
+            
+            # Check service status
+            sudo systemctl status quote-backend --no-pager || true
+            
+            # Test binary directly
+            /opt/quote-backend/quote-backend --version || echo "Binary version check failed"
+            
+            # Health check
+            curl -f http://localhost:8080/health || (echo "Health check failed" && sudo journalctl -u quote-backend --no-pager -l && exit 1)
+            
+            # Setup HTTPS with Nginx and Let's Encrypt
+            echo "Setting up HTTPS..."
+            
+            # Install Nginx and Certbot
+            sudo apt update
+            sudo apt install nginx certbot python3-certbot-nginx -y
+            
+            # Create Nginx configuration using printf
+            printf '# HTTP to HTTPS redirect\nserver {\n    listen 80;\n    server_name quote-ovhc-backend.mooo.com;\n    return 301 https://$host$request_uri;\n}\n\n# HTTPS server\nserver {\n    listen 443 ssl;\n    server_name quote-ovhc-backend.mooo.com;\n    \n    # SSL configuration (will be added by Certbot)\n    \n    location / {\n        proxy_pass http://localhost:8080;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}\n' | sudo tee /etc/nginx/sites-available/quote-backend > /dev/null
+            
+            # Enable Nginx site
+            sudo ln -sf /etc/nginx/sites-available/quote-backend /etc/nginx/sites-enabled/
+            sudo rm -f /etc/nginx/sites-enabled/default
+            sudo nginx -t
+            sudo systemctl restart nginx
+            
+            # Get SSL certificate (non-interactive mode)
+            sudo certbot --nginx --non-interactive --agree-tos --email admin@quote-ovhc-backend.mooo.com -d quote-ovhc-backend.mooo.com || echo "SSL setup failed - HTTP only"
+            
+            echo "✅ Deployment completed successfully!"
+            echo "🌐 HTTP service is running on port 80"
+            echo "🔒 HTTPS service is running on port 443 (if SSL certificate was obtained)"
+
+      - name: Deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "🎉 OVHcloud Backend deployed successfully!"
+            echo "📦 Version: ${{ github.sha }}"
+          else
+            echo "❌ Deployment failed!"
+            echo "📦 Version: ${{ github.sha }}"
+          fi
