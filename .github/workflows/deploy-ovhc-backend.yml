@@ -242,7 +242,7 @@ jobs:
             sudo ufw allow ssh
             sudo ufw allow 80/tcp
             sudo ufw allow 443/tcp
-            sudo ufw deny 8080/tcp
+            sudo ufw reject 8080/tcp
             sudo ufw --force enable
             
             echo "✅ Deployment completed successfully!"
