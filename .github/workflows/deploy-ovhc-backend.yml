@@ -235,9 +235,20 @@ jobs:
             sudo nginx -t
             sudo systemctl restart nginx
             
+            # Configure firewall to only allow HTTPS access
+            sudo ufw --force reset
+            sudo ufw default deny incoming
+            sudo ufw default allow outgoing
+            sudo ufw allow ssh
+            sudo ufw allow 80/tcp
+            sudo ufw allow 443/tcp
+            sudo ufw deny 8080/tcp
+            sudo ufw --force enable
+            
             echo "✅ Deployment completed successfully!"
-            echo "🌐 HTTP service is running on port 80"
-            echo "🔒 HTTPS service is running on port 443 (if SSL certificate was obtained)"
+            echo "🌐 HTTP service is running on port 80 (redirects to HTTPS)"
+            echo "🔒 HTTPS service is running on port 443"
+            echo "🚫 Port 8080 is blocked for security"
 
       - name: Deployment notification
         if: always()
