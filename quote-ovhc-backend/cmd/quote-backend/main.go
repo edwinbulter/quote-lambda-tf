@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	_ "github.com/mattn/go-sqlite3"
 
+	"quote-ovhc-backend/internal/auth"
+	"quote-ovhc-backend/internal/handlers"
+	"quote-ovhc-backend/internal/repository"
+	"quote-ovhc-backend/internal/service"
 	"quote-ovhc-backend/internal/services"
 	"quote-ovhc-backend/internal/storage"
 )
@@ -200,6 +205,11 @@ func main() {
 		log.Printf("Warning: Could not download database from S3: %v (will create new one)", err)
 	}
 
+	// Run authentication migrations AFTER S3 download
+	if err := runMigrations(db); err != nil {
+		log.Printf("Warning: Failed to run auth migrations: %v", err)
+	}
+
 	// Create quote store
 	quoteStore := NewQuoteStore(sqliteRepo, s3Storage, zenQuotes)
 
@@ -222,8 +232,16 @@ func main() {
 	}
 	log.Printf("Quote store initialized with %d quotes", count)
 
+	// Initialize authentication services
+	jwtSecret := getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
+	jwtService := auth.NewJWTService(jwtSecret, time.Hour)
+	passwordService := auth.NewPasswordService()
+	authRepo := repository.NewAuthRepository(db)
+	authService := service.NewAuthService(authRepo, jwtService, passwordService)
+	authHandler := handlers.NewAuthHandler(authService)
+
 	// Create and start server
-	server := NewServer(sqliteRepo, s3Storage, zenQuotes)
+	server := NewServer(sqliteRepo, s3Storage, zenQuotes, authHandler, jwtService)
 	port := getEnv("PORT", "8080")
 
 	log.Printf("Server ready to accept requests on port %s", port)

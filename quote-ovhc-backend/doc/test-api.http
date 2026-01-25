@@ -3,42 +3,104 @@
 ### Environment variables needed in http-client.env.json:
 ### {
 ###   "dev": {
-###     "baseUrl": "http://localhost:7071",
-###     "prod": {
-###       "baseUrl": "https://quote-backend-function.azurewebsites.net"
-###     },
+###     "baseUrl": "http://localhost:8080",
+###     "master_key": "YOUR_MASTER_KEY_HERE",
+###     "admin_email": "admin@example.com",
+###     "admin_password": "admin123",
 ###     "user_email": "user@example.com",
-###     "user_password": "User123!",
-###     "admin_email": "admin@quote-backend.local",
-###     "admin_password": "Admin123!",
-###     "master_key": "get-from-azure-portal"
+###     "user_password": "password123"
+###   },
+###   "prod": {
+###     "baseUrl": "https://quote-ovhc-backend.mooo.com"
 ###   }
 ### }
-### 
-### Get master key with: az functionapp keys list --resource-group quote-backend-rg --name quote-backend-function --query "masterKey"
 
-### 0.0 Seed users (run once to create admin and test users)
-POST {{baseUrl}}/api/seed-users?code={{master_key}}
-Content-Type: application/json
 
-### 0.1 Register user (for testing)
-POST {{baseUrl}}/auth/register
+### 1. Register New User
+POST {{baseUrl}}/api/v1/auth/register
 Content-Type: application/json
 
 {
-  "email": "user-1@outlook.com",
-  "username": "user-1",
-  "password": "Hello-user-1",
-  "confirmPassword": "Hello-user-1"
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123"
 }
 
-### 0.2 Login to get JWT token (using email)
-POST {{baseUrl}}/auth/login
+### 2. Login User
+POST {{baseUrl}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "loginIdentifier": "user-1@outlook.com",
-  "password": "Hello-user-1"
+  "loginIdentifier": "testuser",
+  "password": "password123"
+}
+
+> {%
+    client.global.clear("testuserToken");
+    const responseBody = JSON.parse(response.body);
+    client.global.set("testuserToken", responseBody.token);
+%}
+
+### 3. Change Password (Protected)
+POST {{baseUrl}}/api/v1/auth/change-password
+Authorization: Bearer {{testuserToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "password123",
+  "newPassword": "password!",
+  "confirmNewPassword": "password!"
+}
+
+### 4. Unregister User (Protected)
+DELETE {{baseUrl}}/api/v1/auth/unregister
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "password": "NewUser123!"
+}
+
+
+### 4. Login Admin
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "loginIdentifier": "admin",
+  "password": "admin123"
+}
+
+> {%
+    const responseBody = JSON.parse(response.body);
+    client.global.set("authToken", responseBody.token);
+%}
+
+### 5. Get User Profile (Protected)
+GET {{baseUrl}}/api/v1/auth/profile
+Authorization: Bearer {{authToken}}
+
+### 6. Get Health Check (Public)
+GET {{baseUrl}}/health
+
+### 7. Get Quote (Public)
+GET {{baseUrl}}/quote
+
+### 8. Debug Quotes (Protected - requires auth)
+GET {{baseUrl}}/debug/quotes
+Authorization: Bearer {{authToken}}
+
+
+
+
+
+### 0.2 Login to get JWT token (using email)
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "loginIdentifier": "test@example.com",
+  "password": "password123"
 }
 
 > {%
@@ -272,7 +334,7 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "password": "NewUser123!"
+  "password": "password123"
 }
 
 ### ============================================

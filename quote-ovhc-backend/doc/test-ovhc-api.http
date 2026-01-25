@@ -1,0 +1,51 @@
+### JWT Authentication Testing
+
+### Debug JWT Claims
+GET {{baseUrl}}/debug/jwt
+Authorization: Bearer {{testuserToken}}
+
+### 1. Register New User
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### 2. Login User
+< {%
+    client.global.clearAll()
+%}
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "loginIdentifier": "testuser",
+  "password": "password123"
+}
+
+> {%
+    //const responseBody = JSON.parse(response.body);
+    client.global.set("testuserToken", response.body.token);
+%}
+
+### Debug JWT Claims
+GET {{baseUrl}}/debug/jwt
+Authorization: Bearer {{testuserToken}}
+
+### 3. Change Password (Protected)
+POST {{baseUrl}}/api/v1/auth/change-password
+Authorization: Bearer {{testuserToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "password123",
+  "newPassword": "password!",
+  "confirmNewPassword": "password!"
+}
+
+### 4. GET Quote with authentication (stores LastQuoteId in userprogress)
+GET {{baseUrl}}/quote
+Authorization: Bearer {{testuserToken}}

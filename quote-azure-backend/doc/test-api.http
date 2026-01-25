@@ -43,6 +43,7 @@ Content-Type: application/json
 
 > {%
 const responseBody = JSON.parse(response.body);
+console.log("Setting authToken:", token);
 client.global.set("authToken", responseBody.token);
 %}
 
