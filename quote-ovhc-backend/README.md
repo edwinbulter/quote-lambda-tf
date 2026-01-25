@@ -2,6 +2,38 @@
 
 A Go backend service for managing quotes with SQLite database and S3 persistence, designed to run on OVHcloud VM instances.
 
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+  - [Data Flow](#data-flow)
+  - [Persistence Strategy](#persistence-strategy)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [S3 Credentials](#s3-credentials)
+  - [Installation](#installation)
+- [API Endpoints](#api-endpoints)
+  - [GET /quote](#get-quote)
+  - [POST /quote](#post-quote)
+  - [GET /health](#get-health)
+  - [GET /debug/quotes](#get-debugquotes)
+  - [GET /debug/sql](#get-debugsql)
+- [SSL/HTTPS Setup](#sslhttps-setup)
+- [Data Persistence](#data-persistence)
+  - [S3 Storage Structure](#s3-storage-structure)
+  - [SQLite Database Schema](#sqlite-database-schema)
+  - [Persistence Strategy](#persistence-strategy-1)
+- [Development](#development)
+  - [Local Development](#local-development)
+  - [Database Management](#database-management)
+  - [Testing](#testing)
+- [Deployment](#deployment)
+  - [GitHub Actions](#github-actions)
+  - [Manual Deployment](#manual-deployment)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Features
 
 - **SQLite database** with full SQL support and S3 persistence
@@ -12,6 +44,7 @@ A Go backend service for managing quotes with SQLite database and S3 persistence
 - **Debug endpoints**: `/debug/quotes` (view all), `/debug/sql` (SQL queries)
 - **Sample data** initialization on first run
 - **IntelliJ/IDE connectivity** to local database file
+- **HTTPS support** with Nginx reverse proxy and Let's Encrypt SSL certificates
 
 ## Architecture
 
@@ -42,12 +75,14 @@ A Go backend service for managing quotes with SQLite database and S3 persistence
 - **Storage**: ~€0.01/month (Object Storage)
 - **Total**: ~€5.50/month
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 - Go 1.21 or higher
 - OVHcloud Object Storage container
 - S3 credentials from OVHcloud
+
+### S3 Credentials
 
 ### Environment Variables
 
@@ -209,6 +244,38 @@ curl "http://localhost:8080/debug/sql?q=SELECT%20*%20FROM%20quotes%20LIMIT%205"
 }
 ```
 
+## SSL/HTTPS Setup
+
+### Overview
+The Quote Backend supports HTTPS through Nginx reverse proxy with Let's Encrypt SSL certificates. The setup is automated via GitHub Actions deployment.
+
+### Backend URL
+- **Production**: `https://quote-ovhc-backend.mooo.com`
+- **HTTP (redirects to HTTPS)**: `http://quote-ovhc-backend.mooo.com`
+- **Direct backend (for debugging)**: `http://51.255.60.246:8080`
+
+### SSL Configuration
+- **Reverse Proxy**: Nginx routes HTTPS traffic to the backend
+- **SSL Certificates**: Let's Encrypt (free, auto-renewing)
+- **Domain**: FreeDNS subdomain pointing to OVHcloud VM
+- **Ports**: 80 (HTTP), 443 (HTTPS), 8080 (backend direct)
+
+### Quick Setup Summary
+1. **FreeDNS**: Free subdomain (`quote-ovhc-backend.mooo.com`) points to VM IP
+2. **Nginx**: Reverse proxy handles HTTPS termination
+3. **Let's Encrypt**: Automatic SSL certificate generation and renewal
+4. **GitHub Actions**: Automated deployment with HTTPS setup
+
+### For Detailed Instructions
+See the complete SSL setup guide: **[doc/HTTPS-Setup.md](doc/HTTPS-Setup.md)**
+
+This document includes:
+- FreeDNS domain registration
+- Nginx configuration
+- SSL certificate setup
+- Troubleshooting guide
+- Manual setup instructions
+
 ## Data Persistence
 
 ### S3 Storage Structure
@@ -247,6 +314,10 @@ CREATE TABLE quotes (
 
 ## Development
 
+### Local Development
+
+### Database Management
+
 ### Database Debugging
 
 #### IntelliJ Integration
@@ -274,6 +345,14 @@ curl "http://localhost:8080/debug/sql?q=SELECT%20*%20FROM%20quotes%20ORDER%20BY%
 
 ### Sample Data
 The application automatically initializes with 5 sample quotes on first run if no existing data is found in S3. Additional quotes are automatically added when all existing quotes are excluded via POST request.
+
+### Testing
+
+## Deployment
+
+### GitHub Actions
+
+### Manual Deployment
 
 ## Deployment on OVHcloud VM
 
@@ -416,6 +495,16 @@ export LOG_LEVEL=debug
 
 ### Sample Data
 The application automatically initializes with 5 sample quotes on first run if no existing data is found in S3.
+
+## Contributing
+
+This is a learning project. Contributions for educational purposes are welcome.
+
+### Development Guidelines
+1. Follow Go best practices
+2. Add tests for new features
+3. Update documentation
+4. Test deployment changes
 
 ## License
 

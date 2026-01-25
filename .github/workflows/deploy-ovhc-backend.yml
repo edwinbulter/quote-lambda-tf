@@ -216,8 +216,41 @@ jobs:
           # Health check
           curl -f http://localhost:8080/health || (echo "Health check failed" && sudo journalctl -u quote-backend --no-pager -l && exit 1)
           
+          # Setup HTTPS with Nginx and Let's Encrypt
+          echo "Setting up HTTPS..."
+          
+          # Install Nginx and Certbot
+          sudo apt update
+          sudo apt install nginx certbot python3-certbot-nginx -y
+          
+          # Create Nginx configuration
+          sudo tee /etc/nginx/sites-available/quote-backend > /dev/null << 'NGINXCONF'
+          server {
+              listen 80;
+              server_name quote-ovhc-backend.mooo.com;  # Your FreeDNS subdomain
+              
+              location / {
+                  proxy_pass http://localhost:8080;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+          NGINXCONF
+          
+          # Enable Nginx site
+          sudo ln -sf /etc/nginx/sites-available/quote-backend /etc/nginx/sites-enabled/
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo nginx -t
+          sudo systemctl restart nginx
+          
+          # Get SSL certificate (non-interactive mode)
+          sudo certbot --nginx --non-interactive --agree-tos --email admin@quote-ovhc-backend.mooo.com -d quote-ovhc-backend.mooo.com || echo "SSL setup failed - HTTP only"
+          
           echo "✅ Deployment completed successfully!"
-          echo "🌐 Service is running on port 8080"
+          echo "🌐 HTTP service is running on port 80"
+          echo "🔒 HTTPS service is running on port 443 (if SSL certificate was obtained)"
           
     - name: Deployment notification
       if: always()
