@@ -7,12 +7,24 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"quote-ovhc-backend/internal/models"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
+
+// LegacyQuote represents the old quote schema with extra fields
+// Used only for loading from S3 backup during schema transition
+type LegacyQuote struct {
+	ID        int       `json:"id" db:"id"`
+	Text      string    `json:"text" db:"text"`
+	Author    string    `json:"author" db:"author"`
+	LikeCount int       `json:"likeCount" db:"like_count"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	Source    string    `json:"source" db:"source"`
+}
 
 // S3Storage handles S3 persistence operations
 type S3Storage struct {
@@ -102,7 +114,8 @@ func (s *S3Storage) SaveJSONBackup(quotes []models.Quote) error {
 }
 
 // LoadJSONBackup loads quotes from JSON backup from S3
-func (s *S3Storage) LoadJSONBackup() ([]models.Quote, error) {
+// Returns LegacyQuote to handle old schema during transition
+func (s *S3Storage) LoadJSONBackup() ([]LegacyQuote, error) {
 	result, err := s.client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String("quotes.json"),
@@ -115,11 +128,11 @@ func (s *S3Storage) LoadJSONBackup() ([]models.Quote, error) {
 	}
 	defer result.Body.Close()
 
-	var quotes []models.Quote
-	if err := json.NewDecoder(result.Body).Decode(&quotes); err != nil {
+	var legacyQuotes []LegacyQuote
+	if err := json.NewDecoder(result.Body).Decode(&legacyQuotes); err != nil {
 		return nil, fmt.Errorf("failed to decode quotes from S3: %w", err)
 	}
 
-	s.logger.Printf("Loaded %d quotes from JSON backup in S3", len(quotes))
-	return quotes, nil
+	s.logger.Printf("Loaded %d quotes from JSON backup in S3", len(legacyQuotes))
+	return legacyQuotes, nil
 }

@@ -1,15 +1,10 @@
 package models
 
-import "time"
-
 // Quote represents a quote with metadata
 type Quote struct {
-	ID        int       `json:"id" db:"id"`
-	Text      string    `json:"text" db:"text"`
-	Author    string    `json:"author" db:"author"`
-	LikeCount int       `json:"likeCount" db:"like_count"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
-	Source    string    `json:"source" db:"source"`
+	ID     int    `json:"id" db:"id"`
+	Text   string `json:"text" db:"text"`
+	Author string `json:"author" db:"author"`
 }
 
 // ZenQuoteResponse represents the response from ZenQuotes API

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // runMigrations executes the database migration files
@@ -27,6 +28,7 @@ func runMigrations(db *sql.DB) error {
 		"004_cleanup_tables.sql",
 		"005_create_user_likes_table.sql",
 		"006_add_order_to_user_likes.sql",
+		"007_simplify_quotes_table.sql",
 	}
 
 	// Try different possible locations for the migration files
@@ -62,8 +64,14 @@ func runMigrations(db *sql.DB) error {
 		// Execute migration
 		_, err = db.Exec(string(migration))
 		if err != nil {
-			log.Printf("Migration execution failed for %s: %v", migrationFile, err)
-			return err
+			// Special handling for migration 006 - duplicate column error is expected and acceptable
+			if migrationFile == "006_add_order_to_user_likes.sql" &&
+				strings.Contains(err.Error(), "duplicate column name") {
+				log.Printf("Migration %s: Column already exists (this is expected)", migrationFile)
+			} else {
+				log.Printf("Migration execution failed for %s: %v", migrationFile, err)
+				return err
+			}
 		}
 
 		log.Printf("Migration %s completed successfully", migrationFile)

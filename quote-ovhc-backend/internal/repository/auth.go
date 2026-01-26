@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"quote-ovhc-backend/internal/models"
+	"strings"
 	"time"
 )
 
@@ -263,4 +264,68 @@ func (r *AuthRepository) DeleteUser(userID int, password string) error {
 
 	// Commit transaction
 	return tx.Commit()
+}
+
+func (r *AuthRepository) GetAllUsers() ([]*models.User, error) {
+	query := `
+		SELECT id, username, email, password_hash, created_at, updated_at, is_active
+		FROM users
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&user.PasswordHash,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&user.IsActive,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get user roles from user_roles table
+		roles, err := r.GetUserRoles(user.ID)
+		if err != nil {
+			return nil, err
+		}
+		user.Roles = roles
+
+		users = append(users, &user)
+	}
+
+	return users, nil
+}
+
+// UpdateUserRole updates a user's role
+func (r *AuthRepository) UpdateUserRole(userID int, newRole string) error {
+	query := `
+		INSERT OR REPLACE INTO user_roles (user_id, role)
+		VALUES (?, ?)
+	`
+
+	_, err := r.db.Exec(query, userID, strings.ToLower(newRole))
+	return err
+}
+
+// RemoveUserRole removes a user's role
+func (r *AuthRepository) RemoveUserRole(userID int, roleToRemove string) error {
+	query := `
+		DELETE FROM user_roles 
+		WHERE user_id = ? AND role = ?
+	`
+
+	_, err := r.db.Exec(query, userID, strings.ToLower(roleToRemove))
+	return err
 }

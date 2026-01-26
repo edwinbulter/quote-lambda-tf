@@ -49,11 +49,9 @@ func (z *ZenQuotesService) GetMultipleQuotes() ([]models.Quote, error) {
 	quotes := make([]models.Quote, len(zenQuotes))
 	for i, zenQuote := range zenQuotes {
 		quotes[i] = models.Quote{
-			Text:      zenQuote.Q,
-			Author:    zenQuote.A,
-			LikeCount: 0,
-			CreatedAt: time.Now(),
-			Source:    "ZenQuotes",
+			ID:     0, // Will be set by database
+			Text:   zenQuote.Q,
+			Author: zenQuote.A,
 		}
 	}
 

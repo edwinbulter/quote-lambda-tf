@@ -425,15 +425,10 @@ func (h *QuoteHandler) GetViewedQuotesHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	if progress == nil || progress.LastQuoteID == 0 {
-		// User hasn't viewed any quotes yet
+		// User hasn't viewed any quotes yet - return empty array
 		h.logger.Printf("User %d hasn't viewed any quotes yet", userID)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"viewed_quotes": []interface{}{},
-			"count":         0,
-			"last_quote_id": 0,
-			"message":       "No quotes viewed yet",
-		})
+		json.NewEncoder(w).Encode([]interface{}{})
 		return
 	}
 
@@ -450,7 +445,6 @@ func (h *QuoteHandler) GetViewedQuotesHandler(w http.ResponseWriter, r *http.Req
 			"id":     quote.ID,
 			"text":   quote.Text,
 			"author": quote.Author,
-			"source": quote.Source,
 		}
 
 		viewedQuotes = append(viewedQuotes, viewedQuote)
@@ -458,19 +452,9 @@ func (h *QuoteHandler) GetViewedQuotesHandler(w http.ResponseWriter, r *http.Req
 
 	h.logger.Printf("Returning %d viewed quotes for user %d", len(viewedQuotes), userID)
 
-	// Return the viewed quotes
+	// Return only the viewed quotes array
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"viewed_quotes": viewedQuotes,
-		"count":         len(viewedQuotes),
-		"last_quote_id": progress.LastQuoteID,
-		"current_progress": map[string]interface{}{
-			"user_id":       progress.UserID,
-			"last_quote_id": progress.LastQuoteID,
-			"created_at":    progress.CreatedAt,
-			"updated_at":    progress.UpdatedAt,
-		},
-	})
+	json.NewEncoder(w).Encode(viewedQuotes)
 }
 
 // GetProgressHandler handles GET /api/v1/quote/progress requests
@@ -647,8 +631,6 @@ func (h *QuoteHandler) LikeQuoteHandler(w http.ResponseWriter, r *http.Request) 
 		"LikeCount": likesCount, // Use user-specific like count
 		"Text":      quote.Text,
 		"Author":    quote.Author,
-		"CreatedAt": quote.CreatedAt,
-		"Source":    quote.Source,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -760,8 +742,6 @@ func (h *QuoteHandler) UnlikeQuoteHandler(w http.ResponseWriter, r *http.Request
 		"LikeCount": likesCount, // Use user-specific like count
 		"Text":      quote.Text,
 		"Author":    quote.Author,
-		"CreatedAt": quote.CreatedAt,
-		"Source":    quote.Source,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -847,9 +827,7 @@ func (h *QuoteHandler) GetLikedQuotesHandler(w http.ResponseWriter, r *http.Requ
 			"id":        quote.ID,
 			"text":      quote.Text,
 			"author":    quote.Author,
-			"source":    quote.Source,
 			"likeCount": likeCount,
-			"createdAt": quote.CreatedAt,
 			"likedAt":   userLike.CreatedAt, // When the user liked this quote
 		}
 

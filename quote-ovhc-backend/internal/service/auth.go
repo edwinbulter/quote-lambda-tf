@@ -6,6 +6,7 @@ import (
 	"quote-ovhc-backend/internal/auth"
 	"quote-ovhc-backend/internal/models"
 	"quote-ovhc-backend/internal/repository"
+	"strings"
 )
 
 type AuthService struct {
@@ -167,6 +168,113 @@ func (s *AuthService) DeleteUser(userID int, req *DeleteUserRequest) error {
 
 	// Delete user
 	err = s.authRepo.DeleteUser(userID, req.Password)
+	if err != nil {
+		return fmt.Errorf("error deleting user: %w", err)
+	}
+
+	return nil
+}
+
+func (s *AuthService) GetAllUsers(userID int) ([]*models.AdminUserInfo, error) {
+	// Verify requesting user is admin
+	user, err := s.authRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	// Check if user has admin role
+	isAdmin := false
+	for _, role := range user.Roles {
+		if role == models.RoleAdmin {
+			isAdmin = true
+			break
+		}
+	}
+
+	if !isAdmin {
+		return nil, errors.New("access denied: only administrators can view all users")
+	}
+
+	// Get all users
+	users, err := s.authRepo.GetAllUsers()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving users: %w", err)
+	}
+
+	// Convert to AdminUserInfo format
+	adminUsers := make([]*models.AdminUserInfo, len(users))
+	for i, user := range users {
+		adminUsers[i] = models.NewAdminUserInfo(user)
+	}
+
+	return adminUsers, nil
+}
+
+// UpdateUserRole updates a user's role
+func (s *AuthService) UpdateUserRole(adminUserID int, username, newRole string) error {
+	// Validate role
+	validRoles := map[string]bool{"user": true, "admin": true}
+	if !validRoles[strings.ToLower(newRole)] {
+		return fmt.Errorf("invalid role: %s. Valid roles are: user, admin", newRole)
+	}
+
+	// Get target user
+	targetUser, err := s.authRepo.GetUserByUsername(username)
+	if err != nil {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	// Update user role
+	return s.authRepo.UpdateUserRole(targetUser.ID, newRole)
+}
+
+// RemoveUserRole removes a user's role
+func (s *AuthService) RemoveUserRole(adminUserID int, username, roleToRemove string) error {
+	// Validate role
+	validRoles := map[string]bool{"user": true, "admin": true}
+	if !validRoles[strings.ToLower(roleToRemove)] {
+		return fmt.Errorf("invalid role: %s. Valid roles are: user, admin", roleToRemove)
+	}
+
+	// Get target user
+	targetUser, err := s.authRepo.GetUserByUsername(username)
+	if err != nil {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	// Remove user role
+	return s.authRepo.RemoveUserRole(targetUser.ID, roleToRemove)
+}
+
+// DeleteUserAccount deletes a user account and all associated data
+func (s *AuthService) DeleteUserAccount(adminUserID int, username string) error {
+	// Get target user
+	targetUser, err := s.authRepo.GetUserByUsername(username)
+	if err != nil {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	// Verify admin user has permission to delete
+	adminUser, err := s.authRepo.GetUserByID(adminUserID)
+	if err != nil {
+		return fmt.Errorf("admin user not found: %w", err)
+	}
+
+	// Check if admin user has admin role
+	isAdmin := false
+	for _, role := range adminUser.Roles {
+		if role == models.RoleAdmin {
+			isAdmin = true
+			break
+		}
+	}
+
+	if !isAdmin {
+		return errors.New("access denied: only administrators can delete user accounts")
+	}
+
+	// Delete user account directly (bypass password verification for admin)
+	err = s.authRepo.DeleteUser(targetUser.ID, "")
 	if err != nil {
 		return fmt.Errorf("error deleting user: %w", err)
 	}

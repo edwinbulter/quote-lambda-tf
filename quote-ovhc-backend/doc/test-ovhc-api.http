@@ -98,3 +98,80 @@ Content-Type: application/json
 {
   "newPosition": 2
 }
+
+
+### 11. Register admin User
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "email": "admin@example.com",
+  "password": "password123"
+}
+
+### 12. Login admin
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "loginIdentifier": "admin",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("adminToken", response.body.token);
+%}
+
+### 13. Get all users (admin only)
+GET {{baseUrl}}/api/v1/manage/users
+Authorization: Bearer {{adminToken}}
+
+### 14. Test non-admin access to users endpoint (should fail)
+GET {{baseUrl}}/api/v1/manage/users
+Authorization: Bearer {{testuserToken}}
+
+### 15. GET quotes (admin only)
+GET {{baseUrl}}/api/v1/manage/quotes?page=2&pageSize=50&sortBy=id&sortOrder=asc
+Authorization: Bearer {{adminToken}}
+
+### 16. FETCH quotes (adds quotes to database)
+POST {{baseUrl}}/api/v1/manage/quotes/fetch
+Authorization: Bearer {{adminToken}}
+
+### 17. Like Quote
+POST {{baseUrl}}/api/v1/quote/5/like
+Authorization: Bearer {{adminToken}}
+
+### 18. Get stats (total likes)
+GET {{baseUrl}}/api/v1/manage/stats
+Authorization: Bearer {{adminToken}}
+
+### 19. Update user role (admin only)
+PUT {{baseUrl}}/api/v1/manage/users/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "role": "Admin"
+}
+
+### 20. Remove user role (admin only)
+DELETE {{baseUrl}}/api/v1/manage/users/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "role": "Admin"
+}
+
+### 21. Remove user, delete account and all data (admin only)
+DELETE {{baseUrl}}/api/v1/manage/users/account
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "testuser"
+}

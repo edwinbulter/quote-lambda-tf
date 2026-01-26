@@ -127,6 +127,17 @@ func (s *Server) setupRoutes() {
 	admin.Use(middleware.RequireAdmin())
 	// Add admin-only routes here
 
+	// Management routes (admin-only but under /api/v1/manage/*)
+	manage := protected.PathPrefix("/manage").Subrouter()
+	manage.Use(middleware.RequireAdmin())
+	manage.HandleFunc("/users", s.authHandler.GetAllUsers).Methods("GET")
+	manage.HandleFunc("/quotes", s.authHandler.GetAdminQuotes).Methods("GET")
+	manage.HandleFunc("/quotes/fetch", s.authHandler.FetchQuotes).Methods("POST")
+	manage.HandleFunc("/stats", s.authHandler.GetStats).Methods("GET")
+	manage.HandleFunc("/users/role", s.authHandler.UpdateUserRole).Methods("PUT")
+	manage.HandleFunc("/users/role", s.authHandler.RemoveUserRole).Methods("DELETE")
+	manage.HandleFunc("/users/account", s.authHandler.DeleteUserAccount).Methods("DELETE")
+
 	// Quote routes
 	log.Printf("Setting up quote handler...")
 	s.quoteHandler.SetupRoutes(s.router)

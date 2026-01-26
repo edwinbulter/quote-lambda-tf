@@ -11,14 +11,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	_ "github.com/mattn/go-sqlite3"
 
 	"quote-ovhc-backend/internal/auth"
 	"quote-ovhc-backend/internal/handlers"
+	"quote-ovhc-backend/internal/models"
 	"quote-ovhc-backend/internal/repository"
 	"quote-ovhc-backend/internal/service"
 	"quote-ovhc-backend/internal/services"
 	"quote-ovhc-backend/internal/storage"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // QuoteStore orchestrates all storage operations
@@ -39,14 +41,20 @@ func NewQuoteStore(sqliteRepo *storage.SQLiteRepository, s3Storage *storage.S3St
 
 // Initialize sets up the quote store with data
 func (qs *QuoteStore) Initialize() error {
-	// Load existing quotes from S3 JSON backup
-	if quotes, err := qs.s3Storage.LoadJSONBackup(); err == nil && quotes != nil {
-		for _, quote := range quotes {
-			if err := qs.sqliteRepo.AddQuote(quote); err != nil {
-				log.Printf("Failed to insert quote %d from S3: %v", quote.ID, err)
+	// Load existing quotes from S3 JSON backup (using LegacyQuote for backward compatibility)
+	if legacyQuotes, err := qs.s3Storage.LoadJSONBackup(); err == nil && legacyQuotes != nil {
+		for _, legacyQuote := range legacyQuotes {
+			// Convert legacy quote to new simplified schema (only id, text, author)
+			simplifiedQuote := models.Quote{
+				ID:     legacyQuote.ID,
+				Text:   legacyQuote.Text,
+				Author: legacyQuote.Author,
+			}
+			if err := qs.sqliteRepo.AddQuote(simplifiedQuote); err != nil {
+				log.Printf("Failed to insert quote %d from S3: %v", legacyQuote.ID, err)
 			}
 		}
-		log.Printf("Loaded %d quotes from S3 into SQLite database", len(quotes))
+		log.Printf("Loaded %d quotes from S3 into SQLite database", len(legacyQuotes))
 	}
 
 	// If no quotes exist, fetch from ZenQuotes API
@@ -279,7 +287,8 @@ func main() {
 	passwordService := auth.NewPasswordService()
 	authRepo := repository.NewAuthRepository(db)
 	authService := service.NewAuthService(authRepo, jwtService, passwordService)
-	authHandler := handlers.NewAuthHandler(authService)
+	adminService := service.NewAdminService(sqliteRepo, zenQuotes)
+	authHandler := handlers.NewAuthHandler(authService, adminService, jwtService)
 
 	// Initialize user progress service
 	userProgressRepo := repository.NewUserProgressRepository(db)

@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 
 	"quote-ovhc-backend/internal/models"
@@ -28,10 +29,7 @@ func (r *SQLiteRepository) InitSchema() error {
 	CREATE TABLE IF NOT EXISTS quotes (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		text TEXT NOT NULL,
-		author TEXT NOT NULL,
-		like_count INTEGER DEFAULT 0,
-		created_at DATETIME NOT NULL,
-		source TEXT NOT NULL
+		author TEXT NOT NULL
 	);
 	CREATE INDEX IF NOT EXISTS idx_quotes_id ON quotes(id);
 	`
@@ -53,12 +51,13 @@ func (r *SQLiteRepository) GetRandomQuote() (*models.Quote, error) {
 	defer r.mutex.RUnlock()
 
 	var quote models.Quote
-	err := r.db.QueryRow(`
-		SELECT id, text, author, like_count, created_at, source 
+	query := `
+		SELECT id, text, author 
 		FROM quotes 
 		ORDER BY RANDOM() 
 		LIMIT 1
-	`).Scan(&quote.ID, &quote.Text, &quote.Author, &quote.LikeCount, &quote.CreatedAt, &quote.Source)
+	`
+	err := r.db.QueryRow(query).Scan(&quote.ID, &quote.Text, &quote.Author)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -77,10 +76,10 @@ func (r *SQLiteRepository) GetQuoteByID(id int) (*models.Quote, error) {
 
 	var quote models.Quote
 	err := r.db.QueryRow(`
-		SELECT id, text, author, like_count, created_at, source 
+		SELECT id, text, author 
 		FROM quotes 
 		WHERE id = ?
-	`, id).Scan(&quote.ID, &quote.Text, &quote.Author, &quote.LikeCount, &quote.CreatedAt, &quote.Source)
+	`, id).Scan(&quote.ID, &quote.Text, &quote.Author)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -90,24 +89,6 @@ func (r *SQLiteRepository) GetQuoteByID(id int) (*models.Quote, error) {
 	}
 
 	return &quote, nil
-}
-
-// IncrementLikeCount increments the like count for a quote
-func (r *SQLiteRepository) IncrementLikeCount(id int) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	_, err := r.db.Exec(`
-		UPDATE quotes 
-		SET like_count = like_count + 1 
-		WHERE id = ?
-	`, id)
-
-	if err != nil {
-		return fmt.Errorf("failed to increment like count for quote ID %d: %w", id, err)
-	}
-
-	return nil
 }
 
 // GetUniqueQuote returns a random quote excluding the specified IDs
@@ -120,7 +101,7 @@ func (r *SQLiteRepository) GetUniqueQuote(excludeIDs map[int]bool) (*models.Quot
 
 	// Build query to exclude IDs
 	query := `
-		SELECT id, text, author, like_count, created_at, source 
+		SELECT id, text, author 
 		FROM quotes 
 		WHERE id NOT IN (`
 
@@ -140,7 +121,7 @@ func (r *SQLiteRepository) GetUniqueQuote(excludeIDs map[int]bool) (*models.Quot
 
 	query += `) ORDER BY RANDOM() LIMIT 1`
 
-	err := r.db.QueryRow(query, args...).Scan(&quote.ID, &quote.Text, &quote.Author, &quote.LikeCount, &quote.CreatedAt, &quote.Source)
+	err := r.db.QueryRow(query, args...).Scan(&quote.ID, &quote.Text, &quote.Author)
 	r.mutex.RUnlock()
 
 	if err == sql.ErrNoRows {
@@ -159,18 +140,94 @@ func (r *SQLiteRepository) AddQuote(quote models.Quote) error {
 	defer r.mutex.Unlock()
 
 	query := `
-		INSERT INTO quotes (id, text, author, like_count, created_at, source)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO quotes (id, text, author)
+		VALUES (?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			text = excluded.text,
-			author = excluded.author,
-			like_count = excluded.like_count,
-			created_at = excluded.created_at,
-			source = excluded.source
+			author = excluded.author
 	`
 
-	_, err := r.db.Exec(query, quote.ID, quote.Text, quote.Author, quote.LikeCount, quote.CreatedAt, quote.Source)
+	_, err := r.db.Exec(query, quote.ID, quote.Text, quote.Author)
 	return err
+}
+
+// GetQuotesWithPagination retrieves quotes with pagination and filtering
+func (r *SQLiteRepository) GetQuotesWithPagination(page, pageSize int, quoteText, author, sortBy, sortOrder string) ([]models.Quote, int, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	// Build WHERE clause
+	whereClause := "WHERE 1=1"
+	args := []interface{}{}
+	argIndex := 1
+
+	if quoteText != "" {
+		whereClause += " AND text LIKE ?"
+		args = append(args, "%"+quoteText+"%")
+		argIndex++
+	}
+
+	if author != "" {
+		whereClause += " AND author LIKE ?"
+		args = append(args, "%"+author+"%")
+		argIndex++
+	}
+
+	// Build ORDER BY clause
+	orderBy := "ORDER BY id"
+	validSortFields := map[string]bool{"id": true, "text": true, "author": true}
+	validSortOrders := map[string]bool{"asc": true, "desc": true}
+
+	if sortBy != "" && validSortFields[sortBy] {
+		order := "ASC"
+		if sortOrder != "" && validSortOrders[sortOrder] {
+			order = strings.ToUpper(sortOrder)
+		}
+		orderBy = "ORDER BY " + sortBy + " " + order
+	}
+
+	// Get total count
+	countQuery := "SELECT COUNT(*) FROM quotes " + whereClause
+	var totalCount int
+	err := r.db.QueryRow(countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count quotes: %w", err)
+	}
+
+	// Calculate pagination
+	offset := (page - 1) * pageSize
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Get paginated results
+	query := fmt.Sprintf(`
+		SELECT id, text, author 
+		FROM quotes 
+		%s 
+		%s 
+		LIMIT ? OFFSET ?
+	`, whereClause, orderBy)
+
+	args = append(args, pageSize, offset)
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query quotes: %w", err)
+	}
+	defer rows.Close()
+
+	var quotes []models.Quote
+	for rows.Next() {
+		var quote models.Quote
+		err := rows.Scan(&quote.ID, &quote.Text, &quote.Author)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan quote: %w", err)
+		}
+		quotes = append(quotes, quote)
+	}
+
+	return quotes, totalCount, nil
 }
 
 // GetAllQuotes retrieves all quotes from the database
@@ -179,7 +236,7 @@ func (r *SQLiteRepository) GetAllQuotes() ([]models.Quote, error) {
 	defer r.mutex.RUnlock()
 
 	rows, err := r.db.Query(`
-		SELECT id, text, author, like_count, created_at, source 
+		SELECT id, text, author 
 		FROM quotes 
 		ORDER BY id
 	`)
@@ -191,7 +248,7 @@ func (r *SQLiteRepository) GetAllQuotes() ([]models.Quote, error) {
 	var quotes []models.Quote
 	for rows.Next() {
 		var quote models.Quote
-		err := rows.Scan(&quote.ID, &quote.Text, &quote.Author, &quote.LikeCount, &quote.CreatedAt, &quote.Source)
+		err := rows.Scan(&quote.ID, &quote.Text, &quote.Author)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan quote: %w", err)
 		}
@@ -199,6 +256,35 @@ func (r *SQLiteRepository) GetAllQuotes() ([]models.Quote, error) {
 	}
 
 	return quotes, nil
+}
+
+// GetTotalLikes retrieves the total count of likes across all quotes
+func (r *SQLiteRepository) GetTotalLikes() (int, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var totalLikes int
+	err := r.db.QueryRow("SELECT COUNT(*) FROM user_likes").Scan(&totalLikes)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total likes: %w", err)
+	}
+
+	return totalLikes, nil
+}
+
+// QuoteExists checks if a quote with the same text and author already exists
+func (r *SQLiteRepository) QuoteExists(text, author string) (bool, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var count int
+	query := `SELECT COUNT(*) FROM quotes WHERE text = ? AND author = ?`
+	err := r.db.QueryRow(query, text, author).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check quote existence: %w", err)
+	}
+
+	return count > 0, nil
 }
 
 // GetNextAvailableID gets the next available ID from the database
