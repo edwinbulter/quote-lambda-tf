@@ -25,6 +25,8 @@ func runMigrations(db *sql.DB) error {
 		"002_update_auth_schema.sql",
 		"003_create_userprogress_table.sql",
 		"004_cleanup_tables.sql",
+		"005_create_user_likes_table.sql",
+		"006_add_order_to_user_likes.sql",
 	}
 
 	// Try different possible locations for the migration files

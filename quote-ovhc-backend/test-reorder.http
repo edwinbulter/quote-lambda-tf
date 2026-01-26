@@ -1,0 +1,97 @@
+### Test Reorder Endpoint
+### This tests the new reorder functionality for quotes
+### 
+### USAGE: This file requires an HTTP client environment file (http-client.env.json) with:
+### {
+###   "dev": {
+###     "baseUrl": "http://localhost:8080",
+###     "authToken": "your-jwt-token-here"
+###   }
+### }
+### Or you can replace {{baseUrl}} with your actual server URL and {{authToken}} with a valid JWT token
+
+### 1. Login to get JWT token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "loginIdentifier": "testuser",
+  "password": "testpassword"
+}
+
+> {%
+    const responseBody = JSON.parse(response.body);
+    client.global.set("authToken", responseBody.token);
+%}
+
+### 2. Like some quotes first (to have quotes to reorder)
+POST {{baseUrl}}/api/v1/quote/1/like
+Authorization: Bearer {{authToken}}
+
+###
+
+POST {{baseUrl}}/api/v1/quote/2/like
+Authorization: Bearer {{authToken}}
+
+###
+
+POST {{baseUrl}}/api/v1/quote/3/like
+Authorization: Bearer {{authToken}}
+
+### 3. Get liked quotes to see current order
+GET {{baseUrl}}/api/v1/quote/liked
+Authorization: Bearer {{authToken}}
+
+### 4. Reorder quote ID 3 to position 1 (using newPosition)
+PUT {{baseUrl}}/api/v1/quote/3/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPosition": 1
+}
+
+### 5. Get liked quotes again to verify reordering
+GET {{baseUrl}}/api/v1/quote/liked
+Authorization: Bearer {{authToken}}
+
+### 6. Reorder quote ID 1 to position 3 (using Order field)
+PUT {{baseUrl}}/api/v1/quote/1/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "Order": 3
+}
+
+### 7. Get liked quotes again to verify second reordering
+GET {{baseUrl}}/api/v1/quote/liked
+Authorization: Bearer {{authToken}}
+
+### 8. Test error cases
+
+### 8a. Try to reorder a quote that wasn't liked
+PUT {{baseUrl}}/api/v1/quote/99/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPosition": 1
+}
+
+### 8b. Try to reorder with invalid position
+PUT {{baseUrl}}/api/v1/quote/1/reorder
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "newPosition": 0
+}
+
+### 8c. Try to reorder without authentication
+PUT {{baseUrl}}/api/v1/quote/1/reorder
+Content-Type: application/json
+
+{
+  "newPosition": 1
+}

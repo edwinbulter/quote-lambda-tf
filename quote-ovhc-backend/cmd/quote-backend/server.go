@@ -25,8 +25,8 @@ type Server struct {
 }
 
 // NewServer creates a new HTTP server
-func NewServer(sqliteRepo *storage.SQLiteRepository, s3Storage *storage.S3Storage, zenQuotes *services.ZenQuotesService, authHandler *handlers.AuthHandler, jwtService *auth.JWTService, userProgressService *service.UserProgressService) *Server {
-	quoteHandler := handlers.NewQuoteHandler(sqliteRepo, s3Storage, zenQuotes, userProgressService)
+func NewServer(sqliteRepo *storage.SQLiteRepository, s3Storage *storage.S3Storage, zenQuotes *services.ZenQuotesService, authHandler *handlers.AuthHandler, jwtService *auth.JWTService, userProgressService *service.UserProgressService, userLikeService *service.UserLikeService) *Server {
+	quoteHandler := handlers.NewQuoteHandler(sqliteRepo, s3Storage, zenQuotes, userProgressService, userLikeService)
 
 	server := &Server{
 		router:       mux.NewRouter(),
@@ -50,6 +50,11 @@ func (s *Server) setupRoutes() {
 			"/debug/create-userprogress",
 			"/api/v1/quote",
 			"/api/v1/quote/public",
+			"/api/v1/quote/viewed",
+			"/api/v1/quote/progress",
+			"/api/v1/quote/{id}/like",
+			"/api/v1/quote/{id}/unlike",
+			"/api/v1/quote/liked",
 			"/api/v1/auth/register",
 			"/api/v1/auth/login",
 			"/api/v1/auth/profile",
@@ -129,6 +134,30 @@ func (s *Server) setupRoutes() {
 	// Protected quote route (for authenticated users with progress tracking)
 	log.Printf("Setting up protected quote route: /api/v1/quote")
 	protected.HandleFunc("/quote", s.quoteHandler.GetRandomQuoteHandler).Methods("GET")
+
+	// Protected viewed quotes history endpoint
+	log.Printf("Setting up viewed quotes route: /api/v1/quote/viewed")
+	protected.HandleFunc("/quote/viewed", s.quoteHandler.GetViewedQuotesHandler).Methods("GET")
+
+	// Protected progress endpoint
+	log.Printf("Setting up progress route: /api/v1/quote/progress")
+	protected.HandleFunc("/quote/progress", s.quoteHandler.GetProgressHandler).Methods("GET")
+
+	// Protected like quote endpoint
+	log.Printf("Setting up like quote route: /api/v1/quote/{id}/like")
+	protected.HandleFunc("/quote/{id}/like", s.quoteHandler.LikeQuoteHandler).Methods("POST")
+
+	// Protected unlike quote endpoint
+	log.Printf("Setting up unlike quote route: /api/v1/quote/{id}/unlike")
+	protected.HandleFunc("/quote/{id}/unlike", s.quoteHandler.UnlikeQuoteHandler).Methods("DELETE")
+
+	// Protected get liked quotes endpoint
+	log.Printf("Setting up liked quotes route: /api/v1/quote/liked")
+	protected.HandleFunc("/quote/liked", s.quoteHandler.GetLikedQuotesHandler).Methods("GET")
+
+	// Protected reorder quote endpoint
+	log.Printf("Setting up reorder quote route: /api/v1/quote/{id}/reorder")
+	protected.HandleFunc("/quote/{id}/reorder", s.quoteHandler.ReorderQuoteHandler).Methods("PUT")
 }
 
 // Start starts the HTTP server

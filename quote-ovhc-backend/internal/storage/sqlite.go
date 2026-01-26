@@ -92,6 +92,24 @@ func (r *SQLiteRepository) GetQuoteByID(id int) (*models.Quote, error) {
 	return &quote, nil
 }
 
+// IncrementLikeCount increments the like count for a quote
+func (r *SQLiteRepository) IncrementLikeCount(id int) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	_, err := r.db.Exec(`
+		UPDATE quotes 
+		SET like_count = like_count + 1 
+		WHERE id = ?
+	`, id)
+
+	if err != nil {
+		return fmt.Errorf("failed to increment like count for quote ID %d: %w", id, err)
+	}
+
+	return nil
+}
+
 // GetUniqueQuote returns a random quote excluding the specified IDs
 func (r *SQLiteRepository) GetUniqueQuote(excludeIDs map[int]bool) (*models.Quote, error) {
 	r.mutex.RLock()

@@ -285,14 +285,18 @@ func main() {
 	userProgressRepo := repository.NewUserProgressRepository(db)
 	userProgressService := service.NewUserProgressService(userProgressRepo)
 
-	// Fallback: Create userprogress table manually if migration didn't work
+	// Initialize user like service
+	userLikeRepo := repository.NewUserLikeRepository(db)
+	userLikeService := service.NewUserLikeService(userLikeRepo, sqliteRepo)
+
+	// Fallback: Create user_progress table manually if migration didn't work
 	err = createUserProgressTableFallback(db)
 	if err != nil {
-		log.Printf("Warning: Failed to create userprogress table fallback: %v", err)
+		log.Printf("Warning: Failed to create user_progress table fallback: %v", err)
 	}
 
 	// Create and start server
-	server := NewServer(sqliteRepo, s3Storage, zenQuotes, authHandler, jwtService, userProgressService)
+	server := NewServer(sqliteRepo, s3Storage, zenQuotes, authHandler, jwtService, userProgressService, userLikeService)
 	port := getEnv("PORT", "8080")
 
 	log.Printf("Server ready to accept requests on port %s", port)
