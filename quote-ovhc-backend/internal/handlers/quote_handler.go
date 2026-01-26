@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 
+	"quote-ovhc-backend/internal/middleware"
 	"quote-ovhc-backend/internal/models"
+	"quote-ovhc-backend/internal/service"
 	"quote-ovhc-backend/internal/services"
 	"quote-ovhc-backend/internal/storage"
 
@@ -16,56 +18,135 @@ import (
 
 // QuoteHandler handles HTTP requests for quotes
 type QuoteHandler struct {
-	sqliteRepo *storage.SQLiteRepository
-	s3Storage  *storage.S3Storage
-	zenQuotes  *services.ZenQuotesService
-	logger     *log.Logger
+	sqliteRepo          *storage.SQLiteRepository
+	s3Storage           *storage.S3Storage
+	zenQuotes           *services.ZenQuotesService
+	userProgressService *service.UserProgressService
+	logger              *log.Logger
 }
 
 // NewQuoteHandler creates a new quote handler
-func NewQuoteHandler(sqliteRepo *storage.SQLiteRepository, s3Storage *storage.S3Storage, zenQuotes *services.ZenQuotesService) *QuoteHandler {
+func NewQuoteHandler(sqliteRepo *storage.SQLiteRepository, s3Storage *storage.S3Storage, zenQuotes *services.ZenQuotesService, userProgressService *service.UserProgressService) *QuoteHandler {
 	return &QuoteHandler{
-		sqliteRepo: sqliteRepo,
-		s3Storage:  s3Storage,
-		zenQuotes:  zenQuotes,
-		logger:     log.New(os.Stdout, "[Handler] ", log.LstdFlags),
+		sqliteRepo:          sqliteRepo,
+		s3Storage:           s3Storage,
+		zenQuotes:           zenQuotes,
+		userProgressService: userProgressService,
+		logger:              log.New(os.Stdout, "[Handler] ", log.LstdFlags),
 	}
 }
 
 // SetupRoutes configures the HTTP routes
 func (h *QuoteHandler) SetupRoutes(router *mux.Router) {
-	router.HandleFunc("/quote", h.GetRandomQuoteHandler).Methods("GET")
-	router.HandleFunc("/quote", h.GetUniqueQuoteHandler).Methods("POST")
+	h.logger.Printf("Setting up quote handler routes...")
+
+	// Public quote route (for unauthenticated users - returns random quotes)
+	h.logger.Printf("Registering public quote route: /api/v1/quote/public")
+	router.HandleFunc("/api/v1/quote/public", h.GetRandomQuoteHandler).Methods("GET")
+
+	// Other routes
+	router.HandleFunc("/api/v1/quote", h.GetUniqueQuoteHandler).Methods("POST")
 	router.HandleFunc("/debug/quotes", h.DebugQuotesHandler).Methods("GET")
 	router.HandleFunc("/debug/sql", h.DebugSQLHandler).Methods("GET")
 	router.HandleFunc("/health", h.HealthHandler).Methods("GET")
+
+	h.logger.Printf("Quote handler routes setup completed")
 }
 
 // GetRandomQuoteHandler handles GET /quote requests
 func (h *QuoteHandler) GetRandomQuoteHandler(w http.ResponseWriter, r *http.Request) {
-	h.logger.Printf("Received request for random quote")
+	h.logger.Printf("Received request for quote")
 
-	quote, err := h.sqliteRepo.GetRandomQuote()
-	if err != nil {
-		h.logger.Printf("Error getting random quote: %v", err)
-		http.Error(w, "Failed to get quote", http.StatusInternalServerError)
-		return
-	}
-	if quote == nil {
-		h.logger.Printf("No quotes available")
-		http.Error(w, "No quotes available", http.StatusNotFound)
-		return
-	}
+	// Check if user is authenticated
+	userIDValue := r.Context().Value(middleware.UserIDKey)
+	if userIDValue != nil {
+		// User is authenticated, get next quote based on progress
+		userID, ok := userIDValue.(int)
+		if !ok {
+			h.logger.Printf("Invalid user ID in context")
+			http.Error(w, "Invalid user context", http.StatusInternalServerError)
+			return
+		}
 
-	h.logger.Printf("Returning quote %d: %s by %s", quote.ID, quote.Text, quote.Author)
+		h.logger.Printf("Authenticated user %d requesting quote", userID)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+		// Get next quote ID for this user
+		nextQuoteID, err := h.userProgressService.GetNextQuoteID(userID)
+		if err != nil {
+			h.logger.Printf("Error getting next quote ID for user %d: %v", userID, err)
+			http.Error(w, "Failed to get user progress", http.StatusInternalServerError)
+			return
+		}
 
-	if err := json.NewEncoder(w).Encode(quote); err != nil {
-		h.logger.Printf("Failed to encode quote: %v", err)
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
+		h.logger.Printf("Next quote ID for user %d: %d", userID, nextQuoteID)
+
+		// Try to get specific quote by ID
+		quote, err := h.sqliteRepo.GetQuoteByID(nextQuoteID)
+		if err != nil {
+			h.logger.Printf("Error getting quote %d: %v", nextQuoteID, err)
+			http.Error(w, "Failed to get quote", http.StatusInternalServerError)
+			return
+		}
+
+		if quote == nil {
+			h.logger.Printf("Quote %d not found, falling back to random quote", nextQuoteID)
+			// Fall back to random quote if specific quote doesn't exist
+			quote, err = h.sqliteRepo.GetRandomQuote()
+			if err != nil {
+				h.logger.Printf("Error getting random quote: %v", err)
+				http.Error(w, "Failed to get quote", http.StatusInternalServerError)
+				return
+			}
+			if quote == nil {
+				h.logger.Printf("No quotes available")
+				http.Error(w, "No quotes available", http.StatusNotFound)
+				return
+			}
+		}
+
+		// Update user progress
+		err = h.userProgressService.UpdateUserProgress(userID, quote.ID)
+		if err != nil {
+			h.logger.Printf("Warning: Failed to update user progress for user %d: %v", userID, err)
+			// Don't fail the request, just log the error
+		}
+
+		h.logger.Printf("Returning quote %d for authenticated user %d: %s by %s", quote.ID, userID, quote.Text, quote.Author)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(quote); err != nil {
+			h.logger.Printf("Failed to encode quote: %v", err)
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// User is not authenticated, return random quote
+		h.logger.Printf("Unauthenticated user requesting random quote")
+
+		quote, err := h.sqliteRepo.GetRandomQuote()
+		if err != nil {
+			h.logger.Printf("Error getting random quote: %v", err)
+			http.Error(w, "Failed to get quote", http.StatusInternalServerError)
+			return
+		}
+		if quote == nil {
+			h.logger.Printf("No quotes available")
+			http.Error(w, "No quotes available", http.StatusNotFound)
+			return
+		}
+
+		h.logger.Printf("Returning random quote %d: %s by %s", quote.ID, quote.Text, quote.Author)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(quote); err != nil {
+			h.logger.Printf("Failed to encode quote: %v", err)
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
 	}
 }
 

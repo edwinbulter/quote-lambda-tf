@@ -241,24 +241,7 @@ func (r *AuthRepository) ChangePassword(userID int, currentPassword, newPassword
 	return err
 }
 
-func (r *AuthRepository) DeleteUser(userID int, passwordHash string) error {
-	// Verify password before deletion
-	query := `
-		SELECT password_hash FROM users 
-		WHERE id = ? AND is_active = 1
-	`
-
-	var storedPasswordHash string
-	err := r.db.QueryRow(query, userID).Scan(&storedPasswordHash)
-	if err != nil {
-		return err
-	}
-
-	// Check if password matches
-	if storedPasswordHash != passwordHash {
-		return errors.New("password is incorrect")
-	}
-
+func (r *AuthRepository) DeleteUser(userID int, password string) error {
 	// Start transaction
 	tx, err := r.db.Begin()
 	if err != nil {

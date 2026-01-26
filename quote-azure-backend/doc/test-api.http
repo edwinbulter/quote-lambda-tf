@@ -26,10 +26,10 @@ POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "email": "user-1@outlook.com",
-  "username": "user-1",
-  "password": "Hello-user-1",
-  "confirmPassword": "Hello-user-1"
+  "email": "user-b@outlook.com",
+  "username": "user-b",
+  "password": "Hello-user-b",
+  "confirmPassword": "Hello-user-b"
 }
 
 ### 0.2 Login to get JWT token (using email)

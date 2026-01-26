@@ -70,6 +70,28 @@ func (r *SQLiteRepository) GetRandomQuote() (*models.Quote, error) {
 	return &quote, nil
 }
 
+// GetQuoteByID returns a quote by its ID
+func (r *SQLiteRepository) GetQuoteByID(id int) (*models.Quote, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var quote models.Quote
+	err := r.db.QueryRow(`
+		SELECT id, text, author, like_count, created_at, source 
+		FROM quotes 
+		WHERE id = ?
+	`, id).Scan(&quote.ID, &quote.Text, &quote.Author, &quote.LikeCount, &quote.CreatedAt, &quote.Source)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get quote by ID %d: %w", id, err)
+	}
+
+	return &quote, nil
+}
+
 // GetUniqueQuote returns a random quote excluding the specified IDs
 func (r *SQLiteRepository) GetUniqueQuote(excludeIDs map[int]bool) (*models.Quote, error) {
 	r.mutex.RLock()

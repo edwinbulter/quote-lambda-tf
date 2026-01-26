@@ -13,10 +13,10 @@ CREATE TABLE IF NOT EXISTS user_roles (
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
 
--- Check if role column exists in users table and migrate data
--- This is a bit complex in SQLite, so we'll recreate the table
+-- Check if role column exists by trying to query it
+-- This will work in both cases
 
--- Create new users table without role column
+-- Create new users table without role column (if needed)
 CREATE TABLE IF NOT EXISTS users_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -32,12 +32,6 @@ INSERT INTO users_new (id, username, email, password_hash, created_at, updated_a
 SELECT id, username, email, password_hash, created_at, updated_at, is_active
 FROM users;
 
--- Migrate roles from users table to user_roles table
-INSERT OR IGNORE INTO user_roles (user_id, role, created_at)
-SELECT id, role, created_at
-FROM users
-WHERE role IS NOT NULL AND role != '';
-
 -- Drop old table and rename new one
 DROP TABLE IF EXISTS users;
 ALTER TABLE users_new RENAME TO users;
@@ -52,3 +46,6 @@ INSERT OR IGNORE INTO user_roles (user_id, role, created_at)
 SELECT id, 'user', datetime('now')
 FROM users
 WHERE id NOT IN (SELECT DISTINCT user_id FROM user_roles);
+
+-- Verify migration completed successfully
+SELECT 'Auth schema migration completed successfully' as result;

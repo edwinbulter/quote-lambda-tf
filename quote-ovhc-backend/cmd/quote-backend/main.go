@@ -158,6 +158,47 @@ func initializeS3Client() (*s3.Client, error) {
 }
 
 // getEnv gets an environment variable or returns a default value
+func createUserProgressTableFallback(db *sql.DB) error {
+	// Check if table already exists
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_progress'").Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check if user_progress table exists: %w", err)
+	}
+
+	if count > 0 {
+		log.Printf("user_progress table already exists")
+		return nil
+	}
+
+	log.Printf("Creating user_progress table as fallback...")
+
+	// Create the table
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS user_progress (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		last_quote_id INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	);`
+
+	_, err = db.Exec(createTableSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create user_progress table: %w", err)
+	}
+
+	// Create index
+	_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON user_progress(user_id)")
+	if err != nil {
+		return fmt.Errorf("failed to create user_progress index: %w", err)
+	}
+
+	log.Printf("user_progress table created successfully via fallback")
+	return nil
+}
+
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -240,8 +281,18 @@ func main() {
 	authService := service.NewAuthService(authRepo, jwtService, passwordService)
 	authHandler := handlers.NewAuthHandler(authService)
 
+	// Initialize user progress service
+	userProgressRepo := repository.NewUserProgressRepository(db)
+	userProgressService := service.NewUserProgressService(userProgressRepo)
+
+	// Fallback: Create userprogress table manually if migration didn't work
+	err = createUserProgressTableFallback(db)
+	if err != nil {
+		log.Printf("Warning: Failed to create userprogress table fallback: %v", err)
+	}
+
 	// Create and start server
-	server := NewServer(sqliteRepo, s3Storage, zenQuotes, authHandler, jwtService)
+	server := NewServer(sqliteRepo, s3Storage, zenQuotes, authHandler, jwtService, userProgressService)
 	port := getEnv("PORT", "8080")
 
 	log.Printf("Server ready to accept requests on port %s", port)

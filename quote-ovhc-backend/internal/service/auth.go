@@ -47,13 +47,18 @@ type DeleteUserRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type RegisterResponse struct {
+	User    *models.User `json:"user"`
+	Message string       `json:"message"`
+}
+
 type AuthResponse struct {
 	Token     string       `json:"token"`
 	User      *models.User `json:"user"`
 	ExpiresIn int64        `json:"expires_in"`
 }
 
-func (s *AuthService) Register(req *RegisterRequest) (*AuthResponse, error) {
+func (s *AuthService) Register(req *RegisterRequest) (*RegisterResponse, error) {
 	// Check if user already exists
 	exists, err := s.authRepo.UserExists(req.Username, req.Email)
 	if err != nil {
@@ -82,16 +87,9 @@ func (s *AuthService) Register(req *RegisterRequest) (*AuthResponse, error) {
 		return nil, fmt.Errorf("error creating user: %w", err)
 	}
 
-	// Generate token with roles
-	token, err := s.jwtService.GenerateToken(user.ID, user.Username, user.Roles)
-	if err != nil {
-		return nil, fmt.Errorf("error generating token: %w", err)
-	}
-
-	return &AuthResponse{
-		Token:     token,
-		User:      user,
-		ExpiresIn: 3600, // 1 hour in seconds
+	return &RegisterResponse{
+		User:    user,
+		Message: "User registered successfully",
 	}, nil
 }
 
@@ -155,14 +153,20 @@ func (s *AuthService) ChangePassword(userID int, req *ChangePasswordRequest) err
 }
 
 func (s *AuthService) DeleteUser(userID int, req *DeleteUserRequest) error {
-	// Hash password for verification
-	passwordHash, err := s.passwordService.HashPassword(req.Password)
+	// Get user to verify password
+	user, err := s.authRepo.GetUserByID(userID)
 	if err != nil {
-		return fmt.Errorf("error hashing password: %w", err)
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	// Verify password
+	err = s.passwordService.CheckPassword(req.Password, user.PasswordHash)
+	if err != nil {
+		return errors.New("password is incorrect")
 	}
 
 	// Delete user
-	err = s.authRepo.DeleteUser(userID, passwordHash)
+	err = s.authRepo.DeleteUser(userID, req.Password)
 	if err != nil {
 		return fmt.Errorf("error deleting user: %w", err)
 	}

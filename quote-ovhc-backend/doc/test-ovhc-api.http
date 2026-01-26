@@ -1,16 +1,12 @@
 ### JWT Authentication Testing
 
-### Debug JWT Claims
-GET {{baseUrl}}/debug/jwt
-Authorization: Bearer {{testuserToken}}
-
 ### 1. Register New User
 POST {{baseUrl}}/api/v1/auth/register
 Content-Type: application/json
 
 {
   "username": "testuser",
-  "email": "test@example.com",
+  "email": "testuser@example.com",
   "password": "password123"
 }
 
@@ -46,6 +42,18 @@ Content-Type: application/json
   "confirmNewPassword": "password!"
 }
 
-### 4. GET Quote with authentication (stores LastQuoteId in userprogress)
-GET {{baseUrl}}/quote
+### 4. Unregister user (delete account and all data)
+DELETE {{baseUrl}}/api/v1/auth/unregister
 Authorization: Bearer {{testuserToken}}
+Content-Type: application/json
+
+{
+  "password": "password!"
+}
+
+### 4. GET Quote with authentication (stores LastQuoteId in userprogress)
+GET {{baseUrl}}/api/v1/quote
+Authorization: Bearer {{testuserToken}}
+
+### 5. GET Quote without authentication (should return a random quote)
+GET {{baseUrl}}/api/v1/quote/public
