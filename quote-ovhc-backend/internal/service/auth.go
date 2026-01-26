@@ -54,9 +54,10 @@ type RegisterResponse struct {
 }
 
 type AuthResponse struct {
-	Token     string       `json:"token"`
-	User      *models.User `json:"user"`
-	ExpiresIn int64        `json:"expires_in"`
+	Token                  string       `json:"token"`
+	User                   *models.User `json:"user"`
+	ExpiresIn              int64        `json:"expires_in"`
+	DefaultPasswordWarning *string      `json:"default_password_warning,omitempty"`
 }
 
 func (s *AuthService) Register(req *RegisterRequest) (*RegisterResponse, error) {
@@ -113,10 +114,18 @@ func (s *AuthService) Login(req *LoginRequest) (*AuthResponse, error) {
 		return nil, fmt.Errorf("error generating token: %w", err)
 	}
 
+	// Check if user is admin and using default password
+	var defaultPasswordWarning *string
+	if user.Username == "admin" && req.Password == "Hello-admin!" {
+		warning := "You are using the default admin password. Please change it immediately for security."
+		defaultPasswordWarning = &warning
+	}
+
 	return &AuthResponse{
-		Token:     token,
-		User:      user,
-		ExpiresIn: 3600, // 1 hour in seconds
+		Token:                  token,
+		User:                   user,
+		ExpiresIn:              3600, // 1 hour in seconds
+		DefaultPasswordWarning: defaultPasswordWarning,
 	}, nil
 }
 

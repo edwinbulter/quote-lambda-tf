@@ -214,6 +214,66 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// ensureDefaultAdminUser creates a default admin user if no admin users exist
+func ensureDefaultAdminUser(authService *service.AuthService, authRepo *repository.AuthRepository, passwordService *auth.PasswordService) error {
+	// Check if any admin users exist
+	users, err := authRepo.GetAllUsers()
+	if err != nil {
+		return fmt.Errorf("failed to get users: %w", err)
+	}
+
+	// Check if any user has admin role
+	hasAdmin := false
+	for _, user := range users {
+		for _, role := range user.Roles {
+			if role == models.RoleAdmin {
+				hasAdmin = true
+				break
+			}
+		}
+		if hasAdmin {
+			break
+		}
+	}
+
+	if !hasAdmin {
+		log.Println("No admin users found, creating default admin user...")
+
+		// Create default admin user registration request
+		defaultPassword := "Hello-admin!"
+		registerReq := &service.RegisterRequest{
+			Username: "admin",
+			Email:    "admin@quote-backend.local",
+			Password: defaultPassword,
+		}
+
+		// Register the user
+		_, err = authService.Register(registerReq)
+		if err != nil {
+			return fmt.Errorf("failed to create default admin user: %w", err)
+		}
+
+		// Get the created user's ID
+		createdUser, err := authRepo.GetUserByUsername("admin")
+		if err != nil {
+			return fmt.Errorf("failed to get created admin user: %w", err)
+		}
+
+		// Assign admin role
+		err = authRepo.AddUserRole(createdUser.ID, models.RoleAdmin)
+		if err != nil {
+			return fmt.Errorf("failed to assign admin role: %w", err)
+		}
+
+		log.Printf("Default admin user created successfully (username: admin, password: %s)", defaultPassword)
+		log.Println("IMPORTANT: Please change the default admin password immediately!")
+	} else {
+		log.Println("Admin user(s) already exist, skipping default admin creation")
+	}
+
+	return nil
+}
+
 func main() {
 	log.Println("Starting Quote Backend for OVHcloud")
 
@@ -289,6 +349,11 @@ func main() {
 	authService := service.NewAuthService(authRepo, jwtService, passwordService)
 	adminService := service.NewAdminService(sqliteRepo, zenQuotes)
 	authHandler := handlers.NewAuthHandler(authService, adminService, jwtService)
+
+	// Check and create default admin user if none exists
+	if err := ensureDefaultAdminUser(authService, authRepo, passwordService); err != nil {
+		log.Printf("Warning: Failed to ensure default admin user: %v", err)
+	}
 
 	// Initialize user progress service
 	userProgressRepo := repository.NewUserProgressRepository(db)
