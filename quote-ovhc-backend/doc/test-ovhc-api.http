@@ -153,8 +153,8 @@ Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
-  "username": "testuser",
-  "role": "Admin"
+  "username": "admin-1",
+  "role": "admin"
 }
 
 ### 20. Remove user role (admin only)
@@ -187,6 +187,7 @@ Content-Type: application/json
 
 > {%
     client.global.set("defaultAdminToken", response.body.token);
+    client.global.set("adminToken", response.body.token);
 %}
 
 ### 23. Change default admin Password (Protected)
@@ -211,4 +212,5 @@ Content-Type: application/json
 
 > {%
     client.global.set("defaultAdminToken", response.body.token);
+    client.global.set("adminToken", response.body.token);
 %}

@@ -66,13 +66,13 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	// Get user info from context (set by JWT middleware) using correct keys
 	userID := r.Context().Value(middleware.UserIDKey)
 	username := r.Context().Value(middleware.UsernameKey)
-	role := r.Context().Value(middleware.RoleKey)
+	roles := r.Context().Value(middleware.RolesKey)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user_id":  userID,
 		"username": username,
-		"role":     role,
+		"roles":    roles,
 	})
 }
 

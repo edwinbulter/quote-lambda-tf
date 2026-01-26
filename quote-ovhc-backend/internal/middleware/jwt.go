@@ -13,7 +13,7 @@ type contextKey string
 const (
 	UserIDKey   contextKey = "user_id"
 	UsernameKey contextKey = "username"
-	RoleKey     contextKey = "role"
+	RolesKey    contextKey = "roles"
 )
 
 // JWTMiddleware creates a middleware for JWT validation using Gorilla Mux
@@ -42,12 +42,12 @@ func JWTMiddleware(jwtService *auth.JWTService) func(http.Handler) http.Handler 
 			}
 
 			log.Printf("JWT Debug - Token validated successfully")
-			log.Printf("JWT Debug - Claims: UserID=%d, Username=%s, Role=%s", claims.UserID, claims.Username, claims.Role)
+			log.Printf("JWT Debug - Claims: UserID=%d, Username=%s, Roles=%v", claims.UserID, claims.Username, claims.Roles)
 
 			// Set user context
 			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 			ctx = context.WithValue(ctx, UsernameKey, claims.Username)
-			ctx = context.WithValue(ctx, RoleKey, claims.Role)
+			ctx = context.WithValue(ctx, RolesKey, claims.Roles)
 
 			log.Printf("JWT Debug - Context set, proceeding to next handler")
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -67,12 +67,29 @@ func min(a, b int) int {
 func RequireRole(requiredRole string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			role, ok := r.Context().Value(RoleKey).(string)
-			if !ok || role != requiredRole {
+			roles, ok := r.Context().Value(RolesKey).([]string)
+			if !ok {
+				log.Printf("Role check failed - no roles found in context")
 				http.Error(w, "Insufficient permissions", http.StatusForbidden)
 				return
 			}
 
+			// Check if the required role is in the user's roles
+			hasRole := false
+			for _, role := range roles {
+				if role == requiredRole {
+					hasRole = true
+					break
+				}
+			}
+
+			if !hasRole {
+				log.Printf("Role check failed - user roles: %v, required: %s", roles, requiredRole)
+				http.Error(w, "Insufficient permissions", http.StatusForbidden)
+				return
+			}
+
+			log.Printf("Role check passed - user has required role: %s", requiredRole)
 			next.ServeHTTP(w, r)
 		})
 	}

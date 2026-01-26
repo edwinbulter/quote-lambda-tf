@@ -15,8 +15,7 @@ type JWTService struct {
 type Claims struct {
 	UserID   int      `json:"user_id"`
 	Username string   `json:"username"`
-	Role     string   `json:"role"`
-	Roles    []string `json:"roles,omitempty"`
+	Roles    []string `json:"roles"`
 	jwt.RegisteredClaims
 }
 
@@ -28,16 +27,9 @@ func NewJWTService(secretKey string, expiry time.Duration) *JWTService {
 }
 
 func (j *JWTService) GenerateToken(userID int, username string, roles []string) (string, error) {
-	// Use the first role as the primary role for JWT
-	primaryRole := "user"
-	if len(roles) > 0 {
-		primaryRole = roles[0]
-	}
-
 	claims := &Claims{
 		UserID:   userID,
 		Username: username,
-		Role:     primaryRole,
 		Roles:    roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.expiry)),
