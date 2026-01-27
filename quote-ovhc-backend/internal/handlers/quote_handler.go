@@ -50,6 +50,7 @@ func (h *QuoteHandler) SetupRoutes(router *mux.Router) {
 	// Authenticated quote routes
 	router.HandleFunc("/api/v1/quote/viewed", h.GetViewedQuotesHandler).Methods("GET")
 	router.HandleFunc("/api/v1/quote/progress", h.GetProgressHandler).Methods("GET")
+	router.HandleFunc("/api/v1/quote/{id}", h.GetQuoteByIdHandler).Methods("GET")
 	router.HandleFunc("/api/v1/quote/{id}/like", h.LikeQuoteHandler).Methods("POST")
 	router.HandleFunc("/api/v1/quote/{id}/unlike", h.UnlikeQuoteHandler).Methods("DELETE")
 	router.HandleFunc("/api/v1/quote/liked", h.GetLikedQuotesHandler).Methods("GET")
@@ -842,4 +843,81 @@ func (h *QuoteHandler) ReorderQuoteHandler(w http.ResponseWriter, r *http.Reques
 
 	// Return No Content status (matching C# implementation)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetQuoteByIdHandler handles GET /api/v1/quote/{id} requests
+// Returns a specific quote by its ID
+func (h *QuoteHandler) GetQuoteByIdHandler(w http.ResponseWriter, r *http.Request) {
+	h.logger.Printf("Received request for quote by ID")
+
+	// Get user ID from context (set by JWT middleware) - optional for this endpoint
+	if userIDValue := r.Context().Value(middleware.UserIDKey); userIDValue != nil {
+		var userID int
+		switch v := userIDValue.(type) {
+		case int:
+			userID = v
+		case float64:
+			userID = int(v)
+		case string:
+			parsedID, err := strconv.Atoi(v)
+			if err != nil {
+				h.logger.Printf("Failed to convert user ID string to int: %v", err)
+				http.Error(w, "Invalid user ID", http.StatusInternalServerError)
+				return
+			}
+			userID = parsedID
+		default:
+			h.logger.Printf("User ID has unexpected type: %T", userIDValue)
+			http.Error(w, "Invalid user ID", http.StatusInternalServerError)
+			return
+		}
+		h.logger.Printf("Authenticated user %d requesting quote by ID", userID)
+	} else {
+		h.logger.Printf("Unauthenticated user requesting quote by ID")
+	}
+
+	// Get quote ID from URL parameters
+	vars := mux.Vars(r)
+	quoteIDStr := vars["id"]
+	if quoteIDStr == "" {
+		h.logger.Printf("Quote ID not found in URL")
+		http.Error(w, "Quote ID is required", http.StatusBadRequest)
+		return
+	}
+
+	quoteID, err := strconv.Atoi(quoteIDStr)
+	if err != nil {
+		h.logger.Printf("Invalid quote ID: %s", quoteIDStr)
+		http.Error(w, "Invalid quote ID", http.StatusBadRequest)
+		return
+	}
+
+	h.logger.Printf("Getting quote by ID: %d", quoteID)
+
+	// Get quote from database
+	quote, err := h.sqliteRepo.GetQuoteByID(quoteID)
+	if err != nil {
+		h.logger.Printf("Error getting quote %d: %v", quoteID, err)
+		http.Error(w, "Failed to get quote", http.StatusInternalServerError)
+		return
+	}
+
+	if quote == nil {
+		h.logger.Printf("Quote %d not found", quoteID)
+		http.Error(w, "Quote not found", http.StatusNotFound)
+		return
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Encode and return the quote
+	if err := json.NewEncoder(w).Encode(quote); err != nil {
+		h.logger.Printf("Error encoding quote response: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	h.logger.Printf("Successfully returned quote %d", quoteID)
 }

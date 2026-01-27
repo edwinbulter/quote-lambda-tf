@@ -119,6 +119,19 @@ Content-Type: application/json
     client.global.set("adminToken", response.body.token);
 %}
 
+### 12.1 GET Quote with authentication (stores LastQuoteId in userprogress)
+GET {{baseUrl}}/api/v1/quote
+Authorization: Bearer {{adminToken}}
+
+### 12.2 GET Progress (authenticated)
+GET {{baseUrl}}/api/v1/quote/progress
+Authorization: Bearer {{adminToken}}
+
+### 12.3 GET Quote By Id with authentication
+GET {{baseUrl}}/api/v1/quote/30
+Authorization: Bearer {{adminToken}}
+
+
 ### 13. Get all users (admin only)
 GET {{baseUrl}}/api/v1/manage/users
 Authorization: Bearer {{adminToken}}

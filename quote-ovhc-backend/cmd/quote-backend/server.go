@@ -12,6 +12,7 @@ import (
 	"quote-ovhc-backend/internal/storage"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 // Server represents the HTTP server
@@ -145,5 +146,15 @@ func (s *Server) setupRoutes() {
 // Start starts the HTTP server
 func (s *Server) Start(port string) error {
 	log.Printf("Starting server on port %s", port)
-	return http.ListenAndServe(":"+port, s.router)
+
+	// Setup CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	})
+
+	handler := c.Handler(s.router)
+	return http.ListenAndServe(":"+port, handler)
 }

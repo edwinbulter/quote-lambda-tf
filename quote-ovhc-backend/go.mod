@@ -29,4 +29,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7 // indirect
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/rs/cors v1.11.1 // indirect
 )
