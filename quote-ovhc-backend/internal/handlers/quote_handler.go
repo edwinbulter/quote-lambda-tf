@@ -57,8 +57,6 @@ func (h *QuoteHandler) SetupRoutes(router *mux.Router) {
 
 	// Other routes
 	router.HandleFunc("/api/v1/quote", h.GetUniqueQuoteHandler).Methods("POST")
-	router.HandleFunc("/debug/quotes", h.DebugQuotesHandler).Methods("GET")
-	router.HandleFunc("/debug/sql", h.DebugSQLHandler).Methods("GET")
 	router.HandleFunc("/health", h.HealthHandler).Methods("GET")
 
 	h.logger.Printf("Quote handler routes setup completed")
@@ -282,95 +280,6 @@ func (h *QuoteHandler) SaveToS3() error {
 
 	h.logger.Println("Successfully saved both database file and JSON backup to S3")
 	return nil
-}
-
-// DebugQuotesHandler handles GET /debug/quotes requests - shows all quotes in memory
-func (h *QuoteHandler) DebugQuotesHandler(w http.ResponseWriter, r *http.Request) {
-	h.logger.Printf("Received debug request for all quotes")
-
-	quotes, err := h.sqliteRepo.GetAllQuotes()
-	if err != nil {
-		h.logger.Printf("Failed to get all quotes: %v", err)
-		http.Error(w, "Failed to retrieve quotes", http.StatusInternalServerError)
-		return
-	}
-
-	h.logger.Printf("Returning %d quotes", len(quotes))
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(quotes); err != nil {
-		h.logger.Printf("Failed to encode quotes: %v", err)
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
-}
-
-// DebugSQLHandler handles GET /debug/sql requests - allows SQL queries
-func (h *QuoteHandler) DebugSQLHandler(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	if query == "" {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Use ?q=SELECT * FROM quotes to query the database",
-			"example": "/debug/sql?q=SELECT * FROM quotes ORDER BY id LIMIT 5",
-		})
-		return
-	}
-
-	h.logger.Printf("Executing SQL query: %s", query)
-
-	rows, err := h.sqliteRepo.ExecuteQuery(query)
-	if err != nil {
-		h.logger.Printf("SQL query failed: %v", err)
-		http.Error(w, fmt.Sprintf("Query failed: %v", err), http.StatusBadRequest)
-		return
-	}
-	defer rows.Close()
-
-	// Get column names
-	columns, err := rows.Columns()
-	if err != nil {
-		http.Error(w, "Failed to get columns", http.StatusInternalServerError)
-		return
-	}
-
-	// Prepare result
-	var results []map[string]interface{}
-	for rows.Next() {
-		// Create slice of interfaces for scanning
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
-		for i := range columns {
-			valuePtrs[i] = &values[i]
-		}
-
-		// Scan row
-		if err := rows.Scan(valuePtrs...); err != nil {
-			h.logger.Printf("Failed to scan row: %v", err)
-			continue
-		}
-
-		// Create map for this row
-		row := make(map[string]interface{})
-		for i, col := range columns {
-			val := values[i]
-			if b, ok := val.([]byte); ok {
-				row[col] = string(b)
-			} else {
-				row[col] = val
-			}
-		}
-		results = append(results, row)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"columns": columns,
-		"rows":    results,
-		"count":   len(results),
-	})
 }
 
 // HealthHandler handles health check requests

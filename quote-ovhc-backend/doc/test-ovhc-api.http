@@ -27,10 +27,6 @@ Content-Type: application/json
     client.global.set("testuserToken", response.body.token);
 %}
 
-### Debug JWT Claims
-GET {{baseUrl}}/debug/jwt
-Authorization: Bearer {{testuserToken}}
-
 ### 3. Change Password (Protected)
 POST {{baseUrl}}/api/v1/auth/change-password
 Authorization: Bearer {{testuserToken}}

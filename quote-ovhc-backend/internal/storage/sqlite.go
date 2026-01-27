@@ -307,11 +307,3 @@ func (r *SQLiteRepository) GetNextAvailableID() (int, error) {
 
 	return maxID + 1, nil
 }
-
-// ExecuteQuery executes a custom SQL query (for debugging)
-func (r *SQLiteRepository) ExecuteQuery(query string) (*sql.Rows, error) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
-	return r.db.Query(query)
-}

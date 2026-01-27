@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"quote-ovhc-backend/internal/auth"
@@ -11,7 +10,6 @@ import (
 	"quote-ovhc-backend/internal/service"
 	"quote-ovhc-backend/internal/services"
 	"quote-ovhc-backend/internal/storage"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -46,7 +44,6 @@ func (s *Server) setupRoutes() {
 		w.Header().Set("Content-Type", "application/json")
 		availableRoutes := []string{
 			"/debug/routes",
-			"/debug/jwt",
 			"/debug/create-userprogress",
 			"/api/v1/quote",
 			"/api/v1/quote/public",
@@ -66,32 +63,6 @@ func (s *Server) setupRoutes() {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"message":          "Router is working",
 			"available_routes": availableRoutes,
-		})
-	}).Methods("GET")
-
-	// Debug endpoint for JWT inspection
-	s.router.HandleFunc("/debug/jwt", func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Authorization header required", http.StatusUnauthorized)
-			return
-		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-		claims, err := s.jwtService.ValidateToken(tokenString)
-		if err != nil {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error":  err.Error(),
-				"claims": nil,
-			})
-			return
-		}
-
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error":        nil,
-			"claims":       claims,
-			"user_id_type": fmt.Sprintf("%T", claims.UserID),
 		})
 	}).Methods("GET")
 

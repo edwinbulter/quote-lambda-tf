@@ -5,6 +5,60 @@
 
 echo "🚀 Setting up environment variables for Quote Backend..."
 
+# Function to read from secrets file
+read_secrets() {
+    local secrets_file=".secrets"
+    
+    if [ -f "$secrets_file" ]; then
+        echo "� Reading S3 credentials from $secrets_file..."
+        
+        # Read credentials from secrets file
+        while IFS='=' read -r key value; do
+            # Skip comments and empty lines
+            [[ $key =~ ^[[:space:]]*# ]] && continue
+            [[ -z $key ]] && continue
+            
+            # Remove quotes and whitespace
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | sed 's/^["'\'']//' | sed 's/["'\'']$//' | xargs)
+            
+            case "$key" in
+                "S3_ACCESS_KEY")
+                    export S3_ACCESS_KEY="$value"
+                    ;;
+                "S3_SECRET_KEY")
+                    export S3_SECRET_KEY="$value"
+                    ;;
+                "JWT_SECRET")
+                    export JWT_SECRET="$value"
+                    ;;
+            esac
+        done < "$secrets_file"
+        
+        echo "✅ Secrets loaded from $secrets_file"
+    else
+        echo "⚠️  Secrets file '$secrets_file' not found"
+        echo "   Creating template secrets file..."
+        
+        # Create secrets template
+        cat > "$secrets_file" << EOF
+# S3 Credentials (replace with your actual S3 credentials from OVHcloud)
+# IMPORTANT: Generate these from the S3-compatible container, not Swift!
+S3_ACCESS_KEY=YOUR_S3_ACCESS_KEY_HERE
+S3_SECRET_KEY=YOUR_S3_SECRET_KEY_HERE
+
+# JWT Secret (optional - uses default if not set)
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+EOF
+        
+        echo "📝 Created $secrets_file template"
+        echo "   Please edit this file with your actual credentials"
+        echo "   Then run this script again"
+        echo ""
+        return 1
+    fi
+}
+
 # OVHcloud Object Storage Configuration
 echo "📦 Setting up OVHcloud Object Storage variables..."
 
@@ -12,10 +66,11 @@ export S3_ENDPOINT="https://s3.gra.cloud.ovh.net"
 export S3_REGION="GRA"
 export S3_BUCKET="quote-storage"
 
-# S3 Credentials (replace with your actual S3 credentials from OVHcloud)
-# IMPORTANT: Generate these from the S3-compatible container, not Swift!
-export S3_ACCESS_KEY="YOUR_S3_ACCESS_KEY_HERE"
-export S3_SECRET_KEY="YOUR_S3_SECRET_KEY_HERE"
+# Read S3 credentials from secrets file
+if ! read_secrets; then
+    echo "❌ Please update the .secrets file with your credentials and try again"
+    return 1 2>/dev/null || exit 1
+fi
 
 # Server Configuration
 echo "🌐 Setting up server configuration..."
@@ -32,13 +87,15 @@ echo "   S3_SECRET_KEY: ${S3_SECRET_KEY:0:8}..."
 echo "   PORT: $PORT"
 
 # Check for S3 credentials
-if [ -z "$S3_ACCESS_KEY" ] || [ -z "$S3_SECRET_KEY" ]; then
+if [ -z "$S3_ACCESS_KEY" ] || [ "$S3_ACCESS_KEY" = "YOUR_S3_ACCESS_KEY_HERE" ] || [ -z "$S3_SECRET_KEY" ] || [ "$S3_SECRET_KEY" = "YOUR_S3_SECRET_KEY_HERE" ]; then
     echo ""
-    echo "⚠️  Warning: S3 credentials not set!"
+    echo "⚠️  Warning: S3 credentials not properly set!"
     echo ""
-    echo "🔑 To set S3 credentials, run:"
-    echo "   export S3_ACCESS_KEY=\"your-access-key\""
-    echo "   export S3_SECRET_KEY=\"your-secret-key\""
+    echo "🔑 To set S3 credentials:"
+    echo "   1. Edit the .secrets file"
+    echo "   2. Replace YOUR_S3_ACCESS_KEY_HERE with your actual access key"
+    echo "   3. Replace YOUR_S3_SECRET_KEY_HERE with your actual secret key"
+    echo "   4. Run this script again"
     echo ""
     echo "📖 Get credentials from OVHcloud Manager:"
     echo "   1. Go to OVHcloud Manager"
@@ -71,27 +128,75 @@ export_env() {
     export S3_REGION="GRA"
     export S3_BUCKET="quote-storage"
     export PORT="8080"
-    echo "✅ Variables exported!"
+    
+    # Try to read secrets
+    if [ -f ".secrets" ]; then
+        echo "🔐 Loading secrets from .secrets file..."
+        while IFS='=' read -r key value; do
+            [[ $key =~ ^[[:space:]]*# ]] && continue
+            [[ -z $key ]] && continue
+            
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | sed 's/^["'\'']//' | sed 's/["'\'']$//' | xargs)
+            
+            case "$key" in
+                "S3_ACCESS_KEY")
+                    export S3_ACCESS_KEY="$value"
+                    ;;
+                "S3_SECRET_KEY")
+                    export S3_SECRET_KEY="$value"
+                    ;;
+                "JWT_SECRET")
+                    export JWT_SECRET="$value"
+                    ;;
+            esac
+        done < ".secrets"
+        echo "✅ Variables exported with secrets!"
+    else
+        echo "⚠️  No .secrets file found. Please create it first."
+        echo "✅ Basic variables exported (without secrets)!"
+    fi
 }
 
 # Function to create .env file
 create_env_file() {
     echo "📝 Creating .env file..."
+    
+    # Start with non-secret variables
     cat > .env << EOF
 # OVHcloud Object Storage Configuration
 S3_ENDPOINT=https://s3.gra.cloud.ovh.net
 S3_REGION=GRA
 S3_BUCKET=quote-storage
 
-# S3 Credentials (replace with your actual S3 credentials from OVHcloud)
-# IMPORTANT: Generate these from the S3-compatible container, not Swift!
-S3_ACCESS_KEY=YOUR_S3_ACCESS_KEY_HERE
-S3_SECRET_KEY=YOUR_S3_SECRET_KEY_HERE
-
 # Server Configuration
 PORT=8080
 EOF
-    echo "✅ .env file created! Please update S3 credentials."
+    
+    # Add secrets if available
+    if [ -f ".secrets" ]; then
+        echo "🔐 Adding secrets from .secrets file to .env..."
+        while IFS='=' read -r key value; do
+            [[ $key =~ ^[[:space:]]*# ]] && continue
+            [[ -z $key ]] && continue
+            
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | sed 's/^["'\'']//' | sed 's/["'\'']$//' | xargs)
+            
+            case "$key" in
+                "S3_ACCESS_KEY"|"S3_SECRET_KEY"|"JWT_SECRET")
+                    echo "$key=$value" >> .env
+                    ;;
+            esac
+        done < ".secrets"
+        echo "✅ .env file created with secrets!"
+    else
+        echo "# Add your secrets here or use .secrets file" >> .env
+        echo "S3_ACCESS_KEY=YOUR_S3_ACCESS_KEY_HERE" >> .env
+        echo "S3_SECRET_KEY=YOUR_S3_SECRET_KEY_HERE" >> .env
+        echo "JWT_SECRET=your-super-secret-jwt-key-change-in-production" >> .env
+        echo "✅ .env file created! Please update S3 credentials."
+    fi
 }
 
 # Function to display help
@@ -107,8 +212,19 @@ show_help() {
     echo "  --env-file   Create .env file with variables"
     echo "  --help       Show this help message"
     echo ""
+    echo "🔐 Security Features:"
+    echo "  - S3 credentials are read from .secrets file"
+    echo "  - .secrets file is automatically added to .gitignore"
+    echo "  - Template .secrets file created if missing"
+    echo "  - No secrets exposed in shell history or git"
+    echo ""
+    echo "📋 Setup Steps:"
+    echo "  1. Run 'source setup-env.sh' (creates .secrets template)"
+    echo "  2. Edit .secrets file with your actual credentials"
+    echo "  3. Run 'source setup-env.sh' again to load secrets"
+    echo ""
     echo "Examples:"
-    echo "  source setup-env.sh           # Load variables in current shell"
+    echo "  source setup-env.sh           # Load variables from .secrets"
     echo "  ./setup-env.sh --export       # Export to current shell"
     echo "  ./setup-env.sh --env-file     # Create .env file"
 }

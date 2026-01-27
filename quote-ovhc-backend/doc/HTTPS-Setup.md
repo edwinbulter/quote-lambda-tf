@@ -350,10 +350,6 @@ curl https://51.255.60.246/quote
 curl -X POST https://51.255.60.246/quote \
   -H "Content-Type: application/json" \
   -d "[1, 2, 3, 4, 5]"
-
-# Debug endpoints
-curl https://51.255.60.246/debug/quotes
-curl https://51.255.60.246/debug/sql?query=SELECT%20*%20FROM%20quotes%20LIMIT%205
 ```
 
 ## Maintenance

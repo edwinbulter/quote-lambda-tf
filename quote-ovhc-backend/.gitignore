@@ -4,3 +4,9 @@ bin/
 
 # Database files
 quotes.db
+
+# Secrets and credentials
+.secrets
+.env
+*.key
+*.pem
