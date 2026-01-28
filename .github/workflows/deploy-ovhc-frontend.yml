@@ -46,12 +46,7 @@ jobs:
 
     - name: Build application
       working-directory: quote-ovhc-frontend
-      run: |
-        if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
-          npm run build
-        else
-          npm run build -- --mode development
-        fi
+      run: npm run build
         
     - name: Deploy to S3
       working-directory: quote-ovhc-frontend
@@ -84,6 +79,6 @@ jobs:
     - name: Deployment complete
       run: |
         echo "🎉 Deployment successful!"
-        echo "Environment: ${{ github.event.inputs.environment }}"
+        echo "Environment: production"
         echo "S3 Bucket: ${{ env.S3_BUCKET_NAME }}"
         echo "Your app is available at: http://${{ env.S3_BUCKET_NAME }}.s3-website-${{ env.AWS_REGION }}.amazonaws.com"
