@@ -1,0 +1,89 @@
+name: Deploy AWS Frontend
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-central-1
+  CLOUDFRONT_DISTRIBUTION_ID_PROD: E1MX4CB72GG2ZM
+  CLOUDFRONT_DISTRIBUTION_ID_DEV: E2RBZCEJJZBIG
+
+jobs:
+  deploy:
+    name: Deploy Frontend (prod)
+    runs-on: ubuntu-latest
+    environment: prod
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set environment variables
+      run: |
+        echo "S3_BUCKET_NAME=quote-ovhc-frontend" >> $GITHUB_ENV
+        echo "CLOUDFRONT_DISTRIBUTION_ID=${{ env.CLOUDFRONT_DISTRIBUTION_ID_PROD }}" >> $GITHUB_ENV
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: quote-ovhc-frontend/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: quote-ovhc-frontend
+      run: npm ci
+      
+    - name: Configure AWS credentials (for Terraform outputs)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Build application
+      working-directory: quote-ovhc-frontend
+      run: |
+        if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
+          npm run build
+        else
+          npm run build -- --mode development
+        fi
+        
+    - name: Deploy to S3
+      working-directory: quote-ovhc-frontend
+      run: |
+        echo "Deploying to S3 bucket: ${{ env.S3_BUCKET_NAME }}"
+        aws s3 sync dist/ s3://${{ env.S3_BUCKET_NAME }} --delete
+        
+    - name: Set correct content types
+      run: |
+        aws s3 cp s3://${{ env.S3_BUCKET_NAME }} s3://${{ env.S3_BUCKET_NAME }} --recursive --metadata-directive REPLACE --content-type "text/html" --exclude "*" --include "*.html"
+        
+    - name: Invalidate CloudFront cache
+      run: |
+        if [ -n "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
+          echo "🔄 Invalidating CloudFront cache for distribution: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
+          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+          echo "✅ CloudFront cache invalidated - changes will be live within 5-15 minutes"
+        else
+          echo "⚠️ CloudFront distribution ID not set for ${{ github.event.inputs.environment }} environment"
+          ENV_UPPER=$(echo "${{ github.event.inputs.environment }}" | tr '[:lower:]' '[:upper:]')
+          echo "💡 Update CLOUDFRONT_DISTRIBUTION_ID_${ENV_UPPER} in the workflow to enable cache invalidation"
+        fi
+        
+    - name: Get CloudFront URL
+      if: env.CLOUDFRONT_DISTRIBUTION_ID != ''
+      run: |
+        CLOUDFRONT_URL=$(aws cloudfront get-distribution --id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --query 'Distribution.DomainName' --output text)
+        echo "CloudFront URL: https://$CLOUDFRONT_URL"
+        
+    - name: Deployment complete
+      run: |
+        echo "🎉 Deployment successful!"
+        echo "Environment: ${{ github.event.inputs.environment }}"
+        echo "S3 Bucket: ${{ env.S3_BUCKET_NAME }}"
+        echo "Your app is available at: http://${{ env.S3_BUCKET_NAME }}.s3-website-${{ env.AWS_REGION }}.amazonaws.com"

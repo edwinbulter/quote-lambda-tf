@@ -13,8 +13,6 @@ dist-ssr
 *.local
 
 # Environment files (contain sensitive AWS configuration)
-.env.development
-.env.production
 .env.local
 .env.*.local
 
