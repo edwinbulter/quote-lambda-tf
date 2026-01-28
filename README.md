@@ -4,6 +4,8 @@ A full-stack serverless quote management application built with modern cloud-nat
 
 > **📘 Azure Deployment**: For Microsoft Azure deployment guide, see [README-quote-azure.md](./README-quote-azure.md) for Azure Functions, API Management, and Azure Storage setup.
 
+> **☁️ OVHcloud Deployment**: For OVHcloud hybrid deployment guide, see [README-quote-ovhc.md](./README-quote-ovhc.md) for OVHcloud VM with Object Storage and AWS CloudFront setup.
+
 ## Table of Contents
 
 - [🌟 Live Demo](#-live-demo)
