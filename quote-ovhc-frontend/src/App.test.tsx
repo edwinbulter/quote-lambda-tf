@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import App from './App';
 
@@ -94,5 +94,17 @@ describe('App Component', () => {
   it('should render the login button when not authenticated', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+  });
+
+  it('should show sign-in screen when token expires', () => {
+    render(<App />);
+    
+    // Dispatch token expiration event wrapped in act
+    act(() => {
+      window.dispatchEvent(new CustomEvent('auth:show-signin'));
+    });
+    
+    // Check if sign-in screen is shown (OVHLogin component should be rendered)
+    expect(screen.getByText('Login')).toBeInTheDocument();
   });
 });

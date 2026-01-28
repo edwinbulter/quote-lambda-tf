@@ -82,8 +82,10 @@ export const OVHAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for token expiration events
     const handleTokenExpired = () => {
-      console.log('🔒 Token expired, logging out user');
+      console.log('🔒 Token expired, logging out user and showing sign-in');
       logout();
+      // Show sign-in screen when token expires
+      window.dispatchEvent(new CustomEvent('auth:show-signin'));
     };
 
     window.addEventListener('auth:logout', handleTokenExpired);

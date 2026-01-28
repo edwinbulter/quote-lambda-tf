@@ -13,6 +13,7 @@ import { ManageFavouritesScreen } from './components/ManageFavouritesScreen';
 import { ViewedQuotesScreen } from './components/ViewedQuotesScreen';
 import { UserManagementScreen } from './components/UserManagementScreen';
 import { QuoteManagementScreen } from './components/QuoteManagementScreen';
+import ChangePassword from './components/ChangePassword';
 // Import the useQuote hook back for authenticated users
 import { useQuote, useUserProgress, useAuthenticatedQuote } from './hooks/useQuote';
 
@@ -26,6 +27,7 @@ const App: React.FC = () => {
     const [liking, setLiking] = useState<boolean>(false); // Liking state
     const [signingIn, setSigningIn] = useState<boolean>(false);
     const [showProfile, setShowProfile] = useState<boolean>(false);
+    const [showChangePassword, setShowChangePassword] = useState<boolean>(false);
     const [showManagement, setShowManagement] = useState<boolean>(false);
     const [managementView, setManagementView] = useState<'main' | 'favourites' | 'viewed' | 'users' | 'quotes'>('main');
     const [userEmail, setUserEmail] = useState<string>('');
@@ -47,6 +49,25 @@ const App: React.FC = () => {
 
     useEffect(() => {
         fetchFirstQuote(); // Called twice in StrictMode (only in development)
+    }, []);
+
+    // Listen for token expiration events to show sign-in screen
+    useEffect(() => {
+        const handleShowSignIn = () => {
+            console.log('🔒 Showing sign-in screen due to token expiration');
+            setSigningIn(true);
+            // Close any open screens
+            setShowProfile(false);
+            setShowChangePassword(false);
+            setShowManagement(false);
+            setManagementView('main');
+        };
+
+        window.addEventListener('auth:show-signin', handleShowSignIn);
+
+        return () => {
+            window.removeEventListener('auth:show-signin', handleShowSignIn);
+        };
     }, []);
 
     // Load user progress when user authenticates
@@ -306,12 +327,22 @@ const App: React.FC = () => {
         setShowProfile(!showProfile);
     };
 
+    const toggleChangePassword = (): void => {
+        setShowChangePassword(!showChangePassword);
+    };
+
+    const handleChangePasswordSuccess = (): void => {
+        // Password changed successfully - you could show a notification here
+        console.log('Password changed successfully');
+    };
+
     const handleSignOut = async (): Promise<void> => {
         logout();
         setShowProfile(false);
+        setShowChangePassword(false);
         setShowManagement(false);
         setManagementView('main');
-        setSigningIn(false);
+        setSigningIn(false); // Don't show sign-in on manual logout
         // Clear all quote-related state immediately to prevent race conditions
         setCurrentQuoteId(null);
         setLastQuoteId(0);
@@ -321,6 +352,7 @@ const App: React.FC = () => {
 
     const closeProfile = (): void => {
         setShowProfile(false);
+        setShowChangePassword(false);
     };
 
     const openManagement = (): void => {
@@ -380,20 +412,32 @@ const App: React.FC = () => {
                     )
                 ) : showProfile && isAuthenticated && user ? (
                     <div className="profile">
-                        <h2>User Profile</h2>
-                        <div className="profile-info">
-                            <p><strong>Username:</strong> {displayUsername || user.username}</p>
-                            <p><strong>Email:</strong> {userEmail || 'Loading...'}</p>
-                            <p><strong>Roles:</strong> {user?.roles && Array.isArray(user.roles) && user.roles.length > 0 ? user.roles.join(', ') : 'No roles assigned'}</p>
-                        </div>
-                        <div className="profile-actions">
-                            <button className="signOutButton" onClick={handleSignOut}>
-                                Sign Out
-                            </button>
-                            <button className="cancelButton" onClick={closeProfile}>
-                                Cancel
-                            </button>
-                        </div>
+                        {!showChangePassword ? (
+                            <>
+                                <h2>User Profile</h2>
+                                <div className="profile-info">
+                                    <p><strong>Username:</strong> {displayUsername || user.username}</p>
+                                    <p><strong>Email:</strong> {userEmail || 'Loading...'}</p>
+                                    <p><strong>Roles:</strong> {user?.roles && Array.isArray(user.roles) && user.roles.length > 0 ? user.roles.join(', ') : 'No roles assigned'}</p>
+                                </div>
+                                <div className="profile-actions">
+                                    <button className="changePasswordButton" onClick={toggleChangePassword}>
+                                        Change Password
+                                    </button>
+                                    <button className="signOutButton" onClick={handleSignOut}>
+                                        Sign Out
+                                    </button>
+                                    <button className="cancelButton" onClick={closeProfile}>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <ChangePassword
+                                onClose={toggleChangePassword}
+                                onSuccess={handleChangePasswordSuccess}
+                            />
+                        )}
                     </div>
                 ) : signingIn && !isAuthenticated ? (
                     <OVHLogin onCancel={() => setSigningIn(false)} />
