@@ -41,10 +41,10 @@ A full-stack serverless quote management application built with modern cloud-nat
 Access the live application at:
 
 **Production Environment:**
-> **https://d5ly3miadik75.cloudfront.net/**
+> **https://quote-lambda.kabulter.click/**
 
 **Development Environment:**
-> **https://d1fzgis91zws1k.cloudfront.net/**
+> **https://quote-lambda-dev.kabulter.click/**
 
 Not all features can be used if you're not signed in.  
 If you don't want to register and test the restricted features, you can use these user/password combinations:  
@@ -76,7 +76,7 @@ The project showcases:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        CloudFront CDN                        │
-│                  (d5ly3miadik75.cloudfront.net)             │
+│                  (quote-lambda.kabulter.click)             │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
@@ -347,8 +347,8 @@ This project is open source and available for educational purposes.
 
 ## 🔗 Links
 
-- **Live Application (Production)**: https://d5ly3miadik75.cloudfront.net/
-- **Live Application (Development)**: https://d1fzgis91zws1k.cloudfront.net/
+- **Live Application (Production)**: https://quote-lambda.kabulter.click/
+- **Live Application (Development)**: https://quote-lambda-dev.kabulter.click/
 - **API Endpoint**: https://blgydc5rjk.execute-api.eu-central-1.amazonaws.com
 - **ZenQuotes API**: https://zenquotes.io/
 
