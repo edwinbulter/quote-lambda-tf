@@ -31,7 +31,7 @@ A full-stack quote management application deployed on OVHcloud with AWS S3 stora
 Access the OVHcloud-deployed application at:
 
 **OVHcloud Production Environment:**
-> **https://d32i1l1dir6ekk.cloudfront.net/**
+> **https://quote-ovhc.kabulter.click/**
 
 **API Endpoint:**
 > **https://quote-ovhc-backend.mooo.com/api/v1**
@@ -66,8 +66,8 @@ The OVHcloud deployment showcases:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   AWS CloudFront CDN                       │
-│              (d32i1l1dir6ekk.cloudfront.net)                │
+│                   AWS CloudFront CDN                        │
+│              (quote-ovhc.kabulter.click    )                │
 │                   Global Content Delivery                   │
 └────────────────────────┬────────────────────────────────────┘
                          │
@@ -76,27 +76,27 @@ The OVHcloud deployment showcases:
 ┌─────────────────────────────────────────────────────────────┐
 │                      AWS S3 Storage                         │
 │                (quote-ovhc-frontend bucket)                 │
-│              • Static Website Hosting                      │
+│              • Static Website Hosting                       │
 │              • Global Asset Distribution                    │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          │ API Calls
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   OVHcloud VM Instance                     │
+│                   OVHcloud VM Instance                      │
 │            (quote-ovhc-backend.mooo.com)                    │
-│              • Go REST API Server                          │
-│              • SQLite Database                             │
-│              • OVHcloud Object Storage Backup              │
+│              • Go REST API Server                           │
+│              • SQLite Database                              │
+│              • OVHcloud Object Storage Backup               │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 OVHcloud Object Storage                     │
 │                  (Backend Data Container)                   │
-│              • Database Backups                            │
-│              • Persistent Storage                          │
-│              • S3-Compatible API                           │
+│              • Database Backups                             │
+│              • Persistent Storage                           │
+│              • S3-Compatible API                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -362,7 +362,7 @@ This project is open source and available for educational purposes.
 
 ## 🔗 Links
 
-- **Live Application (OVHcloud)**: https://d32i1l1dir6ekk.cloudfront.net/
+- **Live Application (OVHcloud)**: https://quote-ovhc.kabulter.click/
 - **API Endpoint**: https://quote-ovhc-backend.mooo.com/api/v1
 - **OVHcloud Control Panel**: https://www.ovh.com/manager/
 - **AWS Console**: https://console.aws.amazon.com/
