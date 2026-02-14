@@ -1,9 +1,7 @@
 # DynamoDB table for storing quotes
 resource "aws_dynamodb_table" "quotes_table" {
   name           = local.environment == "prod" ? var.quotes_table_name : "${var.quotes_table_name}-${local.environment}"
-  billing_mode   = "PROVISIONED"
-  read_capacity  = var.dynamodb_read_capacity
-  write_capacity = var.dynamodb_write_capacity
+  billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
   attribute {
@@ -21,8 +19,6 @@ resource "aws_dynamodb_table" "quotes_table" {
     name            = "AuthorIndex"
     hash_key        = "author"
     projection_type = "ALL"
-    read_capacity   = var.dynamodb_read_capacity
-    write_capacity  = var.dynamodb_write_capacity
   }
 
   # Enable point-in-time recovery for data protection
@@ -41,60 +37,13 @@ resource "aws_dynamodb_table" "quotes_table" {
   }
 }
 
-# Autoscaling for read capacity
-resource "aws_appautoscaling_target" "dynamodb_table_read_target" {
-  max_capacity       = 100
-  min_capacity       = var.dynamodb_read_capacity
-  resource_id        = "table/${aws_dynamodb_table.quotes_table.name}"
-  scalable_dimension = "dynamodb:table:ReadCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_policy" "dynamodb_table_read_policy" {
-  name               = "DynamoDBReadCapacityUtilization:${aws_appautoscaling_target.dynamodb_table_read_target.resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.dynamodb_table_read_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.dynamodb_table_read_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.dynamodb_table_read_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBReadCapacityUtilization"
-    }
-    target_value = 70.0
-  }
-}
-
-# Autoscaling for write capacity
-resource "aws_appautoscaling_target" "dynamodb_table_write_target" {
-  max_capacity       = 100
-  min_capacity       = var.dynamodb_write_capacity
-  resource_id        = "table/${aws_dynamodb_table.quotes_table.name}"
-  scalable_dimension = "dynamodb:table:WriteCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_policy" "dynamodb_table_write_policy" {
-  name               = "DynamoDBWriteCapacityUtilization:${aws_appautoscaling_target.dynamodb_table_write_target.resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.dynamodb_table_write_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.dynamodb_table_write_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.dynamodb_table_write_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBWriteCapacityUtilization"
-    }
-    target_value = 70.0
-  }
-}
+# Autoscaling for quotes table - REMOVED (using on-demand billing)
+# Autoscaling for quotes GSI - REMOVED (using on-demand billing)
 
 # DynamoDB table for storing user likes
 resource "aws_dynamodb_table" "user_likes_table" {
   name           = local.environment == "prod" ? "quote-lambda-tf-user-likes" : "quote-lambda-tf-user-likes-${local.environment}"
-  billing_mode   = "PROVISIONED"
-  read_capacity  = var.dynamodb_read_capacity
-  write_capacity = var.dynamodb_write_capacity
+  billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "username"
   range_key      = "quoteId"
 
@@ -119,8 +68,6 @@ resource "aws_dynamodb_table" "user_likes_table" {
     hash_key        = "quoteId"
     range_key       = "likedAt"
     projection_type = "ALL"
-    read_capacity   = var.dynamodb_read_capacity
-    write_capacity  = var.dynamodb_write_capacity
   }
 
   # Enable point-in-time recovery for data protection
@@ -139,98 +86,5 @@ resource "aws_dynamodb_table" "user_likes_table" {
   }
 }
 
-# Autoscaling for read capacity - user_likes_table
-resource "aws_appautoscaling_target" "user_likes_table_read_target" {
-  max_capacity       = 100
-  min_capacity       = var.dynamodb_read_capacity
-  resource_id        = "table/${aws_dynamodb_table.user_likes_table.name}"
-  scalable_dimension = "dynamodb:table:ReadCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_policy" "user_likes_table_read_policy" {
-  name               = "DynamoDBReadCapacityUtilization:${aws_appautoscaling_target.user_likes_table_read_target.resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.user_likes_table_read_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.user_likes_table_read_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.user_likes_table_read_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBReadCapacityUtilization"
-    }
-    target_value = 70.0
-  }
-}
-
-# Autoscaling for write capacity - user_likes_table
-resource "aws_appautoscaling_target" "user_likes_table_write_target" {
-  max_capacity       = 100
-  min_capacity       = var.dynamodb_write_capacity
-  resource_id        = "table/${aws_dynamodb_table.user_likes_table.name}"
-  scalable_dimension = "dynamodb:table:WriteCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_policy" "user_likes_table_write_policy" {
-  name               = "DynamoDBWriteCapacityUtilization:${aws_appautoscaling_target.user_likes_table_write_target.resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.user_likes_table_write_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.user_likes_table_write_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.user_likes_table_write_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBWriteCapacityUtilization"
-    }
-    target_value = 70.0
-  }
-}
-
-# Autoscaling for GSI read capacity
-resource "aws_appautoscaling_target" "user_likes_gsi_read_target" {
-  max_capacity       = 100
-  min_capacity       = var.dynamodb_read_capacity
-  resource_id        = "table/${aws_dynamodb_table.user_likes_table.name}/index/QuoteIdIndex"
-  scalable_dimension = "dynamodb:index:ReadCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_policy" "user_likes_gsi_read_policy" {
-  name               = "DynamoDBReadCapacityUtilization:${aws_appautoscaling_target.user_likes_gsi_read_target.resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.user_likes_gsi_read_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.user_likes_gsi_read_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.user_likes_gsi_read_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBReadCapacityUtilization"
-    }
-    target_value = 70.0
-  }
-}
-
-# Autoscaling for GSI write capacity
-resource "aws_appautoscaling_target" "user_likes_gsi_write_target" {
-  max_capacity       = 100
-  min_capacity       = var.dynamodb_write_capacity
-  resource_id        = "table/${aws_dynamodb_table.user_likes_table.name}/index/QuoteIdIndex"
-  scalable_dimension = "dynamodb:index:WriteCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_policy" "user_likes_gsi_write_policy" {
-  name               = "DynamoDBWriteCapacityUtilization:${aws_appautoscaling_target.user_likes_gsi_write_target.resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.user_likes_gsi_write_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.user_likes_gsi_write_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.user_likes_gsi_write_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBWriteCapacityUtilization"
-    }
-    target_value = 70.0
-  }
-}
+# Autoscaling for GSI read capacity - REMOVED (using on-demand billing)
+# Autoscaling for GSI write capacity - REMOVED (using on-demand billing)
