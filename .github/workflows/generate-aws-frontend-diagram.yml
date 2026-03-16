@@ -43,92 +43,52 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~1.6"
+          terraform_wrapper: false
           
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          node-version: '18'
-          
-      - name: Install Pluralith
-        run: |
-          # Try multiple installation methods for Pluralith
-          echo "Attempting to install Pluralith..."
-          
-          # Method 1: Try npm with @pluralith/cli
-          npm install -g @pluralith/cli || echo "Method 1 failed"
-          
-          # Method 2: Try npm with pluralith
-          npm install -g pluralith || echo "Method 2 failed"
-          
-          # Method 3: Try direct download if npm methods fail
-          if ! command -v pluralith &> /dev/null; then
-            echo "Trying direct download method..."
-            curl -fsSL https://api.pluralith.com/install.sh | bash
-            echo "$HOME/.pluralith/bin" >> $GITHUB_PATH
-          fi
-          
-          echo "Adding npm global bin to PATH as fallback..."
-          echo "$(npm config get prefix)/bin" >> $GITHUB_PATH
-          echo "Current PATH: $PATH"
-          echo "Checking if pluralith is available..."
-          which pluralith || echo "WARNING: pluralith not found in PATH"
-          
-      - name: Setup Pluralith License (Optional)
-        if: env.PLURALITH_LICENSE_KEY != '' && success()
-        run: |
-          echo "Setting up Pluralith license..."
-          pluralith auth login --license-key "${{ secrets.PLURALITH_LICENSE_KEY }}"
-          echo "Pluralith authentication completed"
-        env:
-          PLURALITH_LICENSE_KEY: ${{ secrets.PLURALITH_LICENSE_KEY }}
-          
-      - name: Generate Pluralith Diagram (Without License)
-        if: env.PLURALITH_LICENSE_KEY == '' || failure()
-        run: |
-          echo "Generating diagram without license (limited features)..."
-          cd ${{ env.WORKING_DIR }}
-          pluralith diagram \
-            --plan-file tfplan \
-            --output-format ${{ github.event.inputs.output_format }} \
-            --output-file "aws-architecture-${{ github.event.inputs.environment }}" \
-            --show-resources ${{ github.event.inputs.include_resources }} \
-            --theme aws \
-            --title "Quote Lambda TF - Frontend Infrastructure (${{ github.event.inputs.environment }})" \
-            --description "AWS architecture for quote-lambda-tf frontend deployment in ${{ github.event.inputs.environment }} environment" || echo "Diagram generation failed, but workflow continues"
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION || 'eu-central-1' }}
           
       - name: Terraform Init
         run: |
           cd ${{ env.WORKING_DIR }}
           terraform init
           
-      - name: Terraform Plan
-        run: |
-          cd ${{ env.WORKING_DIR }}
-          terraform plan -out=tfplan -var-file="terraform.tfvars"
+      - name: Pluralith Init
+        uses: Pluralith/actions/init@v1.4.0
+        with:
+          terraform-path: ${{ env.WORKING_DIR }}
+          api-key: ${{ secrets.PLURALITH_API_KEY }}
           
-      - name: Show Terraform Plan
-        run: |
-          cd ${{ env.WORKING_DIR }}
-          terraform show -json tfplan > plan.json
+      - name: Pluralith Run
+        uses: Pluralith/actions/run@v1.4.0
+        with:
+          terraform-command: "plan"
+          terraform-path: ${{ env.WORKING_DIR }}
+          show-changes: true
+          show-drift: true
+          show-costs: false
           
-      - name: Generate Pluralith Diagram
-        run: |
-          cd ${{ env.WORKING_DIR }}
-          pluralith diagram \
-            --plan-file tfplan \
-            --output-format ${{ github.event.inputs.output_format }} \
-            --output-file "aws-architecture-${{ github.event.inputs.environment }}" \
-            --show-resources ${{ github.event.inputs.include_resources }} \
-            --theme aws \
-            --title "Quote Lambda TF - Frontend Infrastructure (${{ github.event.inputs.environment }})" \
-            --description "AWS architecture for quote-lambda-tf frontend deployment in ${{ github.event.inputs.environment }} environment"
-            
       - name: Upload Diagram Artifact
         uses: actions/upload-artifact@v4
         with:
           name: aws-architecture-diagram-${{ github.event.inputs.environment }}
-          path: ${{ env.WORKING_DIR }}/aws-architecture-${{ github.event.inputs.environment }}.${{ github.event.inputs.output_format }}
+          path: ${{ env.WORKING_DIR }}/pluralith-output/
           retention-days: 30
+          
+      - name: Copy Diagram to Expected Location
+        run: |
+          cd ${{ env.WORKING_DIR }}
+          if [ -d "pluralith-output" ]; then
+            mkdir -p ../doc/diagrams/
+            cp -r pluralith-output/* ../doc/diagrams/ || echo "No files to copy"
+            ls -la ../doc/diagrams/ || echo "Diagrams directory not created"
+          else
+            echo "No pluralith-output directory found"
+          fi
           
       - name: Create Diagram Summary
         id: diagram-summary
