@@ -57,6 +57,11 @@ jobs:
           cd ${{ env.WORKING_DIR }}
           terraform init
           
+      - name: Install Pluralith CLI
+        run: |
+          curl -fsSL https://api.pluralith.com/install.sh | bash
+          echo "$HOME/.pluralith/bin" >> $GITHUB_PATH
+          
       - name: Pluralith Init
         run: |
           cd ${{ env.WORKING_DIR }}
