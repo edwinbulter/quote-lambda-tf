@@ -88,6 +88,10 @@ jobs:
           show-changes: true
           show-drift: true
           show-costs: false
+        env:
+          PLURALITH_ORG_ID: ${{ secrets.PLURALITH_ORG_ID }}
+          PLURALITH_PROJECT_ID: ${{ secrets.PLURALITH_PROJECT_ID }}
+          PLURALITH_PROJECT_NAME: ${{ secrets.PLURALITH_PROJECT_NAME }}
           
       - name: Upload Diagram Artifact
         uses: actions/upload-artifact@v4
