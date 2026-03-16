@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aws-architecture-diagram-${{ github.event.inputs.environment }}
-          path: ${{ env.WORKING_DIR }}/pluralith-output/
+          path: ${{ env.WORKING_DIR }}/diagrams/
           retention-days: 30
           
       - name: Copy Diagram to Expected Location
