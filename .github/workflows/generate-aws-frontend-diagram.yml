@@ -29,9 +29,6 @@ on:
 env:
   PROJECT_NAME: 'quote-lambda-tf-frontend'
   WORKING_DIR: 'quote-lambda-tf-frontend/infrastructure'
-  PLURALITH_ORG_ID: ${{ secrets.PLURALITH_ORG_ID }}
-  PLURALITH_PROJECT_ID: ${{ secrets.PLURALITH_PROJECT_ID }}
-  PLURALITH_PROJECT_NAME: ${{ secrets.PLURALITH_PROJECT_NAME }}
 
 jobs:
   generate-diagram:
@@ -60,32 +57,11 @@ jobs:
           cd ${{ env.WORKING_DIR }}
           terraform init
           
-      - name: Debug Pluralith Secrets
-        run: |
-          echo "Checking Pluralith secrets..."
-          echo "PLURALITH_API_KEY exists: ${{ secrets.PLURALITH_API_KEY != '' }}"
-          echo "PLURALITH_ORG_ID exists: ${{ secrets.PLURALITH_ORG_ID != '' }}"
-          echo "PLURALITH_PROJECT_ID exists: ${{ secrets.PLURALITH_PROJECT_ID != '' }}"
-          echo "PLURALITH_PROJECT_NAME exists: ${{ secrets.PLURALITH_PROJECT_NAME != '' }}"
-          echo "PLURALITH_ORG_ID value: ${{ secrets.PLURALITH_ORG_ID }}"
-          echo "PLURALITH_PROJECT_ID value: ${{ secrets.PLURALITH_PROJECT_ID }}"
-          echo "PLURALITH_PROJECT_NAME value: ${{ secrets.PLURALITH_PROJECT_NAME }}"
-          
       - name: Pluralith Init
         uses: Pluralith/actions/init@v1.4.0
         with:
           terraform-path: ${{ env.WORKING_DIR }}
           api-key: ${{ secrets.PLURALITH_API_KEY }}
-          org-id: ${{ secrets.PLURALITH_ORG_ID }}
-          project-id: ${{ secrets.PLURALITH_PROJECT_ID }}
-          project-name: ${{ secrets.PLURALITH_PROJECT_NAME }}
-          
-      - name: Debug Environment Before Run
-        run: |
-          echo "Environment before Pluralith Run..."
-          echo "PLURALITH_ORG_ID: ${{ env.PLURALITH_ORG_ID }}"
-          echo "PLURALITH_PROJECT_ID: ${{ env.PLURALITH_PROJECT_ID }}"
-          echo "PLURALITH_PROJECT_NAME: ${{ env.PLURALITH_PROJECT_NAME }}"
           
       - name: Pluralith Run
         uses: Pluralith/actions/run@v1.4.0
@@ -95,10 +71,6 @@ jobs:
           show-changes: true
           show-drift: true
           show-costs: false
-        env:
-          PLURALITH_ORG_ID: "664770534"
-          PLURALITH_PROJECT_ID: ${{ secrets.PLURALITH_PROJECT_ID }}
-          PLURALITH_PROJECT_NAME: ${{ secrets.PLURALITH_PROJECT_NAME }}
           
       - name: Upload Diagram Artifact
         uses: actions/upload-artifact@v4
