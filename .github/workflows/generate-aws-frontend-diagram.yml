@@ -51,8 +51,9 @@ jobs:
           
       - name: Install Pluralith
         run: |
-          curl -fsSL https://api.pluralith.com/install.sh | bash
-          echo "$HOME/.pluralith/bin" >> $GITHUB_PATH
+          # Install Pluralith using npm
+          npm install -g @pluralith/cli
+          echo "$(npm config get prefix)/bin" >> $GITHUB_PATH
           
       - name: Setup Pluralith License
         if: env.PLURALITH_LICENSE_KEY != ''
