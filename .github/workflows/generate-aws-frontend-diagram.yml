@@ -57,20 +57,10 @@ jobs:
           cd ${{ env.WORKING_DIR }}
           terraform init
           
-      - name: Debug Config File
+      - name: Pluralith Init
         run: |
           cd ${{ env.WORKING_DIR }}
-          echo "Current directory: $(pwd)"
-          echo "Listing files:"
-          ls -la
-          echo "Checking pluralith.yml:"
-          cat pluralith.yml || echo "Config file not found"
-          
-      - name: Pluralith Init
-        uses: Pluralith/actions/init@v1.4.0
-        with:
-          terraform-path: ${{ env.WORKING_DIR }}
-          api-key: ${{ secrets.PLURALITH_API_KEY }}
+          pluralith init --api-key ${{ secrets.PLURALITH_API_KEY }} --no-inputs
           
       - name: Pluralith Run
         uses: Pluralith/actions/run@v1.4.0
@@ -80,6 +70,10 @@ jobs:
           show-changes: true
           show-drift: true
           show-costs: false
+        env:
+          PLURALITH_ORG_ID: "664770534"
+          PLURALITH_PROJECT_ID: "quote-lambda-tf-frontend"
+          PLURALITH_PROJECT_NAME: "Quote Lambda TF Frontend"
           
       - name: Upload Diagram Artifact
         uses: actions/upload-artifact@v4
