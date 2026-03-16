@@ -60,6 +60,17 @@ jobs:
           cd ${{ env.WORKING_DIR }}
           terraform init
           
+      - name: Debug Pluralith Secrets
+        run: |
+          echo "Checking Pluralith secrets..."
+          echo "PLURALITH_API_KEY exists: ${{ secrets.PLURALITH_API_KEY != '' }}"
+          echo "PLURALITH_ORG_ID exists: ${{ secrets.PLURALITH_ORG_ID != '' }}"
+          echo "PLURALITH_PROJECT_ID exists: ${{ secrets.PLURALITH_PROJECT_ID != '' }}"
+          echo "PLURALITH_PROJECT_NAME exists: ${{ secrets.PLURALITH_PROJECT_NAME != '' }}"
+          echo "PLURALITH_ORG_ID value: ${{ secrets.PLURALITH_ORG_ID }}"
+          echo "PLURALITH_PROJECT_ID value: ${{ secrets.PLURALITH_PROJECT_ID }}"
+          echo "PLURALITH_PROJECT_NAME value: ${{ secrets.PLURALITH_PROJECT_NAME }}"
+          
       - name: Pluralith Init
         uses: Pluralith/actions/init@v1.4.0
         with:
@@ -68,10 +79,6 @@ jobs:
           org-id: ${{ secrets.PLURALITH_ORG_ID }}
           project-id: ${{ secrets.PLURALITH_PROJECT_ID }}
           project-name: ${{ secrets.PLURALITH_PROJECT_NAME }}
-        env:
-          PLURALITH_ORG_ID: ${{ secrets.PLURALITH_ORG_ID }}
-          PLURALITH_PROJECT_ID: ${{ secrets.PLURALITH_PROJECT_ID }}
-          PLURALITH_PROJECT_NAME: ${{ secrets.PLURALITH_PROJECT_NAME }}
           
       - name: Pluralith Run
         uses: Pluralith/actions/run@v1.4.0
