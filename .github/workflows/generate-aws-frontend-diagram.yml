@@ -95,11 +95,8 @@ jobs:
           show-changes: true
           show-drift: true
           show-costs: false
-          org-id: ${{ env.PLURALITH_ORG_ID }}
-          project-id: ${{ env.PLURALITH_PROJECT_ID }}
-          project-name: ${{ env.PLURALITH_PROJECT_NAME }}
         env:
-          PLURALITH_ORG_ID: ${{ secrets.PLURALITH_ORG_ID }}
+          PLURALITH_ORG_ID: "664770534"
           PLURALITH_PROJECT_ID: ${{ secrets.PLURALITH_PROJECT_ID }}
           PLURALITH_PROJECT_NAME: ${{ secrets.PLURALITH_PROJECT_NAME }}
           
