@@ -80,6 +80,13 @@ jobs:
           project-id: ${{ secrets.PLURALITH_PROJECT_ID }}
           project-name: ${{ secrets.PLURALITH_PROJECT_NAME }}
           
+      - name: Debug Environment Before Run
+        run: |
+          echo "Environment before Pluralith Run..."
+          echo "PLURALITH_ORG_ID: ${{ env.PLURALITH_ORG_ID }}"
+          echo "PLURALITH_PROJECT_ID: ${{ env.PLURALITH_PROJECT_ID }}"
+          echo "PLURALITH_PROJECT_NAME: ${{ env.PLURALITH_PROJECT_NAME }}"
+          
       - name: Pluralith Run
         uses: Pluralith/actions/run@v1.4.0
         with:
