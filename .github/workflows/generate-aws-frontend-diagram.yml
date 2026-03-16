@@ -62,6 +62,9 @@ jobs:
         with:
           terraform-path: ${{ env.WORKING_DIR }}
           api-key: ${{ secrets.PLURALITH_API_KEY }}
+          org-id: ${{ secrets.PLURALITH_ORG_ID }}
+          project-id: ${{ secrets.PLURALITH_PROJECT_ID }}
+          project-name: ${{ secrets.PLURALITH_PROJECT_NAME }}
           
       - name: Pluralith Run
         uses: Pluralith/actions/run@v1.4.0
