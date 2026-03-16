@@ -29,6 +29,9 @@ on:
 env:
   PROJECT_NAME: 'quote-lambda-tf-frontend'
   WORKING_DIR: 'quote-lambda-tf-frontend/infrastructure'
+  PLURALITH_ORG_ID: ${{ secrets.PLURALITH_ORG_ID }}
+  PLURALITH_PROJECT_ID: ${{ secrets.PLURALITH_PROJECT_ID }}
+  PLURALITH_PROJECT_NAME: ${{ secrets.PLURALITH_PROJECT_NAME }}
 
 jobs:
   generate-diagram:
@@ -65,6 +68,10 @@ jobs:
           org-id: ${{ secrets.PLURALITH_ORG_ID }}
           project-id: ${{ secrets.PLURALITH_PROJECT_ID }}
           project-name: ${{ secrets.PLURALITH_PROJECT_NAME }}
+        env:
+          PLURALITH_ORG_ID: ${{ secrets.PLURALITH_ORG_ID }}
+          PLURALITH_PROJECT_ID: ${{ secrets.PLURALITH_PROJECT_ID }}
+          PLURALITH_PROJECT_NAME: ${{ secrets.PLURALITH_PROJECT_NAME }}
           
       - name: Pluralith Run
         uses: Pluralith/actions/run@v1.4.0
