@@ -57,6 +57,15 @@ jobs:
           cd ${{ env.WORKING_DIR }}
           terraform init
           
+      - name: Debug Config File
+        run: |
+          cd ${{ env.WORKING_DIR }}
+          echo "Current directory: $(pwd)"
+          echo "Listing files:"
+          ls -la
+          echo "Checking pluralith.yml:"
+          cat pluralith.yml || echo "Config file not found"
+          
       - name: Pluralith Init
         uses: Pluralith/actions/init@v1.4.0
         with:
