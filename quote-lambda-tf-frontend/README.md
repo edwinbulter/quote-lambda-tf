@@ -290,5 +290,5 @@ Look in [doc/github-workflows.md](doc/github-workflows.md) for more information.
 
 ### Infrastructure Deployment
 
-The infrastructure is managed using Terraform. Refer to [doc/infrastructure.md](doc/infrastructure.md) for detailed instructions on setting up and managing the AWS resources.
+The infrastructure is managed using Terraform see: [infrastructure/README.md](infrastructure/README.md) for setup and deployment instructions.
 

@@ -7,6 +7,7 @@ This directory contains the Terraform configuration for the **application infras
 - **S3 Bucket**: Stores the static website files
 - **CloudFront Distribution**: CDN for global content delivery
 - **Origin Access Identity**: Secures S3 bucket access (only CloudFront can read)
+- refer to [doc/infrastructure.md](../doc/infrastructure.md) for detailed instructions on setting up and managing the AWS resources.
 
 ![pluralith-diagram](pluralith-diagram.png)
 

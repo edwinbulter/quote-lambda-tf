@@ -1,6 +1,6 @@
 # Infrastructure Setup Guide
 
-This directory contains Terraform configuration for deploying the Quote Lambda Frontend infrastructure on AWS.
+This document describes the Terraform configuration for deploying the Quote Lambda Frontend infrastructure on AWS.
 
 ## Table of Contents
 
@@ -448,6 +448,4 @@ For issues or questions:
 2. Review AWS CloudFront and S3 documentation
 3. Check Terraform state in S3 for current infrastructure status
 
-## License
 
-[Your License Here]
