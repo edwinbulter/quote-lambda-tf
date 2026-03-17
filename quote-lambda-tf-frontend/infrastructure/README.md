@@ -8,6 +8,8 @@ This directory contains the Terraform configuration for the **application infras
 - **CloudFront Distribution**: CDN for global content delivery
 - **Origin Access Identity**: Secures S3 bucket access (only CloudFront can read)
 
+![pluralith-diagram](pluralith-diagram.png)
+
 ## Prerequisites
 
 Before deploying this infrastructure, you must first set up the bootstrap infrastructure:
