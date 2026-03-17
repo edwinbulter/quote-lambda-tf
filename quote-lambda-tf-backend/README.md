@@ -302,11 +302,7 @@ mvn clean package
 
 ### Deploy Infrastructure
 
-```bash
-cd infrastructure
-terraform init
-terraform apply
-```
+For deploying the infrastructure look at **[infrastructure.md](./doc/infrastructure.md)** 
 
 ### Deploy Lambda Function
 
