@@ -9,6 +9,14 @@ This directory contains the Terraform configuration for the **backend applicatio
 - **DynamoDB Table**: NoSQL database for storing quotes
 - **IAM Roles**: Least-privilege execution roles for Lambda
 
+![diagram](pluralith-diagram.png)
+
+The above diagram can be regenerated from the infrastructure folder with pluralith like this:
+```shell
+pluralith graph --var-file=dev.tfvars
+```
+
+
 ## Prerequisites
 
 Before deploying this infrastructure, ensure the bootstrap infrastructure exists:

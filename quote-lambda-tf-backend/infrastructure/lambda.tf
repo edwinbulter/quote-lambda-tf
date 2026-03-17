@@ -102,8 +102,8 @@ resource "aws_lambda_function" "quote_lambda" {
   timeout       = var.lambda_timeout
   publish       = true
 
-  filename         = "${path.module}/../target/${var.project_name}-1.4.0-SNAPSHOT.jar"
-  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.4.0-SNAPSHOT.jar")
+  filename         = "${path.module}/../target/${var.project_name}-1.5.0-SNAPSHOT.jar"
+  source_code_hash = filebase64sha256("${path.module}/../target/${var.project_name}-1.5.0-SNAPSHOT.jar")
 
   environment {
     variables = {
