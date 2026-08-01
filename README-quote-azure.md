@@ -28,7 +28,7 @@ A full-stack serverless quote management application deployed on Microsoft Azure
 
 ## 🌟 Live Demo
 
-The Live Demo is deactivated because OVH Cloud was sending mails about skyhigh bill predictions, which they admitted was wrong the first time. Today (2026-08-01) I became another high prediction, and as it is just a testing environment for me personlly I will unsubscribe from OVH Cloud.
+The Live Demo is deactivated because OVH Cloud was sending mails with skyhigh bill predictions, which they admitted was wrong the first time. Today (2026-08-01) I became another high prediction, and as it is just a personal testing environment I will unsubscribe from OVH Cloud.
 
 ```text
 Dear customer,
