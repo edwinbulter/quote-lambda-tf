@@ -28,6 +28,36 @@ A full-stack serverless quote management application deployed on Microsoft Azure
 
 ## 🌟 Live Demo
 
+The Live Demo is deactivated because OVH Cloud was sending mails about skyhigh bill predictions, which they admitted was wrong the first time. Today (2026-08-01) I became another high prediction, and as it is just a testing environment for me personlly I will unsubscribe from OVH Cloud.
+
+```text
+Dear customer,
+
+As requested, we have sent you this email to warn you that by the end of the month you are likely to go over the threshold that you specified (€10.00).
+
+As of 2026-06-23 at 12:47 you have used a total of €5.62 since the beginning of this month.
+At the current rate, we estimate that in total you will use €4,043.52* in the current month.
+
+------
+
+Dear customer,
+
+As requested, we have sent you this email to warn you that by the end of the month you are likely to go over the threshold that you specified (€10.00).
+
+As of 2026-08-01 at 01:37 you have used a total of €0.27 since the beginning of this month.
+At the current rate, we estimate that in total you will use €201.18* in the current month.
+
+We therefore suggest that you adjust your alert or adjust your resources for this project in your control panel.
+Please note that you can switch to "monthly billing" at any moment to reduce the cost in the medium term.
+
+If you do not make any changes, you will receive another alert in 1 hour.
+
+*estimate as a guideline only, excludes additional bandwidth and any resources added after this email.
+
+
+The OVHcloud Team
+```
+
 Access the Azure-deployed application at:
 
 **Azure Production Environment:**
